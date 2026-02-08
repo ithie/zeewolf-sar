@@ -1,35 +1,119 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v7.1.4 - STATIC WORLD FIX</title>
+    <title>ZEEWOLF: SAR v7.5.1 - CLASSIC LIVERY</title>
     <style>
-        body { background: #000b1a; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; }
-        #splash, #crash-screen, #win-screen {
+        body { background: #000b1a; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; user-select: none; }
+        
+        /* FULLSCREEN OVERLAYS */
+        #splash, #mission-select, #heli-select, #crash-screen, #win-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 11, 26, 0.95); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 200; cursor: pointer;
+            justify-content: center; align-items: center; z-index: 200; cursor: default;
         }
         #crash-screen { background: rgba(80, 0, 0, 0.9); display: none; }
         #win-screen { background: rgba(0, 80, 40, 0.9); display: none; }
+        
+        #mission-select, #heli-select { display: none; }
+
+        /* TYPOGRAPHY */
         .title { font-size: 64px; color: #ff6600; text-shadow: 0 0 20px #ff6600; margin-bottom: 5px; font-weight: bold; }
-        .subtitle { font-size: 20px; color: #5f5; margin-bottom: 10px; letter-spacing: 4px; }
-        .msg-popup { position: absolute; bottom: 20%; width: 100%; text-align: center; color: #fff; font-size: 24px; opacity: 0; transition: opacity 0.8s; pointer-events: none; z-index: 150;}
-        .start-hint { font-size: 22px; animation: blink 1s infinite; color: #fff; margin-top: 20px; text-transform: uppercase; }
+        .subtitle { font-size: 20px; color: #5f5; margin-bottom: 30px; letter-spacing: 4px; }
+        
+        /* GRID SYSTEM (2x2) */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 20px;
+            width: 800px;
+            height: 500px;
+        }
+
+        .grid-box {
+            background: rgba(0, 40, 15, 0.4);
+            border: 1px solid #3a3;
+            color: #585;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 18px;
+            transition: 0.2s;
+            position: relative;
+            border-radius: 4px;
+        }
+
+        .grid-box.active {
+            border: 2px solid #ff6600;
+            background: rgba(0, 20, 40, 0.6);
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 102, 0, 0.2);
+        }
+        .grid-box.active:hover {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 30px #ff6600;
+            transform: scale(1.02);
+            z-index: 10;
+        }
+        
+        .grid-box.locked {
+            border: 1px dashed #242;
+            color: #242;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .box-label { font-weight: bold; font-size: 20px; margin-top: 10px; text-transform: uppercase;}
+        .box-sub { font-size: 14px; margin-top: 5px; opacity: 0.8; }
+        
+        .mini-canvas { width: 100%; height: 150px; margin-bottom: 5px; pointer-events: none; }
+
+        .start-hint { font-size: 22px; animation: blink 1s infinite; color: #fff; margin-top: 30px; text-transform: uppercase; cursor: pointer; }
         @keyframes blink { 50% { opacity: 0; } }
-        #menu-heli { width: 800px; height: 400px; margin-bottom: 0px; filter: drop-shadow(0 0 15px rgba(255,102,0,0.3)); }
+        
+        #menu-heli-big { width: 800px; height: 300px; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,102,0,0.3)); }
     </style>
 </head>
 <body>
-    <div id="splash" onclick="startGame()">
+
+    <div id="splash" onclick="toMissionSelect()">
         <div class="title">ZEEWOLF: SAR</div>
-        <div class="subtitle">WORLD STATIC v7.1.4</div>
-        <canvas id="menu-heli"></canvas>
-        <div style="text-align: left; background: rgba(0,255,100,0.05); padding: 25px; border: 1px solid #5f5; color: #fff; line-height: 1.6; border-radius: 8px;">
-            • INTRO: TRUE STATIC TERRAIN<br>
-            • ENGINE: HOLD [W] (MAX ALT 160m)<br>
-            • WARNING: HANGAR COLLISION ACTIVE
+        <div class="subtitle">v7.5.1 CLASSIC LIVERY</div>
+        <canvas id="menu-heli-big"></canvas>
+        <p class="start-hint">CLICK TO START SYSTEM</p>
+    </div>
+
+    <div id="mission-select">
+        <div class="title">SELECT MISSION</div>
+        <div class="subtitle">OPERATION THEATER</div>
+        <div class="grid-container">
+            <div class="grid-box active" onclick="toHeliSelect()">
+                <div class="box-label">COASTAL TRAINING</div>
+                <div class="box-sub">Search & Rescue</div>
+                <div class="box-sub">Difficulty: Normal</div>
+            </div>
+            <div class="grid-box locked"><div class="box-label">LOCKED</div><div class="box-sub">Campaign Mode</div></div>
+            <div class="grid-box locked"><div class="box-label">LOCKED</div><div class="box-sub">Night Ops</div></div>
+            <div class="grid-box locked"><div class="box-label">LOCKED</div><div class="box-sub">Storm Front</div></div>
         </div>
-        <p class="start-hint">CLICK TO DEPLOY</p>
+    </div>
+
+    <div id="heli-select">
+        <div class="title">HANGAR</div>
+        <div class="subtitle">SELECT AIRFRAME</div>
+        <div class="grid-container">
+            <div class="grid-box active" onclick="startGame()">
+                <canvas id="icon-jayhawk" class="mini-canvas" width="300" height="200"></canvas>
+                <div class="box-label">MH-60 JAYHAWK</div>
+                <div class="box-sub">Classic Orange Livery</div>
+            </div>
+            <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
+            <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
+            <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
+        </div>
     </div>
 
     <div id="crash-screen" onclick="location.reload()">
@@ -40,7 +124,7 @@
 
     <div id="win-screen" onclick="location.reload()">
         <div class="title" style="color: #fff;">MISSION COMPLETE</div>
-        <p style="color: #5f5; font-size: 24px;">ALL 5 PATIENTS RECOVERED</p>
+        <p style="color: #5f5; font-size: 24px;">ALL PATIENTS RECOVERED</p>
         <p class="start-hint">RETURN TO BASE (CLICK)</p>
     </div>
 
@@ -52,7 +136,21 @@
     const ctx = canvas.getContext('2d');
     const tileW = 64, tileH = 32, stepH = 25, gridSize = 200;
     
-    // States
+    // NAVIGATION
+    function toMissionSelect() {
+        document.getElementById('splash').style.display = 'none';
+        document.getElementById('mission-select').style.display = 'flex';
+    }
+    
+    let heliPreviewInterval = null;
+    
+    function toHeliSelect() {
+        document.getElementById('mission-select').style.display = 'none';
+        document.getElementById('heli-select').style.display = 'flex';
+        animateHeliPreview();
+    }
+
+    // GAME STATES
     let gameStarted = false, crashed = false;
     let introActive = false, introProgress = 0;
     
@@ -62,7 +160,7 @@
 
     const PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25 };
     const START_POS = { x: 21.5, y: 21.5 };
-    const MAX_ALTITUDE = 16.0; // Updated to 16.0
+    const MAX_ALTITUDE = 16.0; 
 
     // Terrain Gen
     for(let x=0; x<=gridSize; x++) {
@@ -84,8 +182,7 @@
     };
     
     let windAngle = Math.random() * Math.PI * 2;
-    let windSpeed = 0.00015; 
-    let wind = { x: Math.cos(windAngle) * windSpeed, y: Math.sin(windAngle) * windSpeed, phase: 0 }; 
+    let wind = { x: Math.cos(windAngle) * 0.00015, y: Math.sin(windAngle) * 0.00015, phase: 0 }; 
     let casualty = { x: 40, y: 40, rescued: false, hanging: false };
     let keys = {};
 
@@ -106,8 +203,8 @@
 
     function spawnCasualty() {
         if (totalSpawned < 5) {
-            casualty.x = 30 + Math.random() * 80;
-            casualty.y = 30 + Math.random() * 80;
+            casualty.x = 40 + Math.random() * 100;
+            casualty.y = 40 + Math.random() * 100;
             casualty.rescued = false; hanging = false; totalSpawned++;
         } else { casualty.rescued = true; }
     }
@@ -118,45 +215,24 @@
         setTimeout(() => { m.style.opacity = 0; }, 2000);
     }
 
-    // HANGAR DRAWING
     function drawHangar(camX, cy) {
         const hX = 21; const hY = 17; const hZ = 0.5;
         const hW = 4; const hD = 2.0; const hH = 1.8;
-
-        const bFL = iso(hX, hY + hD, hZ, camX, cy); 
-        const bFR = iso(hX + hW, hY + hD, hZ, camX, cy);         
-        const bBL = iso(hX, hY, hZ, camX, cy); 
-        const bBR = iso(hX + hW, hY, hZ, camX, cy); 
-
-        const tFL = iso(hX, hY + hD, hZ + hH, camX, cy);
-        const tFR = iso(hX + hW, hY + hD, hZ + hH, camX, cy);
-        const tBL = iso(hX, hY, hZ + hH, camX, cy);
-        const tBR = iso(hX + hW, hY, hZ + hH, camX, cy);
-
-        ctx.fillStyle = "#bbbbbb"; ctx.beginPath(); 
-        ctx.moveTo(bFL.x, bFL.y); ctx.lineTo(bBL.x, bBL.y); ctx.lineTo(tBL.x, tBL.y); ctx.lineTo(tFL.x, tFL.y); ctx.fill();
-        ctx.strokeStyle = "#999"; ctx.stroke();
-
-        ctx.fillStyle = "#999999"; ctx.beginPath(); 
-        ctx.moveTo(bFR.x, bFR.y); ctx.lineTo(bBR.x, bBR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tFR.x, tFR.y); ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#dddddd"; ctx.beginPath(); 
-        ctx.moveTo(tFL.x, tFL.y); ctx.lineTo(tFR.x, tFR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tBL.x, tBL.y); ctx.fill();
-        ctx.strokeStyle = "#fff"; ctx.stroke();
+        const bFL = iso(hX, hY + hD, hZ, camX, cy); const bFR = iso(hX + hW, hY + hD, hZ, camX, cy);         
+        const bBL = iso(hX, hY, hZ, camX, cy); const bBR = iso(hX + hW, hY, hZ, camX, cy); 
+        const tFL = iso(hX, hY + hD, hZ + hH, camX, cy); const tFR = iso(hX + hW, hY + hD, hZ + hH, camX, cy);
+        const tBL = iso(hX, hY, hZ + hH, camX, cy); const tBR = iso(hX + hW, hY, hZ + hH, camX, cy);
+        ctx.fillStyle = "#bbbbbb"; ctx.beginPath(); ctx.moveTo(bFL.x, bFL.y); ctx.lineTo(bBL.x, bBL.y); ctx.lineTo(tBL.x, tBL.y); ctx.lineTo(tFL.x, tFL.y); ctx.fill(); ctx.strokeStyle = "#999"; ctx.stroke();
+        ctx.fillStyle = "#999999"; ctx.beginPath(); ctx.moveTo(bFR.x, bFR.y); ctx.lineTo(bBR.x, bBR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tFR.x, tFR.y); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#dddddd"; ctx.beginPath(); ctx.moveTo(tFL.x, tFL.y); ctx.lineTo(tFR.x, tFR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tBL.x, tBL.y); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.stroke();
     }
 
     function drawPadLights(camX, cy) {
-        const lights = [
-            {x: PAD.xMin + 0.5, y: PAD.yMin + 0.5}, {x: PAD.xMax + 0.5, y: PAD.yMin + 0.5},
-            {x: PAD.xMax + 0.5, y: PAD.yMax + 0.5}, {x: PAD.xMin + 0.5, y: PAD.yMax + 0.5}
-        ];
+        const lights = [{x: PAD.xMin+0.5, y: PAD.yMin+0.5}, {x: PAD.xMax+0.5, y: PAD.yMin+0.5}, {x: PAD.xMax+0.5, y: PAD.yMax+0.5}, {x: PAD.xMin+0.5, y: PAD.yMax+0.5}];
         let blink = Math.floor(Date.now() / 500) % 2 === 0;
         lights.forEach(l => {
             let p = iso(l.x, l.y, 0.5, camX, cy);
-            ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill();
-            if(blink) { ctx.fillStyle = "#f00"; ctx.shadowBlur = 10; ctx.shadowColor = "red"; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, 7); ctx.fill(); ctx.shadowBlur = 0; } 
-            else { ctx.fillStyle = "#500"; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, 7); ctx.fill(); }
+            ctx.fillStyle = blink ? "#f00" : "#500"; ctx.beginPath(); ctx.arc(p.x, p.y, blink?3:2.5, 0, 7); ctx.fill();
         });
     }
 
@@ -165,18 +241,17 @@
         let base = iso(wx, wy, getGround(wx, wy), camX, cy);
         let top = iso(wx, wy, getGround(wx, wy) + 1.2, camX, cy);
         ctx.strokeStyle = "#aaa"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(top.x, top.y); ctx.stroke();
-        
         let wIsoX = (Math.cos(windAngle) - Math.sin(windAngle)) * (tileW/2);
         let wIsoY = (Math.cos(windAngle) + Math.sin(windAngle)) * (tileH/2);
+        
+        // KÜRZERER WINDSACK
         let len = Math.hypot(wIsoX, wIsoY); wIsoX = (wIsoX / len) * 5; wIsoY = (wIsoY / len) * 5;
         let phase = Date.now() * 0.005;
-
         ctx.fillStyle = "orange"; ctx.beginPath(); ctx.moveTo(top.x, top.y);
         let cx = top.x, cyPos = top.y;
-        for(let i=0; i<6; i++) {
-            let bend = Math.sin(phase + i * 0.5) * 2;
-            cx += wIsoX; cyPos += wIsoY + bend * 0.3;
-            ctx.lineTo(cx, cyPos);
+        for(let i=0; i<4; i++) { 
+            let bend = Math.sin(phase + i * 0.5) * 1.5; 
+            cx += wIsoX; cyPos += wIsoY + bend * 0.3; ctx.lineTo(cx, cyPos); 
         }
         ctx.lineTo(top.x, top.y + 3); ctx.fill();
     }
@@ -194,6 +269,7 @@
             targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - gH)*0.08)})`;
             targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
         } else {
+            // ORIGINAL ORANGE COLOR
             targetCtx.strokeStyle = "#ff6600"; targetCtx.lineWidth = 5 * scale;
             targetCtx.beginPath(); targetCtx.moveTo(pB.x, pB.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.stroke();
             targetCtx.fillStyle = "#ff6600"; targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
@@ -208,26 +284,39 @@
         }
     }
 
-    function drawMenuHeli() {
+    // MAIN MENU ANIMATION (Splash)
+    function drawBigMenuHeli() {
         if(gameStarted) return;
-        const c = document.getElementById('menu-heli'); const cx = c.getContext('2d');
-        c.width = 800; c.height = 400; cx.clearRect(0,0,c.width,c.height);
+        const c = document.getElementById('menu-heli-big'); const cx = c.getContext('2d');
+        c.width = 800; c.height = 300; cx.clearRect(0,0,c.width,c.height);
         const t = Date.now() * 0.001;
         drawHeli(0, 0, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3.5);
-        requestAnimationFrame(drawMenuHeli);
+        if(document.getElementById('splash').style.display !== 'none') {
+            requestAnimationFrame(drawBigMenuHeli);
+        }
     }
-    drawMenuHeli();
+    drawBigMenuHeli();
+
+    // HELI SELECTION ANIMATION
+    function animateHeliPreview() {
+        const c = document.getElementById('icon-jayhawk');
+        if(!c || document.getElementById('heli-select').style.display === 'none') return;
+        
+        const cx = c.getContext('2d');
+        const t = Date.now() * 0.001;
+        
+        cx.clearRect(0,0,c.width,c.height);
+        drawHeli(0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 2.5);
+        
+        requestAnimationFrame(animateHeliPreview);
+    }
 
     function startGame() {
         if(gameStarted) return;
-        document.getElementById('splash').style.display = 'none';
-        gameStarted = true;
-        introActive = true;
-        introProgress = 0;
+        document.getElementById('heli-select').style.display = 'none';
         
-        cam.x = (START_POS.x - START_POS.y) * (tileW / 2);
-        cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
-        
+        gameStarted = true; introActive = true; introProgress = 0;
+        cam.x = (START_POS.x - START_POS.y) * (tileW / 2); cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
         spawnCasualty(); 
         render();
     }
@@ -237,13 +326,21 @@
 
     function handleParticles() {
         let gH = getGround(heli.x, heli.y);
-        if ((heli.z - gH) < 1.2 && heli.rotorRPM > 0.8) {
+        if (heli.z < 2.0 && heli.rotorRPM > 0.8 && gH < 0) {
+             for(let i=0; i<1; i++) {
+                let a = Math.random() * Math.PI * 2;
+                particles.push({
+                    x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: 0,
+                    vx: Math.cos(a)*0.06, vy: Math.sin(a)*0.06, life: 0.5, color: "200, 230, 255"
+                });
+            }
+        }
+        else if ((heli.z - gH) < 1.2 && heli.rotorRPM > 0.8) {
             for(let i=0; i<1; i++) {
                 let a = Math.random() * Math.PI * 2;
                 particles.push({
                     x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: gH,
-                    vx: Math.cos(a)*0.04, vy: Math.sin(a)*0.04, life: 0.4,
-                    color: gH < 0 ? "180, 220, 255" : "150, 150, 130"
+                    vx: Math.cos(a)*0.04, vy: Math.sin(a)*0.04, life: 0.4, color: "150, 150, 130"
                 });
             }
         }
@@ -262,7 +359,6 @@
             heli.x = startX + (START_POS.x - startX) * introProgress;
             heli.y = startY + (START_POS.y - startY) * introProgress;
             heli.z = 0.5; heli.angle = -Math.PI / 4; heli.rotorRPM = 0; 
-
             if(introProgress >= 1) {
                 introActive = false; heli.engineOn = false; heli.rotorRPM = 0;
                 heli.x = START_POS.x; heli.y = START_POS.y;
@@ -271,7 +367,7 @@
             return;
         }
 
-        // GAMEPLAY
+        // PHYSICS
         let onPad = (heli.x >= PAD.xMin && heli.x <= PAD.xMax && heli.y >= PAD.yMin && heli.y <= PAD.yMax);
         let inAir = heli.z > groundH + 0.15;
         
@@ -281,25 +377,19 @@
         wind.phase += 0.01; let gust = 1 + Math.sin(wind.phase) * 0.2;
         if(inAir) { heli.vx += wind.x * gust; heli.vy += wind.y * gust; }
 
+        if (!onPad && heli.z < 0.1) triggerCrash("WATER IMPACT - HULL BREACH");
         if(heli.z < groundH + 0.25) {
-            if(!onPad) triggerCrash("ILLEGAL LANDING ZONE"); 
+            if(!onPad && groundH > 0.1) triggerCrash("ILLEGAL LANDING ZONE"); 
             else if(Math.hypot(heli.vx, heli.vy) > 0.12) triggerCrash("COLLISION SPEED");
             else if(heli.vz < -0.12) triggerCrash("HARD IMPACT");
         }
         
         let nextGround = getGround(heli.x + heli.vx * 5, heli.y + heli.vy * 5);
         if(nextGround > heli.z + 0.2) triggerCrash("TERRAIN COLLISION");
+        if(heli.x > 21 && heli.x < 25 && heli.y > 17 && heli.y < 19 && heli.z < 2.3) triggerCrash("STRUCTURAL IMPACT");
 
-        // HANGAR COLLISION
-        if(heli.x > 21 && heli.x < 25 && heli.y > 17 && heli.y < 19 && heli.z < 2.3) {
-            triggerCrash("STRUCTURAL IMPACT");
-        }
-
-        // BOUNDARIES & ALTITUDE
-        if(heli.x < 1) { heli.x = 1; heli.vx = 0; }
-        if(heli.x > gridSize - 1) { heli.x = gridSize - 1; heli.vx = 0; }
-        if(heli.y < 1) { heli.y = 1; heli.vy = 0; }
-        if(heli.y > gridSize - 1) { heli.y = gridSize - 1; heli.vy = 0; }
+        if(heli.x < 1) { heli.x = 1; heli.vx = 0; } if(heli.x > gridSize - 1) { heli.x = gridSize - 1; heli.vx = 0; }
+        if(heli.y < 1) { heli.y = 1; heli.vy = 0; } if(heli.y > gridSize - 1) { heli.y = gridSize - 1; heli.vy = 0; }
         if(heli.z > MAX_ALTITUDE) { heli.z = MAX_ALTITUDE; if(heli.vz > 0) heli.vz = 0; }
 
         heli.rotorRPM = (heli.engineOn && heli.fuel > 0) ? Math.min(1, heli.rotorRPM + 0.005) : Math.max(0, heli.rotorRPM - 0.004);
@@ -309,31 +399,24 @@
         if(keys['KeyS'] && !inAir && heli.engineOn) heli.engineOn = false;
 
         let liftFactor = (heli.rotorRPM > 0.9) ? 1.0 : 0.0; 
-
         if(inAir || (heli.engineOn && liftFactor > 0)) {
             let mod = heli.rotorRPM * (1.0 - (heli.onboard * 0.08));
             if(heli.fuel > 0) {
                 if (liftFactor > 0) { 
                     let dX = Math.cos(heli.angle), dY = Math.sin(heli.angle);
                     let sX = Math.cos(heli.angle + Math.PI/2), sY = Math.sin(heli.angle + Math.PI/2);
-                    
                     if(keys['ArrowUp']) { heli.vx += dX*0.0025*mod; heli.vy += dY*0.0025*mod; heli.tilt = Math.min(heli.tilt+0.02, 0.4); }
                     else if(keys['ArrowDown']) { heli.vx -= dX*0.0015*mod; heli.vy -= dY*0.0015*mod; heli.tilt = Math.max(heli.tilt-0.02, -0.2); }
                     else heli.tilt *= 0.96;
-                    
                     if(keys['KeyA']) { heli.vx -= sX*0.001*mod; heli.vy -= sY*0.001*mod; heli.roll = Math.min(heli.roll+0.02, 0.3); }
                     else if(keys['KeyD']) { heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; heli.roll = Math.max(heli.roll-0.02, -0.3); }
                     else heli.roll *= 0.96;
-                    
                     if(keys['ArrowLeft']) heli.angle -= 0.045 * mod;
                     if(keys['ArrowRight']) heli.angle += 0.045 * mod;
-                    
                     if(keys['KeyW']) heli.vz += 0.0028 * mod;
                 }
                 heli.fuel -= 0.012 * mod;
-            } else {
-                heli.tilt *= 0.98; heli.roll = Math.sin(Date.now()*0.01)*0.1; heli.vz -= 0.001; 
-            }
+            } else { heli.tilt *= 0.98; heli.roll = Math.sin(Date.now()*0.01)*0.1; heli.vz -= 0.001; }
         }
         if(keys['KeyS'] && inAir) heli.vz -= 0.003; 
         if(heli.fuel <= 0 && inAir) { if(heli.fuel > -1) { showMsg("ENGINE FAILURE: OUT OF FUEL!"); heli.fuel = -1; } heli.engineOn = false; }
@@ -360,7 +443,7 @@
         if(heli.onboard > 0 && !inAir && onPad) {
             totalRescued += heli.onboard; heli.onboard = 0;
             if(totalRescued >= 5) document.getElementById('win-screen').style.display = 'flex';
-            else showMsg(`SECURED TOTAL: ${totalRescued}/5`);
+            else showMsg(`SECURED AT BASE: ${totalRescued}/5`);
         }
     }
 
@@ -381,15 +464,10 @@
             cam.y += (targetCamY - cam.y) * 0.1;
         }
 
-        // STATIC WORLD FIX: Use StartPos for grid center during intro
         let renderCX = introActive ? START_POS.x : heli.x;
-        // heli.y is actually used for the loop check in update() for physics, but for rendering:
-        // We iterate X. For Y we usually do heli.y.
-        // Wait, the original loop was: for(let x=floor(heli.x-12)...)
-        // So we need to replace heli.x with renderCX in the loop definition.
-        
+        let renderCY = introActive ? START_POS.y : heli.y;
+
         for (let x = Math.floor(renderCX - 12); x < renderCX + 12; x++) {
-            let renderCY = introActive ? START_POS.y : heli.y;
             for (let y = Math.floor(renderCY - 12); y < renderCY + 12; y++) {
                 if(x < 0 || y < 0 || x >= gridSize-1 || y >= gridSize-1) continue;
                 const h = [points[x][y], points[x+1][y], points[x+1][y+1], points[x][y+1]];
@@ -424,7 +502,7 @@
             drawHeliWithWinch();
             drawHangar(cam.x, cam.y);
         } else {
-            if (heli.y > 19) {
+            if (heli.y > 19) { 
                 drawHangar(cam.x, cam.y);
                 drawHeliWithWinch();
             } else {
