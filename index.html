@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v7.9.2 - AERO UPDATE</title>
+    <title>ZEEWOLF: SAR v8.1.1 - PHYSICS FINE TUNING</title>
     <style>
         body { background: #000b1a; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; user-select: none; }
         
@@ -16,7 +16,7 @@
         
         #mission-select, #heli-select { display: none; }
 
-        /* TEXT */
+        /* TYPOGRAPHY */
         .title { font-size: 64px; color: #ff6600; text-shadow: 0 0 20px #ff6600; margin-bottom: 5px; font-weight: bold; }
         .subtitle { font-size: 20px; color: #5f5; margin-bottom: 30px; letter-spacing: 4px; }
         
@@ -35,7 +35,6 @@
             box-shadow: 0 0 15px rgba(255, 102, 0, 0.2);
         }
         
-        /* HOVER FIX: Dunkelgrün statt Weiß */
         .grid-box.active:hover {
             background: rgba(0, 60, 30, 0.9); 
             border-color: #5f5;
@@ -59,7 +58,7 @@
 
     <div id="splash" onclick="toMissionSelect()">
         <div class="title">ZEEWOLF: SAR</div>
-        <div class="subtitle">v7.9.2 AERO UPDATE</div>
+        <div class="subtitle">v8.1.1 PHYSICS FINE TUNING</div>
         <canvas id="menu-heli-big"></canvas>
         <p class="start-hint">CLICK TO START SYSTEM</p>
     </div>
@@ -86,12 +85,14 @@
             <div class="grid-box active" onclick="startGame('jayhawk')">
                 <canvas id="icon-jayhawk" class="mini-canvas" width="300" height="200"></canvas>
                 <div class="box-label">MH-60 JAYHAWK</div>
-                <div class="box-sub">Classic Heavy Lifter</div>
+                <div class="box-sub">Heavy / High Inertia</div>
+                <div class="box-sub" style="color:#aaa; font-size:12px;">Cap: 5 Pax</div>
             </div>
             <div class="grid-box active" onclick="startGame('dolphin')">
                 <canvas id="icon-dolphin" class="mini-canvas" width="300" height="200"></canvas>
                 <div class="box-label">MH-65 DOLPHIN</div>
-                <div class="box-sub">Agile Short Range</div>
+                <div class="box-sub">Agile / Low Capacity</div>
+                <div class="box-sub" style="color:#aaa; font-size:12px;">Cap: 3 Pax</div>
             </div>
             <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
             <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
@@ -155,7 +156,9 @@
         type: 'jayhawk', 
         x: 0, y: 0, z: 0.5, vx: 0, vy: 0, vz: 0, angle: 0, 
         tilt: 0, roll: 0, winch: 0, fuel: 100, 
-        engineOn: false, rotorRPM: 0, rotationPos: 0, onboard: 0
+        engineOn: false, rotorRPM: 0, rotationPos: 0, onboard: 0,
+        // Physics Properties
+        maxLoad: 5, accel: 0.0025, friction: 0.99, tiltSpeed: 0.02
     };
     
     let windAngle = Math.random() * Math.PI * 2;
@@ -179,11 +182,13 @@
     }
 
     function spawnCasualty() {
-        if (totalSpawned < 5) {
+        if (totalRescued + heli.onboard < 5 && !casualty.hanging && casualty.rescued) {
             casualty.x = 40 + Math.random() * 100;
             casualty.y = 40 + Math.random() * 100;
-            casualty.rescued = false; hanging = false; totalSpawned++;
-        } else { casualty.rescued = true; }
+            casualty.rescued = false; 
+            casualty.hanging = false; 
+            totalSpawned++;
+        }
     }
 
     function showMsg(txt) {
@@ -192,6 +197,7 @@
         setTimeout(() => { m.style.opacity = 0; }, 2000);
     }
 
+    // --- DRAWING ---
     function drawHangar(camX, cy) {
         const hX = 21; const hY = 17; const hZ = 0.5;
         const hW = 4; const hD = 2.0; const hH = 1.8;
@@ -231,95 +237,74 @@
         ctx.lineTo(top.x, top.y + 3); ctx.fill();
     }
 
-    // --- HELICOPTER GEOMETRY ---
-
+    // --- HELI ---
     function drawHeli(type, hX, hY, hZ, hAngle, hTilt, hRoll, hRotor, camX, camY, targetCtx, targetCanvas, isShadow = false, scaleOverride = 0) {
         const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
-        
-        // SCALE CONFIG: Jayhawk=1.0, Dolphin=0.7 (kleiner)
         let s = (type === 'dolphin') ? 0.7 : 1.0;
         if(scaleOverride > 0) s = scaleOverride * ((type==='dolphin') ? 0.7 : 1.0);
 
-        // Helper to project local coord (lx, ly, lz) to ISO screen
         function p(lx, ly, lz) {
-            // Apply Model Scaling here
             lx *= s; ly *= s; lz *= s;
-            
-            // Rotation/Tilt
             lz += ly * hRoll * 0.5 + lx * hTilt * 0.5;
-            
-            // World Transform
             let rx = lx * cosA - ly * sinA + hX;
             let ry = lx * sinA + ly * cosA + hY;
             let rz = hZ + lz;
-            
-            if (isShadow) {
-                let g = getGround(rx, ry);
-                rz = g > -5 ? g : 0;
-            }
+            if (isShadow) { let g = getGround(rx, ry); rz = g > -5 ? g : 0; }
             return iso(rx, ry, rz, camX, camY, targetCtx, targetCanvas);
         }
 
         targetCtx.lineJoin = "round"; targetCtx.lineCap = "round";
 
         if (type === 'dolphin') {
-            // --- DOLPHIN (Smaller, Fenestron) ---
+            // DOLPHIN
             if(isShadow) {
                 targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - getGround(hX, hY))*0.08)})`;
                 let sN = p(1.2,0,0); let sT = p(-1.8,0,0); let sL=p(0,0.4,0); let sR=p(0,-0.4,0);
                 targetCtx.beginPath(); targetCtx.moveTo(sN.x, sN.y); targetCtx.lineTo(sR.x, sR.y); targetCtx.lineTo(sT.x, sT.y); targetCtx.lineTo(sL.x, sL.y); targetCtx.fill();
                 return;
             }
-
             targetCtx.fillStyle = "#ff6600"; targetCtx.strokeStyle = "#dd3300";
             let nose = p(1.4, 0, 0.2); let tailBase = p(-0.8, 0, 0.5);
             let lSide = p(0, 0.4, 0.4); let rSide = p(0, -0.4, 0.4);
-
             targetCtx.lineWidth = 1; targetCtx.beginPath();
             targetCtx.moveTo(nose.x, nose.y); targetCtx.lineTo(rSide.x, rSide.y); targetCtx.lineTo(tailBase.x, tailBase.y); targetCtx.lineTo(lSide.x, lSide.y); targetCtx.closePath(); targetCtx.fill();
             
-            targetCtx.fillStyle = "#112"; targetCtx.beginPath(); // Windows
+            targetCtx.fillStyle = "#112"; targetCtx.beginPath(); 
             targetCtx.moveTo(p(1.2, 0, 0.25).x, p(1.2, 0, 0.25).y); targetCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y); targetCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y); targetCtx.fill();
 
-            let tTop = p(-1.8, 0, 1.2); let tBack = p(-2.0, 0, 0.4); // Fenestron
+            let tTop = p(-1.8, 0, 1.2); let tBack = p(-2.0, 0, 0.4); 
             targetCtx.fillStyle = "#ff6600"; targetCtx.beginPath();
             targetCtx.moveTo(tailBase.x, tailBase.y); targetCtx.lineTo(tTop.x, tTop.y); targetCtx.lineTo(tBack.x, tBack.y); targetCtx.fill();
             targetCtx.fillStyle = "#333"; targetCtx.beginPath(); let fen = p(-1.7, 0, 0.8); targetCtx.arc(fen.x, fen.y, 3 * s, 0, 7); targetCtx.fill();
 
+            // KÜRZERE ROTOREN BEIM DOLPHIN (1.8 Radius)
             targetCtx.strokeStyle = "rgba(220, 245, 255, 0.5)"; targetCtx.lineWidth = 2;
             let hub = p(0, 0, 0.7);
             for(let i=0; i<4; i++) {
                 let a = hRotor + i * (Math.PI/2);
-                let end = p(Math.cos(a)*2.2, Math.sin(a)*2.2, 0.8);
+                let end = p(Math.cos(a)*1.8, Math.sin(a)*1.8, 0.8);
                 targetCtx.beginPath(); targetCtx.moveTo(hub.x, hub.y); targetCtx.lineTo(end.x, end.y); targetCtx.stroke();
             }
 
         } else {
-            // --- JAYHAWK (Original v7.5.1 Logic) ---
-            let pN = p(0.8, 0, 0); 
-            let pL = p(0, 0.4, 0); 
-            let pR = p(0, -0.4, 0); 
-            let pB = p(-0.6, 0, 0); 
-            let pT = p(-1.8, 0, 0.4); 
-
+            // JAYHAWK
+            let pN = p(0.8, 0, 0); let pL = p(0, 0.4, 0); let pR = p(0, -0.4, 0); let pB = p(-0.6, 0, 0); let pT = p(-1.8, 0, 0.4); 
             if(isShadow) {
                 targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - getGround(hX, hY))*0.08)})`;
                 targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
                 return;
             }
-
             targetCtx.strokeStyle = "#ff6600"; targetCtx.lineWidth = 5 * s;
             targetCtx.beginPath(); targetCtx.moveTo(pB.x, pB.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.stroke();
-            
             targetCtx.fillStyle = "#ff6600"; targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
-            
             targetCtx.fillStyle = "#fff"; targetCtx.beginPath(); targetCtx.moveTo(pL.x, pL.y); targetCtx.lineTo(pB.x, pB.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
             
+            // JAYHAWK ROTOREN (2.6 Radius - nicht mehr so übertrieben)
             targetCtx.strokeStyle = "rgba(220, 245, 255, 0.5)"; targetCtx.lineWidth = 3 * s;
             for(let i=0; i<2; i++) {
                 let ang = hRotor + (i * Math.PI);
-                let rS = p(-Math.cos(ang), -Math.sin(ang), 0.45);
-                let rE = p(Math.cos(ang), Math.sin(ang), 0.45);
+                let rS = p(-Math.cos(ang)*1.6, -Math.sin(ang)*1.6, 0.45);
+                let rE = p(Math.cos(ang)*1.6, Math.sin(ang)*1.6, 0.45);
                 targetCtx.beginPath(); targetCtx.moveTo(rS.x, rS.y); targetCtx.lineTo(rE.x, rE.y); targetCtx.stroke();
             }
         }
@@ -339,14 +324,11 @@
     function animateHeliPreviews() {
         if(document.getElementById('heli-select').style.display === 'none') return;
         const t = Date.now() * 0.001;
-        
-        // Jayhawk
         const c1 = document.getElementById('icon-jayhawk');
         if(c1) {
             const cx1 = c1.getContext('2d'); c1.width=300; c1.height=200; cx1.clearRect(0,0,300,200);
             drawHeli('jayhawk', 0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx1, c1, false, 2.5);
         }
-        // Dolphin
         const c2 = document.getElementById('icon-dolphin');
         if(c2) {
             const cx2 = c2.getContext('2d'); c2.width=300; c2.height=200; cx2.clearRect(0,0,300,200);
@@ -358,10 +340,27 @@
     function startGame(type) {
         if(gameStarted) return;
         heli.type = type;
+        
+        // APPLY PHYSICS & CAPACITY
+        if(type === 'dolphin') {
+            // DOLPHIN = WUSSELIG, ABER GLEITEND (Physik angepasst)
+            heli.maxLoad = 3;
+            heli.accel = 0.0040; // Sehr schnell
+            heli.friction = 0.985; // Gleitet jetzt deutlich länger (war 0.95)
+            heli.tiltSpeed = 0.04; // Nase kippt sofort
+        } else {
+            // JAYHAWK = TRÄGE (Langsam, gleitet ewig, Nase kippt kaum)
+            heli.maxLoad = 5;
+            heli.accel = 0.0015; // Langsamer Aufbau
+            heli.friction = 0.995; // Gleitet ewig weiter (Masse)
+            heli.tiltSpeed = 0.01; // Majestätisch langsam
+        }
+
         document.getElementById('heli-select').style.display = 'none';
         
         gameStarted = true; introActive = true; introProgress = 0;
         cam.x = (START_POS.x - START_POS.y) * (tileW / 2); cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+        casualty.rescued = true; // Force first spawn
         spawnCasualty(); 
         render();
     }
@@ -391,7 +390,6 @@
         if(!gameStarted || crashed) return;
         let groundH = getGround(heli.x, heli.y);
         
-        // INTRO
         if(introActive) {
             introProgress += 0.005; 
             const startX = 23.0; const startY = 17.5;
@@ -406,7 +404,6 @@
             return;
         }
 
-        // PHYSICS
         let onPad = (heli.x >= PAD.xMin && heli.x <= PAD.xMax && heli.y >= PAD.yMin && heli.y <= PAD.yMax);
         let inAir = heli.z > groundH + 0.15;
         
@@ -441,7 +438,7 @@
         if(inAir || (heli.engineOn && liftFactor > 0)) {
             // AERO UPDATE: SPEED DEPENDENT STEERING
             let speed = Math.hypot(heli.vx, heli.vy);
-            let aeroFactor = Math.max(0.3, 1.0 - (speed * 8.0)); // Harder to turn at speed
+            let aeroFactor = Math.max(0.3, 1.0 - (speed * 8.0)); 
 
             let mod = heli.rotorRPM * (1.0 - (heli.onboard * 0.08));
             if(heli.fuel > 0) {
@@ -449,14 +446,16 @@
                     let dX = Math.cos(heli.angle), dY = Math.sin(heli.angle);
                     let sX = Math.cos(heli.angle + Math.PI/2), sY = Math.sin(heli.angle + Math.PI/2);
                     
-                    // TILT REVERSED (Corrected Physics)
+                    // Acceleration & Tilt - REVERSED (Correct for both)
                     if(keys['ArrowUp']) { 
-                        heli.vx += dX*0.0025*mod; heli.vy += dY*0.0025*mod; 
-                        heli.tilt = Math.max(heli.tilt-0.02, -0.4); // Nose Down (Negative)
+                        heli.vx += dX * heli.accel * mod; 
+                        heli.vy += dY * heli.accel * mod; 
+                        heli.tilt = Math.max(heli.tilt - heli.tiltSpeed, -0.4); 
                     }
                     else if(keys['ArrowDown']) { 
-                        heli.vx -= dX*0.0015*mod; heli.vy -= dY*0.0015*mod; 
-                        heli.tilt = Math.min(heli.tilt+0.02, 0.2); // Nose Up (Positive)
+                        heli.vx -= dX * heli.accel * mod; 
+                        heli.vy -= dY * heli.accel * mod; 
+                        heli.tilt = Math.min(heli.tilt + heli.tiltSpeed, 0.2); 
                     }
                     else heli.tilt *= 0.96;
 
@@ -464,7 +463,6 @@
                     else if(keys['KeyD']) { heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; heli.roll = Math.max(heli.roll-0.02, -0.3); }
                     else heli.roll *= 0.96;
                     
-                    // YAW AFFECTED BY AERO
                     if(keys['ArrowLeft']) heli.angle -= 0.045 * mod * aeroFactor;
                     if(keys['ArrowRight']) heli.angle += 0.045 * mod * aeroFactor;
                     
@@ -476,7 +474,7 @@
         if(keys['KeyS'] && inAir) heli.vz -= 0.003; 
         if(heli.fuel <= 0 && inAir) { if(heli.fuel > -1) { showMsg("ENGINE FAILURE: OUT OF FUEL!"); heli.fuel = -1; } heli.engineOn = false; }
         
-        heli.vx *= 0.99; heli.vy *= 0.99; heli.vz *= 0.95;
+        heli.vx *= heli.friction; heli.vy *= heli.friction; heli.vz *= 0.95;
         heli.x += heli.vx; heli.y += heli.vy; heli.z += heli.vz;
         if(heli.z < groundH + 0.1) { heli.z = groundH + 0.1; heli.vz = 0; }
 
@@ -490,15 +488,22 @@
                 casualty.hanging = true; showMsg("PATIENT SECURED!"); heli.winch = Math.max(0, heli.winch - 0.5);
             }
         } else if(casualty.hanging && heli.winch < 0.3) {
-            casualty.hanging = false; casualty.rescued = true; heli.onboard++;
-            showMsg(`CASUALTY ONBOARD [${heli.onboard}/5]`);
-            if (totalRescued + heli.onboard < 5) spawnCasualty(); 
+            if(heli.onboard < heli.maxLoad) {
+                casualty.hanging = false; casualty.rescued = true; heli.onboard++;
+                showMsg(`ONBOARD [${heli.onboard}/${heli.maxLoad}]`);
+                if(totalRescued + heli.onboard < 5) spawnCasualty();
+            } else {
+                showMsg("CABIN FULL! RETURN TO BASE!");
+            }
         }
 
         if(heli.onboard > 0 && !inAir && onPad) {
             totalRescued += heli.onboard; heli.onboard = 0;
             if(totalRescued >= 5) document.getElementById('win-screen').style.display = 'flex';
-            else showMsg(`SECURED AT BASE: ${totalRescued}/5`);
+            else { 
+                showMsg(`SECURED AT BASE: ${totalRescued}/5`);
+                spawnCasualty(); 
+            }
         }
     }
 
@@ -579,7 +584,7 @@
             ctx.fillStyle = heli.fuel < 20 ? "#f00" : "#5f5";
             ctx.fillText(`FUEL: ${Math.max(0, Math.round(heli.fuel))}%`, hX, hY + 32);
             ctx.fillStyle = "#5f5";
-            ctx.fillText(`LOAD: ${heli.onboard}/5`, hX, hY + 48);
+            ctx.fillText(`LOAD: ${heli.onboard}/${heli.maxLoad}`, hX, hY + 48);
 
             const ms = 140, mp = 20, bx = canvas.width - ms - mp, by = canvas.height - ms - mp;
             const sc = ms / gridSize;
