@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZEEWOLF: SAR v7.1.0 - BOUNDARY UPDATE</title>
+    <style>
+        body { background: #000b1a; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; }
+        #splash, #crash-screen, #win-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 11, 26, 0.95); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 200; cursor: pointer;
+        }
+        #crash-screen { background: rgba(80, 0, 0, 0.9); display: none; }
+        #win-screen { background: rgba(0, 80, 40, 0.9); display: none; }
+        .title { font-size: 64px; color: #ff6600; text-shadow: 0 0 20px #ff6600; margin-bottom: 5px; font-weight: bold; }
+        .subtitle { font-size: 20px; color: #5f5; margin-bottom: 10px; letter-spacing: 4px; }
+        .msg-popup { position: absolute; bottom: 20%; width: 100%; text-align: center; color: #fff; font-size: 24px; opacity: 0; transition: opacity 0.8s; pointer-events: none; z-index: 150;}
+        .start-hint { font-size: 22px; animation: blink 1s infinite; color: #fff; margin-top: 20px; text-transform: uppercase; }
+        @keyframes blink { 50% { opacity: 0; } }
+        #menu-heli { width: 800px; height: 400px; margin-bottom: 0px; filter: drop-shadow(0 0 15px rgba(255,102,0,0.3)); }
+    </style>
+</head>
+<body>
+    <div id="splash" onclick="startGame()">
+        <div class="title">ZEEWOLF: SAR</div>
+        <div class="subtitle">BOUNDARY OPS v7.1.0</div>
+        <canvas id="menu-heli"></canvas>
+        <div style="text-align: left; background: rgba(0,255,100,0.05); padding: 25px; border: 1px solid #5f5; color: #fff; line-height: 1.6; border-radius: 8px;">
+            • INTRO: TOWING SEQUENCE<br>
+            • ENGINE: HOLD [W] (HEAVY LIFT PHYSICS)<br>
+            • MISSION: 5 PERSONEN RETTEN
+        </div>
+        <p class="start-hint">CLICK TO DEPLOY</p>
+    </div>
+
+    <div id="crash-screen" onclick="location.reload()">
+        <div class="title" style="color: #fff;">TERMINATED</div>
+        <p id="crash-reason" style="color: #f00; font-size: 24px; font-weight: bold;"></p>
+        <p class="start-hint">RETRY MISSION</p>
+    </div>
+
+    <div id="win-screen" onclick="location.reload()">
+        <div class="title" style="color: #fff;">MISSION COMPLETE</div>
+        <p style="color: #5f5; font-size: 24px;">ALL 5 PATIENTS RECOVERED</p>
+        <p class="start-hint">RETURN TO BASE (CLICK)</p>
+    </div>
+
+    <div id="msg" class="msg-popup"></div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const tileW = 64, tileH = 32, stepH = 25, gridSize = 200;
+    
+    // States
+    let gameStarted = false, crashed = false;
+    let introActive = false, introProgress = 0;
+    
+    let totalRescued = 0, totalSpawned = 0; 
+    let points = [], particles = [];
+    let cam = { x: 0, y: 0 };
+
+    const PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25 };
+    const START_POS = { x: 21.5, y: 21.5 }; // Zentrale Konstante für Start
+
+    // Terrain
+    for(let x=0; x<=gridSize; x++) {
+        points[x] = [];
+        for(let y=0; y<=gridSize; y++) {
+            let h = Math.sin(x*0.1) * Math.cos(y*0.1) * 3 + Math.cos(x*0.05) * 2;
+            if (x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1) {
+                points[x][y] = 0.5;
+            } else {
+                points[x][y] = Math.max(-0.2, h);
+            }
+        }
+    }
+
+    let heli = { 
+        x: 0, y: 0, z: 0.5, vx: 0, vy: 0, vz: 0, angle: 0, 
+        tilt: 0, roll: 0, winch: 0, fuel: 100, 
+        engineOn: false, rotorRPM: 0, rotationPos: 0, onboard: 0
+    };
+    
+    let windAngle = Math.random() * Math.PI * 2;
+    let windSpeed = 0.00015; 
+    let wind = { x: Math.cos(windAngle) * windSpeed, y: Math.sin(windAngle) * windSpeed, phase: 0 }; 
+    let casualty = { x: 40, y: 40, rescued: false, hanging: false };
+    let keys = {};
+
+    function iso(vx, vy, h, cx, cy, targetCtx = ctx, targetCanvas = canvas, scale = 1) {
+        let tW = tileW * scale; let tH = tileH * scale; let sH = stepH * scale;
+        return {
+            x: (targetCanvas.width / 2) + (vx - vy) * (tW / 2) - cx,
+            y: (targetCanvas.height / 2) + (vx + vy) * (tH / 2) - (h * sH) - cy
+        };
+    }
+
+    function getGround(fx, fy) {
+        let x1 = Math.floor(fx), y1 = Math.floor(fy);
+        if(x1 < 0 || y1 < 0 || x1 >= gridSize - 1 || y1 >= gridSize - 1) return 0;
+        let tX = fx - x1, tY = fy - y1;
+        return points[x1][y1]*(1-tX)*(1-tY) + points[x1+1][y1]*tX*(1-tY) + points[x1][y1+1]*(1-tX)*tY + points[x1+1][y1+1]*tX*tY;
+    }
+
+    function spawnCasualty() {
+        if (totalSpawned < 5) {
+            casualty.x = 30 + Math.random() * 80;
+            casualty.y = 30 + Math.random() * 80;
+            casualty.rescued = false; hanging = false; totalSpawned++;
+        } else { casualty.rescued = true; }
+    }
+
+    function showMsg(txt) {
+        let m = document.getElementById('msg');
+        m.innerHTML = txt; m.style.opacity = 1;
+        setTimeout(() => { m.style.opacity = 0; }, 2000);
+    }
+
+    // HANGAR
+    function drawHangar(camX, cy) {
+        const hX = 21; 
+        const hY = 17; 
+        const hZ = 0.5;
+        const width = 4; const depth = 2.0; const height = 1.8;
+
+        const bFL = iso(hX, hY + depth, hZ, camX, cy); 
+        const bFR = iso(hX + width, hY + depth, hZ, camX, cy);         
+        const bBL = iso(hX, hY, hZ, camX, cy); 
+        const bBR = iso(hX + width, hY, hZ, camX, cy); 
+
+        const tFL = iso(hX, hY + depth, hZ + height, camX, cy);
+        const tFR = iso(hX + width, hY + depth, hZ + height, camX, cy);
+        const tBL = iso(hX, hY, hZ + height, camX, cy);
+        const tBR = iso(hX + width, hY, hZ + height, camX, cy);
+
+        // Wand Links
+        ctx.fillStyle = "#bbbbbb"; ctx.beginPath(); 
+        ctx.moveTo(bFL.x, bFL.y); ctx.lineTo(bBL.x, bBL.y); ctx.lineTo(tBL.x, tBL.y); ctx.lineTo(tFL.x, tFL.y); ctx.fill();
+        ctx.strokeStyle = "#999"; ctx.stroke();
+
+        // Wand Rechts
+        ctx.fillStyle = "#999999"; ctx.beginPath(); 
+        ctx.moveTo(bFR.x, bFR.y); ctx.lineTo(bBR.x, bBR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tFR.x, tFR.y); ctx.fill();
+        ctx.stroke();
+
+        // Dach
+        ctx.fillStyle = "#dddddd"; ctx.beginPath(); 
+        ctx.moveTo(tFL.x, tFL.y); ctx.lineTo(tFR.x, tFR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tBL.x, tBL.y); ctx.fill();
+        ctx.strokeStyle = "#fff"; ctx.stroke();
+    }
+
+    function drawPadLights(camX, cy) {
+        const lights = [
+            {x: PAD.xMin + 0.5, y: PAD.yMin + 0.5}, {x: PAD.xMax + 0.5, y: PAD.yMin + 0.5},
+            {x: PAD.xMax + 0.5, y: PAD.yMax + 0.5}, {x: PAD.xMin + 0.5, y: PAD.yMax + 0.5}
+        ];
+        let blink = Math.floor(Date.now() / 500) % 2 === 0;
+        lights.forEach(l => {
+            let p = iso(l.x, l.y, 0.5, camX, cy);
+            ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill();
+            if(blink) { ctx.fillStyle = "#f00"; ctx.shadowBlur = 10; ctx.shadowColor = "red"; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, 7); ctx.fill(); ctx.shadowBlur = 0; } 
+            else { ctx.fillStyle = "#500"; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, 7); ctx.fill(); }
+        });
+    }
+
+    function drawWindsock(camX, cy) {
+        let wx = PAD.xMin - 1, wy = PAD.yMin + 1; 
+        let base = iso(wx, wy, getGround(wx, wy), camX, cy);
+        let top = iso(wx, wy, getGround(wx, wy) + 1.2, camX, cy);
+        ctx.strokeStyle = "#aaa"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(top.x, top.y); ctx.stroke();
+        
+        let wIsoX = (Math.cos(windAngle) - Math.sin(windAngle)) * (tileW/2);
+        let wIsoY = (Math.cos(windAngle) + Math.sin(windAngle)) * (tileH/2);
+        let len = Math.hypot(wIsoX, wIsoY); wIsoX = (wIsoX / len) * 5; wIsoY = (wIsoY / len) * 5;
+        let phase = Date.now() * 0.005;
+
+        ctx.fillStyle = "orange"; ctx.beginPath(); ctx.moveTo(top.x, top.y);
+        let cx = top.x, cyPos = top.y;
+        for(let i=0; i<6; i++) {
+            let bend = Math.sin(phase + i * 0.5) * 2;
+            cx += wIsoX; cyPos += wIsoY + bend * 0.3;
+            ctx.lineTo(cx, cyPos);
+        }
+        ctx.lineTo(top.x, top.y + 3); ctx.fill();
+    }
+
+    function drawHeli(hX, hY, hZ, hAngle, hTilt, hRoll, hRotor, camX, camY, targetCtx, targetCanvas, isShadow = false, scale = 1) {
+        const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
+        const gH = getGround(hX, hY), zOff = isShadow ? gH : hZ;
+        const pN = iso(hX + 0.8*cosA, hY + 0.8*sinA, zOff - (isShadow?0:hTilt*0.5), camX, camY, targetCtx, targetCanvas, scale);
+        const pL = iso(hX - 0.4*sinA, hY + 0.4*cosA, zOff + (isShadow?0:hRoll*0.5), camX, camY, targetCtx, targetCanvas, scale);
+        const pR = iso(hX + 0.4*sinA, hY - 0.4*cosA, zOff - (isShadow?0:hRoll*0.5), camX, camY, targetCtx, targetCanvas, scale);
+        const pB = iso(hX - 0.6*cosA, hY - 0.6*sinA, zOff + (isShadow?0:hTilt*0.5), camX, camY, targetCtx, targetCanvas, scale);
+        const pT = iso(hX - 1.8*cosA, hY - 1.8*sinA, zOff + (isShadow?0:0.4 + hTilt), camX, camY, targetCtx, targetCanvas, scale);
+
+        if(isShadow) {
+            targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - gH)*0.08)})`;
+            targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
+        } else {
+            targetCtx.strokeStyle = "#ff6600"; targetCtx.lineWidth = 5 * scale;
+            targetCtx.beginPath(); targetCtx.moveTo(pB.x, pB.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.stroke();
+            targetCtx.fillStyle = "#ff6600"; targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
+            targetCtx.fillStyle = "#fff"; targetCtx.beginPath(); targetCtx.moveTo(pL.x, pL.y); targetCtx.lineTo(pB.x, pB.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
+            targetCtx.strokeStyle = "rgba(220, 245, 255, 0.5)"; targetCtx.lineWidth = 3 * scale;
+            for(let i=0; i<2; i++) {
+                let ang = hRotor + (i * Math.PI);
+                let rS = iso(hX-Math.cos(ang), hY-Math.sin(ang), hZ+0.45, camX, camY, targetCtx, targetCanvas, scale);
+                let rE = iso(hX+Math.cos(ang), hY+Math.sin(ang), hZ+0.45, camX, camY, targetCtx, targetCanvas, scale);
+                targetCtx.beginPath(); targetCtx.moveTo(rS.x, rS.y); targetCtx.lineTo(rE.x, rE.y); targetCtx.stroke();
+            }
+        }
+    }
+
+    function drawMenuHeli() {
+        if(gameStarted) return;
+        const c = document.getElementById('menu-heli'); const cx = c.getContext('2d');
+        c.width = 800; c.height = 400; cx.clearRect(0,0,c.width,c.height);
+        const t = Date.now() * 0.001;
+        drawHeli(0, 0, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3.5);
+        requestAnimationFrame(drawMenuHeli);
+    }
+    drawMenuHeli();
+
+    function startGame() {
+        if(gameStarted) return;
+        document.getElementById('splash').style.display = 'none';
+        
+        gameStarted = true;
+        introActive = true;
+        introProgress = 0;
+        
+        // Kamera fixiert auf Startposition
+        cam.x = (START_POS.x - START_POS.y) * (tileW / 2);
+        cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+        
+        spawnCasualty(); 
+        render();
+    }
+
+    window.onkeydown = (e) => keys[e.code] = true;
+    window.onkeyup = (e) => keys[e.code] = false;
+
+    function handleParticles() {
+        let gH = getGround(heli.x, heli.y);
+        if ((heli.z - gH) < 1.2 && heli.rotorRPM > 0.8) {
+            for(let i=0; i<1; i++) {
+                let a = Math.random() * Math.PI * 2;
+                particles.push({
+                    x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: gH,
+                    vx: Math.cos(a)*0.04, vy: Math.sin(a)*0.04, life: 0.4,
+                    color: gH < 0 ? "180, 220, 255" : "150, 150, 130"
+                });
+            }
+        }
+        particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.02; });
+        particles = particles.filter(p => p.life > 0);
+    }
+
+    function update() {
+        if(!gameStarted || crashed) return;
+        let groundH = getGround(heli.x, heli.y);
+        
+        // INTRO LOGIK
+        if(introActive) {
+            introProgress += 0.005; 
+            
+            // Start im Hangar (tief drin) -> Ziel Pad Mitte
+            const startX = 23.0; const startY = 17.5;
+            
+            heli.x = startX + (START_POS.x - startX) * introProgress;
+            heli.y = startY + (START_POS.y - startY) * introProgress;
+            heli.z = 0.5; 
+            heli.angle = -Math.PI / 4; 
+            heli.rotorRPM = 0; 
+
+            if(introProgress >= 1) {
+                introActive = false;
+                heli.engineOn = false;
+                heli.rotorRPM = 0;
+                // Exakt setzen um Sprung zu verhindern
+                heli.x = START_POS.x; 
+                heli.y = START_POS.y;
+                showMsg("SYSTEM READY - START ENGINE [W]");
+            }
+            return;
+        }
+
+        // GAMEPLAY
+        let onPad = (heli.x >= PAD.xMin && heli.x <= PAD.xMax && heli.y >= PAD.yMin && heli.y <= PAD.yMax);
+        let inAir = heli.z > groundH + 0.15;
+        
+        handleParticles();
+        
+        if(!heli.engineOn && onPad && heli.fuel < 100) heli.fuel = Math.min(100, heli.fuel + 0.2);
+        wind.phase += 0.01; let gust = 1 + Math.sin(wind.phase) * 0.2;
+        if(inAir) { heli.vx += wind.x * gust; heli.vy += wind.y * gust; }
+
+        if(heli.z < groundH + 0.25) {
+            if(!onPad) triggerCrash("ILLEGAL LANDING ZONE"); 
+            else if(Math.hypot(heli.vx, heli.vy) > 0.12) triggerCrash("COLLISION SPEED");
+            else if(heli.vz < -0.12) triggerCrash("HARD IMPACT");
+        }
+        
+        let nextGround = getGround(heli.x + heli.vx * 5, heli.y + heli.vy * 5);
+        if(nextGround > heli.z + 0.2) triggerCrash("TERRAIN COLLISION");
+
+        heli.rotorRPM = (heli.engineOn && heli.fuel > 0) ? Math.min(1, heli.rotorRPM + 0.005) : Math.max(0, heli.rotorRPM - 0.004);
+        heli.rotationPos += heli.rotorRPM * 0.75;
+        
+        if(keys['KeyW'] && !heli.engineOn && heli.fuel > 0 && onPad) heli.engineOn = true;
+        if(keys['KeyS'] && !inAir && heli.engineOn) heli.engineOn = false;
+
+        let liftFactor = (heli.rotorRPM > 0.9) ? 1.0 : 0.0; 
+
+        if(inAir || (heli.engineOn && liftFactor > 0)) {
+            let mod = heli.rotorRPM * (1.0 - (heli.onboard * 0.08));
+            if(heli.fuel > 0) {
+                if (liftFactor > 0) { 
+                    let dX = Math.cos(heli.angle), dY = Math.sin(heli.angle);
+                    let sX = Math.cos(heli.angle + Math.PI/2), sY = Math.sin(heli.angle + Math.PI/2);
+                    
+                    if(keys['ArrowUp']) { heli.vx += dX*0.0025*mod; heli.vy += dY*0.0025*mod; heli.tilt = Math.min(heli.tilt+0.02, 0.4); }
+                    else if(keys['ArrowDown']) { heli.vx -= dX*0.0015*mod; heli.vy -= dY*0.0015*mod; heli.tilt = Math.max(heli.tilt-0.02, -0.2); }
+                    else heli.tilt *= 0.96;
+                    
+                    if(keys['KeyA']) { heli.vx -= sX*0.001*mod; heli.vy -= sY*0.001*mod; heli.roll = Math.min(heli.roll+0.02, 0.3); }
+                    else if(keys['KeyD']) { heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; heli.roll = Math.max(heli.roll-0.02, -0.3); }
+                    else heli.roll *= 0.96;
+                    
+                    if(keys['ArrowLeft']) heli.angle -= 0.045 * mod;
+                    if(keys['ArrowRight']) heli.angle += 0.045 * mod;
+                    
+                    if(keys['KeyW']) heli.vz += 0.0028 * mod;
+                }
+                heli.fuel -= 0.012 * mod;
+            } else {
+                heli.tilt *= 0.98; heli.roll = Math.sin(Date.now()*0.01)*0.1; heli.vz -= 0.001; 
+            }
+        }
+        
+        if(keys['KeyS'] && inAir) heli.vz -= 0.003; 
+
+        if(heli.fuel <= 0 && inAir) { 
+            if(heli.fuel > -1) { showMsg("ENGINE FAILURE: OUT OF FUEL!"); heli.fuel = -1; }
+            heli.engineOn = false; 
+        }
+        
+        heli.vx *= 0.99; heli.vy *= 0.99; heli.vz *= 0.95;
+        heli.x += heli.vx; heli.y += heli.vy; heli.z += heli.vz;
+        if(heli.z < groundH + 0.1) { heli.z = groundH + 0.1; heli.vz = 0; }
+
+        // WELTGRENZEN / BOUNDARIES
+        if(heli.x < 1) { heli.x = 1; heli.vx = 0; }
+        if(heli.x > gridSize - 1) { heli.x = gridSize - 1; heli.vx = 0; }
+        if(heli.y < 1) { heli.y = 1; heli.vy = 0; }
+        if(heli.y > gridSize - 1) { heli.y = gridSize - 1; heli.vy = 0; }
+
+        if(keys['KeyQ']) heli.winch = Math.max(0, heli.winch - 0.02);
+        if(keys['KeyE']) heli.winch = Math.min(4.0, heli.winch + 0.02);
+
+        let actualHookZ = Math.max(groundH, heli.z - heli.winch);
+        if(!casualty.rescued && !casualty.hanging) {
+            let distToCasualty = Math.hypot(heli.x - casualty.x, heli.y - casualty.y);
+            if(distToCasualty < 0.8 && Math.abs(actualHookZ - getGround(casualty.x, casualty.y)) < 0.4) {
+                casualty.hanging = true; showMsg("PATIENT SECURED!"); heli.winch = Math.max(0, heli.winch - 0.5);
+            }
+        } else if(casualty.hanging && heli.winch < 0.3) {
+            casualty.hanging = false; casualty.rescued = true; heli.onboard++;
+            showMsg(`CASUALTY ONBOARD [${heli.onboard}/5]`);
+            if (totalRescued + heli.onboard < 5) spawnCasualty(); 
+        }
+
+        if(heli.onboard > 0 && !inAir && onPad) {
+            totalRescued += heli.onboard; heli.onboard = 0;
+            if(totalRescued >= 5) document.getElementById('win-screen').style.display = 'flex';
+            else showMsg(`SECURED TOTAL: ${totalRescued}/5`);
+        }
+    }
+
+    function triggerCrash(reason) {
+        crashed = true; document.getElementById('crash-reason').innerHTML = reason;
+        document.getElementById('crash-screen').style.display = 'flex';
+    }
+
+    function render() {
+        if(!gameStarted || crashed) return;
+        update();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Kamera Update NUR wenn Intro VORBEI ist. 
+        if (!introActive) {
+            const targetCamX = (heli.x - heli.y) * (tileW / 2);
+            const targetCamY = (heli.x + heli.y) * (tileH / 2);
+            cam.x += (targetCamX - cam.x) * 0.1;
+            cam.y += (targetCamY - cam.y) * 0.1;
+        }
+
+        for (let x = Math.floor(heli.x - 12); x < heli.x + 12; x++) {
+            for (let y = Math.floor(heli.y - 12); y < heli.y + 12; y++) {
+                if(x < 0 || y < 0 || x >= gridSize-1 || y >= gridSize-1) continue;
+                const h = [points[x][y], points[x+1][y], points[x+1][y+1], points[x][y+1]];
+                const p = [iso(x,y,h[0], cam.x, cam.y), iso(x+1,y,h[1], cam.x, cam.y), iso(x+1,y+1,h[2], cam.x, cam.y), iso(x,y+1,h[3], cam.x, cam.y)];
+                let isPad = (x >= PAD.xMin && x <= PAD.xMax && y >= PAD.yMin && y <= PAD.yMax);
+                let c = 35 + Math.floor(h[0] * 15);
+                ctx.fillStyle = isPad ? "#444" : (h[0] > 0 ? `rgb(${c-10},${c+30},${c-10})` : "#003d7a");
+                ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); ctx.lineTo(p[1].x, p[1].y); ctx.lineTo(p[2].x, p[2].y); ctx.lineTo(p[3].x, p[3].y); ctx.fill();
+            }
+        }
+        
+        drawPadLights(cam.x, cam.y);
+        drawWindsock(cam.x, cam.y);
+        
+        particles.forEach(p => {
+            let pos = iso(p.x, p.y, p.z, cam.x, cam.y);
+            ctx.fillStyle = `rgba(${p.color}, ${p.life})`; ctx.fillRect(pos.x, pos.y, 3, 3);
+        });
+
+        drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, true);
+        
+        const wB = iso(heli.x, heli.y, heli.z, cam.x, cam.y);
+        const actualHookZ = Math.max(getGround(heli.x, heli.y), heli.z - heli.winch);
+        const hP = iso(heli.x, heli.y, actualHookZ, cam.x, cam.y);
+        ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(wB.x, wB.y); ctx.lineTo(hP.x, hP.y); ctx.stroke();
+        
+        if(!casualty.rescued) {
+            let cP = (casualty.hanging) ? hP : iso(casualty.x, casualty.y, getGround(casualty.x, casualty.y), cam.x, cam.y);
+            ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(cP.x, cP.y, 4, 0, 7); ctx.fill();
+        }
+        drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, false);
+
+        drawHangar(cam.x, cam.y);
+
+        // HUD & Minimap
+        if(!introActive) {
+            ctx.font = "bold 13px monospace"; ctx.fillStyle = "#5f5";
+            let hX = wB.x + 45, hY = wB.y - 35;
+            ctx.fillText(`ALT: ${Math.round((heli.z-getGround(heli.x, heli.y))*10)}m`, hX, hY);
+            ctx.fillText(`SPD: ${Math.round(Math.hypot(heli.vx, heli.vy)*1500)}kmh`, hX, hY + 16);
+            ctx.fillStyle = heli.fuel < 20 ? "#f00" : "#5f5";
+            ctx.fillText(`FUEL: ${Math.max(0, Math.round(heli.fuel))}%`, hX, hY + 32);
+            ctx.fillStyle = "#5f5";
+            ctx.fillText(`LOAD: ${heli.onboard}/5`, hX, hY + 48);
+
+            const ms = 140, mp = 20, bx = canvas.width - ms - mp, by = canvas.height - ms - mp;
+            const sc = ms / gridSize;
+            
+            // Minimap Background
+            ctx.fillStyle = "rgba(0,30,10,0.85)"; ctx.fillRect(bx, by, ms, ms);
+            ctx.strokeStyle = "#5f5"; ctx.strokeRect(bx, by, ms, ms);
+            
+            // Minimap Pad (Grau)
+            ctx.fillStyle = "#555"; 
+            ctx.fillRect(bx + PAD.xMin * sc, by + PAD.yMin * sc, (PAD.xMax - PAD.xMin) * sc, (PAD.yMax - PAD.yMin) * sc);
+
+            // Minimap Heli
+            ctx.fillStyle = "#fff"; ctx.fillRect(bx + heli.x * sc - 2, by + heli.y * sc - 2, 4, 4);
+            if(!casualty.rescued) {
+                ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(bx + casualty.x * sc, by + casualty.y * sc, 3, 0, 7); ctx.fill();
+            }
+        }
+        requestAnimationFrame(render);
+    }
+    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    window.onresize();
+</script>
+</body>
+</html>
