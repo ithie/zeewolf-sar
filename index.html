@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v7.5.1 - CLASSIC LIVERY</title>
+    <title>ZEEWOLF: SAR v7.9.2 - AERO UPDATE</title>
     <style>
         body { background: #000b1a; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; user-select: none; }
         
-        /* FULLSCREEN OVERLAYS */
+        /* OVERLAYS */
         #splash, #mission-select, #heli-select, #crash-screen, #win-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 11, 26, 0.95); display: flex; flex-direction: column;
@@ -16,64 +16,42 @@
         
         #mission-select, #heli-select { display: none; }
 
-        /* TYPOGRAPHY */
+        /* TEXT */
         .title { font-size: 64px; color: #ff6600; text-shadow: 0 0 20px #ff6600; margin-bottom: 5px; font-weight: bold; }
         .subtitle { font-size: 20px; color: #5f5; margin-bottom: 30px; letter-spacing: 4px; }
         
-        /* GRID SYSTEM (2x2) */
+        /* GRID (2x2) */
         .grid-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            gap: 20px;
-            width: 800px;
-            height: 500px;
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+            gap: 20px; width: 800px; height: 500px;
         }
-
         .grid-box {
-            background: rgba(0, 40, 15, 0.4);
-            border: 1px solid #3a3;
-            color: #585;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            font-size: 18px;
-            transition: 0.2s;
-            position: relative;
-            border-radius: 4px;
+            background: rgba(0, 40, 15, 0.4); border: 1px solid #3a3; color: #585;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; font-size: 18px; transition: 0.2s; border-radius: 4px; position: relative;
         }
-
         .grid-box.active {
-            border: 2px solid #ff6600;
-            background: rgba(0, 20, 40, 0.6);
-            color: #fff;
-            cursor: pointer;
+            border: 2px solid #ff6600; background: rgba(0, 20, 40, 0.6); color: #fff; cursor: pointer;
             box-shadow: 0 0 15px rgba(255, 102, 0, 0.2);
         }
+        
+        /* HOVER FIX: Dunkelgrün statt Weiß */
         .grid-box.active:hover {
-            background: #fff;
-            color: #000;
+            background: rgba(0, 60, 30, 0.9); 
+            border-color: #5f5;
+            color: #fff;
             box-shadow: 0 0 30px #ff6600;
             transform: scale(1.02);
             z-index: 10;
         }
         
-        .grid-box.locked {
-            border: 1px dashed #242;
-            color: #242;
-            background: rgba(0,0,0,0.2);
-        }
-
+        .grid-box.locked { border: 1px dashed #242; color: #242; background: rgba(0,0,0,0.2); }
         .box-label { font-weight: bold; font-size: 20px; margin-top: 10px; text-transform: uppercase;}
         .box-sub { font-size: 14px; margin-top: 5px; opacity: 0.8; }
         
         .mini-canvas { width: 100%; height: 150px; margin-bottom: 5px; pointer-events: none; }
-
         .start-hint { font-size: 22px; animation: blink 1s infinite; color: #fff; margin-top: 30px; text-transform: uppercase; cursor: pointer; }
         @keyframes blink { 50% { opacity: 0; } }
-        
         #menu-heli-big { width: 800px; height: 300px; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,102,0,0.3)); }
     </style>
 </head>
@@ -81,7 +59,7 @@
 
     <div id="splash" onclick="toMissionSelect()">
         <div class="title">ZEEWOLF: SAR</div>
-        <div class="subtitle">v7.5.1 CLASSIC LIVERY</div>
+        <div class="subtitle">v7.9.2 AERO UPDATE</div>
         <canvas id="menu-heli-big"></canvas>
         <p class="start-hint">CLICK TO START SYSTEM</p>
     </div>
@@ -105,12 +83,16 @@
         <div class="title">HANGAR</div>
         <div class="subtitle">SELECT AIRFRAME</div>
         <div class="grid-container">
-            <div class="grid-box active" onclick="startGame()">
+            <div class="grid-box active" onclick="startGame('jayhawk')">
                 <canvas id="icon-jayhawk" class="mini-canvas" width="300" height="200"></canvas>
                 <div class="box-label">MH-60 JAYHAWK</div>
-                <div class="box-sub">Classic Orange Livery</div>
+                <div class="box-sub">Classic Heavy Lifter</div>
             </div>
-            <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
+            <div class="grid-box active" onclick="startGame('dolphin')">
+                <canvas id="icon-dolphin" class="mini-canvas" width="300" height="200"></canvas>
+                <div class="box-label">MH-65 DOLPHIN</div>
+                <div class="box-sub">Agile Short Range</div>
+            </div>
             <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
             <div class="grid-box locked"><div class="box-label">EMPTY SLOT</div><div class="box-sub">No Data</div></div>
         </div>
@@ -121,13 +103,11 @@
         <p id="crash-reason" style="color: #f00; font-size: 24px; font-weight: bold;"></p>
         <p class="start-hint">RETRY MISSION</p>
     </div>
-
     <div id="win-screen" onclick="location.reload()">
         <div class="title" style="color: #fff;">MISSION COMPLETE</div>
         <p style="color: #5f5; font-size: 24px;">ALL PATIENTS RECOVERED</p>
         <p class="start-hint">RETURN TO BASE (CLICK)</p>
     </div>
-
     <div id="msg" class="msg-popup"></div>
     <canvas id="gameCanvas"></canvas>
 
@@ -142,27 +122,23 @@
         document.getElementById('mission-select').style.display = 'flex';
     }
     
-    let heliPreviewInterval = null;
-    
     function toHeliSelect() {
         document.getElementById('mission-select').style.display = 'none';
         document.getElementById('heli-select').style.display = 'flex';
-        animateHeliPreview();
+        animateHeliPreviews();
     }
 
-    // GAME STATES
+    // GAME VARS
     let gameStarted = false, crashed = false;
     let introActive = false, introProgress = 0;
-    
     let totalRescued = 0, totalSpawned = 0; 
     let points = [], particles = [];
     let cam = { x: 0, y: 0 };
-
     const PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25 };
     const START_POS = { x: 21.5, y: 21.5 };
     const MAX_ALTITUDE = 16.0; 
 
-    // Terrain Gen
+    // TERRAIN
     for(let x=0; x<=gridSize; x++) {
         points[x] = [];
         for(let y=0; y<=gridSize; y++) {
@@ -176,6 +152,7 @@
     }
 
     let heli = { 
+        type: 'jayhawk', 
         x: 0, y: 0, z: 0.5, vx: 0, vy: 0, vz: 0, angle: 0, 
         tilt: 0, roll: 0, winch: 0, fuel: 100, 
         engineOn: false, rotorRPM: 0, rotationPos: 0, onboard: 0
@@ -243,8 +220,6 @@
         ctx.strokeStyle = "#aaa"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(top.x, top.y); ctx.stroke();
         let wIsoX = (Math.cos(windAngle) - Math.sin(windAngle)) * (tileW/2);
         let wIsoY = (Math.cos(windAngle) + Math.sin(windAngle)) * (tileH/2);
-        
-        // KÜRZERER WINDSACK
         let len = Math.hypot(wIsoX, wIsoY); wIsoX = (wIsoX / len) * 5; wIsoY = (wIsoY / len) * 5;
         let phase = Date.now() * 0.005;
         ctx.fillStyle = "orange"; ctx.beginPath(); ctx.moveTo(top.x, top.y);
@@ -256,63 +231,133 @@
         ctx.lineTo(top.x, top.y + 3); ctx.fill();
     }
 
-    function drawHeli(hX, hY, hZ, hAngle, hTilt, hRoll, hRotor, camX, camY, targetCtx, targetCanvas, isShadow = false, scale = 1) {
-        const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
-        const gH = getGround(hX, hY), zOff = isShadow ? gH : hZ;
-        const pN = iso(hX + 0.8*cosA, hY + 0.8*sinA, zOff - (isShadow?0:hTilt*0.5), camX, camY, targetCtx, targetCanvas, scale);
-        const pL = iso(hX - 0.4*sinA, hY + 0.4*cosA, zOff + (isShadow?0:hRoll*0.5), camX, camY, targetCtx, targetCanvas, scale);
-        const pR = iso(hX + 0.4*sinA, hY - 0.4*cosA, zOff - (isShadow?0:hRoll*0.5), camX, camY, targetCtx, targetCanvas, scale);
-        const pB = iso(hX - 0.6*cosA, hY - 0.6*sinA, zOff + (isShadow?0:hTilt*0.5), camX, camY, targetCtx, targetCanvas, scale);
-        const pT = iso(hX - 1.8*cosA, hY - 1.8*sinA, zOff + (isShadow?0:0.4 + hTilt), camX, camY, targetCtx, targetCanvas, scale);
+    // --- HELICOPTER GEOMETRY ---
 
-        if(isShadow) {
-            targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - gH)*0.08)})`;
-            targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
+    function drawHeli(type, hX, hY, hZ, hAngle, hTilt, hRoll, hRotor, camX, camY, targetCtx, targetCanvas, isShadow = false, scaleOverride = 0) {
+        const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
+        
+        // SCALE CONFIG: Jayhawk=1.0, Dolphin=0.7 (kleiner)
+        let s = (type === 'dolphin') ? 0.7 : 1.0;
+        if(scaleOverride > 0) s = scaleOverride * ((type==='dolphin') ? 0.7 : 1.0);
+
+        // Helper to project local coord (lx, ly, lz) to ISO screen
+        function p(lx, ly, lz) {
+            // Apply Model Scaling here
+            lx *= s; ly *= s; lz *= s;
+            
+            // Rotation/Tilt
+            lz += ly * hRoll * 0.5 + lx * hTilt * 0.5;
+            
+            // World Transform
+            let rx = lx * cosA - ly * sinA + hX;
+            let ry = lx * sinA + ly * cosA + hY;
+            let rz = hZ + lz;
+            
+            if (isShadow) {
+                let g = getGround(rx, ry);
+                rz = g > -5 ? g : 0;
+            }
+            return iso(rx, ry, rz, camX, camY, targetCtx, targetCanvas);
+        }
+
+        targetCtx.lineJoin = "round"; targetCtx.lineCap = "round";
+
+        if (type === 'dolphin') {
+            // --- DOLPHIN (Smaller, Fenestron) ---
+            if(isShadow) {
+                targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - getGround(hX, hY))*0.08)})`;
+                let sN = p(1.2,0,0); let sT = p(-1.8,0,0); let sL=p(0,0.4,0); let sR=p(0,-0.4,0);
+                targetCtx.beginPath(); targetCtx.moveTo(sN.x, sN.y); targetCtx.lineTo(sR.x, sR.y); targetCtx.lineTo(sT.x, sT.y); targetCtx.lineTo(sL.x, sL.y); targetCtx.fill();
+                return;
+            }
+
+            targetCtx.fillStyle = "#ff6600"; targetCtx.strokeStyle = "#dd3300";
+            let nose = p(1.4, 0, 0.2); let tailBase = p(-0.8, 0, 0.5);
+            let lSide = p(0, 0.4, 0.4); let rSide = p(0, -0.4, 0.4);
+
+            targetCtx.lineWidth = 1; targetCtx.beginPath();
+            targetCtx.moveTo(nose.x, nose.y); targetCtx.lineTo(rSide.x, rSide.y); targetCtx.lineTo(tailBase.x, tailBase.y); targetCtx.lineTo(lSide.x, lSide.y); targetCtx.closePath(); targetCtx.fill();
+            
+            targetCtx.fillStyle = "#112"; targetCtx.beginPath(); // Windows
+            targetCtx.moveTo(p(1.2, 0, 0.25).x, p(1.2, 0, 0.25).y); targetCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y); targetCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y); targetCtx.fill();
+
+            let tTop = p(-1.8, 0, 1.2); let tBack = p(-2.0, 0, 0.4); // Fenestron
+            targetCtx.fillStyle = "#ff6600"; targetCtx.beginPath();
+            targetCtx.moveTo(tailBase.x, tailBase.y); targetCtx.lineTo(tTop.x, tTop.y); targetCtx.lineTo(tBack.x, tBack.y); targetCtx.fill();
+            targetCtx.fillStyle = "#333"; targetCtx.beginPath(); let fen = p(-1.7, 0, 0.8); targetCtx.arc(fen.x, fen.y, 3 * s, 0, 7); targetCtx.fill();
+
+            targetCtx.strokeStyle = "rgba(220, 245, 255, 0.5)"; targetCtx.lineWidth = 2;
+            let hub = p(0, 0, 0.7);
+            for(let i=0; i<4; i++) {
+                let a = hRotor + i * (Math.PI/2);
+                let end = p(Math.cos(a)*2.2, Math.sin(a)*2.2, 0.8);
+                targetCtx.beginPath(); targetCtx.moveTo(hub.x, hub.y); targetCtx.lineTo(end.x, end.y); targetCtx.stroke();
+            }
+
         } else {
-            // ORIGINAL ORANGE COLOR
-            targetCtx.strokeStyle = "#ff6600"; targetCtx.lineWidth = 5 * scale;
+            // --- JAYHAWK (Original v7.5.1 Logic) ---
+            let pN = p(0.8, 0, 0); 
+            let pL = p(0, 0.4, 0); 
+            let pR = p(0, -0.4, 0); 
+            let pB = p(-0.6, 0, 0); 
+            let pT = p(-1.8, 0, 0.4); 
+
+            if(isShadow) {
+                targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - getGround(hX, hY))*0.08)})`;
+                targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
+                return;
+            }
+
+            targetCtx.strokeStyle = "#ff6600"; targetCtx.lineWidth = 5 * s;
             targetCtx.beginPath(); targetCtx.moveTo(pB.x, pB.y); targetCtx.lineTo(pT.x, pT.y); targetCtx.stroke();
+            
             targetCtx.fillStyle = "#ff6600"; targetCtx.beginPath(); targetCtx.moveTo(pN.x, pN.y); targetCtx.lineTo(pL.x, pL.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
+            
             targetCtx.fillStyle = "#fff"; targetCtx.beginPath(); targetCtx.moveTo(pL.x, pL.y); targetCtx.lineTo(pB.x, pB.y); targetCtx.lineTo(pR.x, pR.y); targetCtx.fill();
-            targetCtx.strokeStyle = "rgba(220, 245, 255, 0.5)"; targetCtx.lineWidth = 3 * scale;
+            
+            targetCtx.strokeStyle = "rgba(220, 245, 255, 0.5)"; targetCtx.lineWidth = 3 * s;
             for(let i=0; i<2; i++) {
                 let ang = hRotor + (i * Math.PI);
-                let rS = iso(hX-Math.cos(ang), hY-Math.sin(ang), hZ+0.45, camX, camY, targetCtx, targetCanvas, scale);
-                let rE = iso(hX+Math.cos(ang), hY+Math.sin(ang), hZ+0.45, camX, camY, targetCtx, targetCanvas, scale);
+                let rS = p(-Math.cos(ang), -Math.sin(ang), 0.45);
+                let rE = p(Math.cos(ang), Math.sin(ang), 0.45);
                 targetCtx.beginPath(); targetCtx.moveTo(rS.x, rS.y); targetCtx.lineTo(rE.x, rE.y); targetCtx.stroke();
             }
         }
     }
 
-    // MAIN MENU ANIMATION (Splash)
+    // --- MENUS ---
     function drawBigMenuHeli() {
         if(gameStarted) return;
         const c = document.getElementById('menu-heli-big'); const cx = c.getContext('2d');
         c.width = 800; c.height = 300; cx.clearRect(0,0,c.width,c.height);
         const t = Date.now() * 0.001;
-        drawHeli(0, 0, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3.5);
-        if(document.getElementById('splash').style.display !== 'none') {
-            requestAnimationFrame(drawBigMenuHeli);
-        }
+        drawHeli('jayhawk', 0, 0, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3.5);
+        if(document.getElementById('splash').style.display !== 'none') requestAnimationFrame(drawBigMenuHeli);
     }
     drawBigMenuHeli();
 
-    // HELI SELECTION ANIMATION
-    function animateHeliPreview() {
-        const c = document.getElementById('icon-jayhawk');
-        if(!c || document.getElementById('heli-select').style.display === 'none') return;
-        
-        const cx = c.getContext('2d');
+    function animateHeliPreviews() {
+        if(document.getElementById('heli-select').style.display === 'none') return;
         const t = Date.now() * 0.001;
         
-        cx.clearRect(0,0,c.width,c.height);
-        drawHeli(0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 2.5);
-        
-        requestAnimationFrame(animateHeliPreview);
+        // Jayhawk
+        const c1 = document.getElementById('icon-jayhawk');
+        if(c1) {
+            const cx1 = c1.getContext('2d'); c1.width=300; c1.height=200; cx1.clearRect(0,0,300,200);
+            drawHeli('jayhawk', 0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx1, c1, false, 2.5);
+        }
+        // Dolphin
+        const c2 = document.getElementById('icon-dolphin');
+        if(c2) {
+            const cx2 = c2.getContext('2d'); c2.width=300; c2.height=200; cx2.clearRect(0,0,300,200);
+            drawHeli('dolphin', 0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx2, c2, false, 2.5);
+        }
+        requestAnimationFrame(animateHeliPreviews);
     }
 
-    function startGame() {
+    function startGame(type) {
         if(gameStarted) return;
+        heli.type = type;
         document.getElementById('heli-select').style.display = 'none';
         
         gameStarted = true; introActive = true; introProgress = 0;
@@ -329,19 +374,13 @@
         if (heli.z < 2.0 && heli.rotorRPM > 0.8 && gH < 0) {
              for(let i=0; i<1; i++) {
                 let a = Math.random() * Math.PI * 2;
-                particles.push({
-                    x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: 0,
-                    vx: Math.cos(a)*0.06, vy: Math.sin(a)*0.06, life: 0.5, color: "200, 230, 255"
-                });
+                particles.push({ x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: 0, vx: Math.cos(a)*0.06, vy: Math.sin(a)*0.06, life: 0.5, color: "200, 230, 255" });
             }
         }
         else if ((heli.z - gH) < 1.2 && heli.rotorRPM > 0.8) {
             for(let i=0; i<1; i++) {
                 let a = Math.random() * Math.PI * 2;
-                particles.push({
-                    x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: gH,
-                    vx: Math.cos(a)*0.04, vy: Math.sin(a)*0.04, life: 0.4, color: "150, 150, 130"
-                });
+                particles.push({ x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: gH, vx: Math.cos(a)*0.04, vy: Math.sin(a)*0.04, life: 0.4, color: "150, 150, 130" });
             }
         }
         particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.02; });
@@ -400,19 +439,35 @@
 
         let liftFactor = (heli.rotorRPM > 0.9) ? 1.0 : 0.0; 
         if(inAir || (heli.engineOn && liftFactor > 0)) {
+            // AERO UPDATE: SPEED DEPENDENT STEERING
+            let speed = Math.hypot(heli.vx, heli.vy);
+            let aeroFactor = Math.max(0.3, 1.0 - (speed * 8.0)); // Harder to turn at speed
+
             let mod = heli.rotorRPM * (1.0 - (heli.onboard * 0.08));
             if(heli.fuel > 0) {
                 if (liftFactor > 0) { 
                     let dX = Math.cos(heli.angle), dY = Math.sin(heli.angle);
                     let sX = Math.cos(heli.angle + Math.PI/2), sY = Math.sin(heli.angle + Math.PI/2);
-                    if(keys['ArrowUp']) { heli.vx += dX*0.0025*mod; heli.vy += dY*0.0025*mod; heli.tilt = Math.min(heli.tilt+0.02, 0.4); }
-                    else if(keys['ArrowDown']) { heli.vx -= dX*0.0015*mod; heli.vy -= dY*0.0015*mod; heli.tilt = Math.max(heli.tilt-0.02, -0.2); }
+                    
+                    // TILT REVERSED (Corrected Physics)
+                    if(keys['ArrowUp']) { 
+                        heli.vx += dX*0.0025*mod; heli.vy += dY*0.0025*mod; 
+                        heli.tilt = Math.max(heli.tilt-0.02, -0.4); // Nose Down (Negative)
+                    }
+                    else if(keys['ArrowDown']) { 
+                        heli.vx -= dX*0.0015*mod; heli.vy -= dY*0.0015*mod; 
+                        heli.tilt = Math.min(heli.tilt+0.02, 0.2); // Nose Up (Positive)
+                    }
                     else heli.tilt *= 0.96;
+
                     if(keys['KeyA']) { heli.vx -= sX*0.001*mod; heli.vy -= sY*0.001*mod; heli.roll = Math.min(heli.roll+0.02, 0.3); }
                     else if(keys['KeyD']) { heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; heli.roll = Math.max(heli.roll-0.02, -0.3); }
                     else heli.roll *= 0.96;
-                    if(keys['ArrowLeft']) heli.angle -= 0.045 * mod;
-                    if(keys['ArrowRight']) heli.angle += 0.045 * mod;
+                    
+                    // YAW AFFECTED BY AERO
+                    if(keys['ArrowLeft']) heli.angle -= 0.045 * mod * aeroFactor;
+                    if(keys['ArrowRight']) heli.angle += 0.045 * mod * aeroFactor;
+                    
                     if(keys['KeyW']) heli.vz += 0.0028 * mod;
                 }
                 heli.fuel -= 0.012 * mod;
@@ -488,14 +543,14 @@
         });
 
         function drawHeliWithWinch() {
-            drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, true); 
+            drawHeli(heli.type, heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, true); 
             const wB = iso(heli.x, heli.y, heli.z, cam.x, cam.y);
             const hP = iso(heli.x, heli.y, Math.max(getGround(heli.x, heli.y), heli.z - heli.winch), cam.x, cam.y);
             ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(wB.x, wB.y); ctx.lineTo(hP.x, hP.y); ctx.stroke();
             if(!casualty.rescued && casualty.hanging) {
                 ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(hP.x, hP.y, 4, 0, 7); ctx.fill();
             }
-            drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, false);
+            drawHeli(heli.type, heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, false);
         }
 
         if (introActive) {
