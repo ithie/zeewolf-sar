@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v7.1.2 - STABLE</title>
+    <title>ZEEWOLF: SAR v7.1.4 - STATIC WORLD FIX</title>
     <style>
         body { background: #000b1a; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; }
         #splash, #crash-screen, #win-screen {
@@ -22,11 +22,11 @@
 <body>
     <div id="splash" onclick="startGame()">
         <div class="title">ZEEWOLF: SAR</div>
-        <div class="subtitle">STABLE RELEASE v7.1.2</div>
+        <div class="subtitle">WORLD STATIC v7.1.4</div>
         <canvas id="menu-heli"></canvas>
         <div style="text-align: left; background: rgba(0,255,100,0.05); padding: 25px; border: 1px solid #5f5; color: #fff; line-height: 1.6; border-radius: 8px;">
-            • INTRO: TOWING (NO CLIPPING)<br>
-            • ENGINE: HOLD [W] TO SPOOL UP<br>
+            • INTRO: TRUE STATIC TERRAIN<br>
+            • ENGINE: HOLD [W] (MAX ALT 160m)<br>
             • WARNING: HANGAR COLLISION ACTIVE
         </div>
         <p class="start-hint">CLICK TO DEPLOY</p>
@@ -62,6 +62,7 @@
 
     const PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25 };
     const START_POS = { x: 21.5, y: 21.5 };
+    const MAX_ALTITUDE = 16.0; // Updated to 16.0
 
     // Terrain Gen
     for(let x=0; x<=gridSize; x++) {
@@ -120,9 +121,8 @@
     // HANGAR DRAWING
     function drawHangar(camX, cy) {
         const hX = 21; const hY = 17; const hZ = 0.5;
-        const hW = 4; const hD = 2.0; const hH = 1.8; // Kürzere Tiefe (2.0)
+        const hW = 4; const hD = 2.0; const hH = 1.8;
 
-        // Points
         const bFL = iso(hX, hY + hD, hZ, camX, cy); 
         const bFR = iso(hX + hW, hY + hD, hZ, camX, cy);         
         const bBL = iso(hX, hY, hZ, camX, cy); 
@@ -133,17 +133,14 @@
         const tBL = iso(hX, hY, hZ + hH, camX, cy);
         const tBR = iso(hX + hW, hY, hZ + hH, camX, cy);
 
-        // Left Wall
         ctx.fillStyle = "#bbbbbb"; ctx.beginPath(); 
         ctx.moveTo(bFL.x, bFL.y); ctx.lineTo(bBL.x, bBL.y); ctx.lineTo(tBL.x, tBL.y); ctx.lineTo(tFL.x, tFL.y); ctx.fill();
         ctx.strokeStyle = "#999"; ctx.stroke();
 
-        // Right Wall
         ctx.fillStyle = "#999999"; ctx.beginPath(); 
         ctx.moveTo(bFR.x, bFR.y); ctx.lineTo(bBR.x, bBR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tFR.x, tFR.y); ctx.fill();
         ctx.stroke();
 
-        // Roof
         ctx.fillStyle = "#dddddd"; ctx.beginPath(); 
         ctx.moveTo(tFL.x, tFL.y); ctx.lineTo(tFR.x, tFR.y); ctx.lineTo(tBR.x, tBR.y); ctx.lineTo(tBL.x, tBL.y); ctx.fill();
         ctx.strokeStyle = "#fff"; ctx.stroke();
@@ -187,7 +184,6 @@
     function drawHeli(hX, hY, hZ, hAngle, hTilt, hRoll, hRotor, camX, camY, targetCtx, targetCanvas, isShadow = false, scale = 1) {
         const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
         const gH = getGround(hX, hY), zOff = isShadow ? gH : hZ;
-        // Calculation
         const pN = iso(hX + 0.8*cosA, hY + 0.8*sinA, zOff - (isShadow?0:hTilt*0.5), camX, camY, targetCtx, targetCanvas, scale);
         const pL = iso(hX - 0.4*sinA, hY + 0.4*cosA, zOff + (isShadow?0:hRoll*0.5), camX, camY, targetCtx, targetCanvas, scale);
         const pR = iso(hX + 0.4*sinA, hY - 0.4*cosA, zOff - (isShadow?0:hRoll*0.5), camX, camY, targetCtx, targetCanvas, scale);
@@ -225,7 +221,6 @@
     function startGame() {
         if(gameStarted) return;
         document.getElementById('splash').style.display = 'none';
-        
         gameStarted = true;
         introActive = true;
         introProgress = 0;
@@ -263,15 +258,13 @@
         // INTRO
         if(introActive) {
             introProgress += 0.005; 
-            // Start tief im Hangar -> Ziel Pad Mitte
             const startX = 23.0; const startY = 17.5;
             heli.x = startX + (START_POS.x - startX) * introProgress;
             heli.y = startY + (START_POS.y - startY) * introProgress;
             heli.z = 0.5; heli.angle = -Math.PI / 4; heli.rotorRPM = 0; 
 
             if(introProgress >= 1) {
-                introActive = false;
-                heli.engineOn = false; heli.rotorRPM = 0;
+                introActive = false; heli.engineOn = false; heli.rotorRPM = 0;
                 heli.x = START_POS.x; heli.y = START_POS.y;
                 showMsg("SYSTEM READY - START ENGINE [W]");
             }
@@ -297,17 +290,17 @@
         let nextGround = getGround(heli.x + heli.vx * 5, heli.y + heli.vy * 5);
         if(nextGround > heli.z + 0.2) triggerCrash("TERRAIN COLLISION");
 
-        // HANGAR COLLISION BOX (x:21-25, y:17-19, z<2.3)
-        // Adjust y to 17-19 because depth is 2.0 starting at 17
+        // HANGAR COLLISION
         if(heli.x > 21 && heli.x < 25 && heli.y > 17 && heli.y < 19 && heli.z < 2.3) {
             triggerCrash("STRUCTURAL IMPACT");
         }
 
-        // BOUNDARIES
+        // BOUNDARIES & ALTITUDE
         if(heli.x < 1) { heli.x = 1; heli.vx = 0; }
         if(heli.x > gridSize - 1) { heli.x = gridSize - 1; heli.vx = 0; }
         if(heli.y < 1) { heli.y = 1; heli.vy = 0; }
         if(heli.y > gridSize - 1) { heli.y = gridSize - 1; heli.vy = 0; }
+        if(heli.z > MAX_ALTITUDE) { heli.z = MAX_ALTITUDE; if(heli.vz > 0) heli.vz = 0; }
 
         heli.rotorRPM = (heli.engineOn && heli.fuel > 0) ? Math.min(1, heli.rotorRPM + 0.005) : Math.max(0, heli.rotorRPM - 0.004);
         heli.rotationPos += heli.rotorRPM * 0.75;
@@ -388,9 +381,16 @@
             cam.y += (targetCamY - cam.y) * 0.1;
         }
 
-        // Terrain
-        for (let x = Math.floor(heli.x - 12); x < heli.x + 12; x++) {
-            for (let y = Math.floor(heli.y - 12); y < heli.y + 12; y++) {
+        // STATIC WORLD FIX: Use StartPos for grid center during intro
+        let renderCX = introActive ? START_POS.x : heli.x;
+        // heli.y is actually used for the loop check in update() for physics, but for rendering:
+        // We iterate X. For Y we usually do heli.y.
+        // Wait, the original loop was: for(let x=floor(heli.x-12)...)
+        // So we need to replace heli.x with renderCX in the loop definition.
+        
+        for (let x = Math.floor(renderCX - 12); x < renderCX + 12; x++) {
+            let renderCY = introActive ? START_POS.y : heli.y;
+            for (let y = Math.floor(renderCY - 12); y < renderCY + 12; y++) {
                 if(x < 0 || y < 0 || x >= gridSize-1 || y >= gridSize-1) continue;
                 const h = [points[x][y], points[x+1][y], points[x+1][y+1], points[x][y+1]];
                 const p = [iso(x,y,h[0], cam.x, cam.y), iso(x+1,y,h[1], cam.x, cam.y), iso(x+1,y+1,h[2], cam.x, cam.y), iso(x,y+1,h[3], cam.x, cam.y)];
@@ -409,32 +409,25 @@
             ctx.fillStyle = `rgba(${p.color}, ${p.life})`; ctx.fillRect(pos.x, pos.y, 3, 3);
         });
 
-        // HELPER DRAW FUNCTION (To avoid duplicate code in Z-sort)
         function drawHeliWithWinch() {
-            drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, true); // shadow
+            drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, true); 
             const wB = iso(heli.x, heli.y, heli.z, cam.x, cam.y);
             const hP = iso(heli.x, heli.y, Math.max(getGround(heli.x, heli.y), heli.z - heli.winch), cam.x, cam.y);
             ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(wB.x, wB.y); ctx.lineTo(hP.x, hP.y); ctx.stroke();
             if(!casualty.rescued && casualty.hanging) {
                 ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(hP.x, hP.y, 4, 0, 7); ctx.fill();
             }
-            drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, false); // body
+            drawHeli(heli.x, heli.y, heli.z, heli.angle, heli.tilt, heli.roll, heli.rotationPos, cam.x, cam.y, ctx, canvas, false);
         }
 
-        // Z-SORTING
-        // Hangar depth is 2.0, starting at y=17. Ends at y=19.
         if (introActive) {
-            // In intro, heli is inside or moving out, draw Heli first (behind hangar walls usually) then Hangar
             drawHeliWithWinch();
             drawHangar(cam.x, cam.y);
         } else {
-            // Gameplay
             if (heli.y > 19) {
-                // Heli is "in front" of the hangar (closer to viewer) -> Draw Hangar first
                 drawHangar(cam.x, cam.y);
                 drawHeliWithWinch();
             } else {
-                // Heli is "behind" or "inside" the hangar zone -> Draw Heli first
                 drawHeliWithWinch();
                 drawHangar(cam.x, cam.y);
             }
@@ -445,7 +438,6 @@
             ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(cP.x, cP.y, 4, 0, 7); ctx.fill();
         }
 
-        // HUD
         if(!introActive) {
             ctx.font = "bold 13px monospace"; ctx.fillStyle = "#5f5";
             let hX = iso(heli.x, heli.y, heli.z, cam.x, cam.y).x + 45, hY = iso(heli.x, heli.y, heli.z, cam.x, cam.y).y - 35;
