@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v15.1 - REFUEL FIXED</title>
+    <title>ZEEWOLF: SAR v15.4 - DYNAMIC BANKING</title>
     <style>
         body { background: #050505; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; user-select: none; }
         
@@ -52,7 +52,7 @@
 
     <div id="splash" onclick="toMissionSelect()">
         <div class="title">ZEEWOLF: SAR</div>
-        <div class="subtitle">v15.1 REFUEL FIX</div>
+        <div class="subtitle">v15.4 DYNAMIC BANKING</div>
         <canvas id="menu-heli-big"></canvas>
         <p class="start-hint">CLICK TO START SYSTEM</p>
     </div>
@@ -253,16 +253,40 @@
                 let dX = Math.cos(heli.angle), dY = Math.sin(heli.angle);
                 let sX = Math.cos(heli.angle + Math.PI/2), sY = Math.sin(heli.angle + Math.PI/2);
                 
+                // PITCH & SPEED
                 if(keys['ArrowUp']) { heli.vx += dX * heli.accel * mod; heli.vy += dY * heli.accel * mod; heli.tilt = Math.max(heli.tilt - heli.tiltSpeed, -0.4); }
                 else if(keys['ArrowDown']) { heli.vx -= dX * heli.accel * mod; heli.vy -= dY * heli.accel * mod; heli.tilt = Math.min(heli.tilt + heli.tiltSpeed, 0.2); }
                 else heli.tilt *= 0.96;
 
-                if(keys['KeyA']) { heli.vx -= sX*0.001*mod; heli.vy -= sY*0.001*mod; heli.roll = Math.min(heli.roll+0.02, 0.3); }
-                else if(keys['KeyD']) { heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; heli.roll = Math.max(heli.roll-0.02, -0.3); }
-                else heli.roll *= 0.96;
-                
-                if(keys['ArrowLeft']) heli.angle -= 0.045 * mod * aero;
-                if(keys['ArrowRight']) heli.angle += 0.045 * mod * aero;
+                // --- NEW: DYNAMIC BANKING LOGIC ---
+                let turning = false;
+
+                // Strafing (Strong Roll)
+                if(keys['KeyA']) { 
+                    heli.vx -= sX*0.001*mod; heli.vy -= sY*0.001*mod; 
+                    heli.roll = Math.min(heli.roll+0.02, 0.4); 
+                    turning = true; 
+                }
+                else if(keys['KeyD']) { 
+                    heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; 
+                    heli.roll = Math.max(heli.roll-0.02, -0.4); 
+                    turning = true; 
+                }
+
+                // Turning (Subtle Bank Roll)
+                if(keys['ArrowLeft']) { 
+                    heli.angle -= 0.045 * mod * aero; 
+                    heli.roll = Math.min(heli.roll + 0.012, 0.4); // Lean into turn
+                    turning = true;
+                }
+                if(keys['ArrowRight']) { 
+                    heli.angle += 0.045 * mod * aero; 
+                    heli.roll = Math.max(heli.roll - 0.012, -0.4); // Lean into turn
+                    turning = true;
+                }
+
+                if(!turning) heli.roll *= 0.96;
+                // ----------------------------------
                 
                 if(keys['KeyW']) heli.vz += heli.liftPower * mod;
                 else if(keys['KeyS']) heli.vz -= 0.002;
@@ -276,6 +300,19 @@
         if(heli.fuel <= 0 && inAir) { if(heli.fuel > -1) { showMsg("OUT OF FUEL!"); heli.fuel = -1; } heli.engineOn = false; heli.vz -= 0.002; }
         heli.vx *= heli.friction; heli.vy *= heli.friction; 
         heli.x += heli.vx; heli.y += heli.vy; heli.z += heli.vz;
+        
+        // BOUNDARIES
+        const margin = 2;
+        if(heli.x < margin) { heli.x = margin; heli.vx = 0; }
+        if(heli.x > gridSize - margin) { heli.x = gridSize - margin; heli.vx = 0; }
+        if(heli.y < margin) { heli.y = margin; heli.vy = 0; }
+        if(heli.y > gridSize - margin) { heli.y = gridSize - margin; heli.vy = 0; }
+
+        // ALTITUDE CEILING
+        if(heli.z > 20.0) { 
+            heli.z = 20.0; heli.vz = 0; 
+            if(Math.random() < 0.05) showMsg("MAX ALTITUDE");
+        }
         if(heli.z < groundH + 0.1) { heli.z = groundH + 0.1; heli.vz = 0; }
 
         if(keys['KeyQ']) heli.winch = Math.max(0, heli.winch - 0.02);
@@ -305,7 +342,7 @@
             }
         }
         
-        // --- FIXED: REFUELING & UNLOADING ---
+        // REFUELING & UNLOADING
         if(!inAir && onPad) {
             if(heli.fuel < 100) heli.fuel = Math.min(100, heli.fuel + 0.5); // Refuel speed
             if(heli.onboard > 0) {
