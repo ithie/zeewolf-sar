@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v15.4 - DYNAMIC BANKING</title>
+    <title>ZEEWOLF: SAR v16.9 - CAPTAIN'S FIX</title>
     <style>
         body { background: #050505; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; user-select: none; }
         
@@ -23,18 +23,17 @@
         .title { font-size: 64px; color: #ff6600; text-shadow: 0 0 20px #ff6600; margin-bottom: 5px; font-weight: bold; }
         .subtitle { font-size: 20px; color: #5f5; margin-bottom: 30px; letter-spacing: 4px; }
         
-        .grid-container, .mission-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; width: 900px; height: 350px; }
+        .grid-container, .mission-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; width: 1100px; height: 350px; }
         
         .grid-box {
             background: rgba(0, 40, 15, 0.4); border: 1px solid #3a3; color: #585;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            text-align: center; font-size: 16px; transition: 0.2s; border-radius: 4px; cursor: pointer;
+            text-align: center; font-size: 16px; transition: 0.2s; border-radius: 4px; cursor: pointer; padding: 10px;
         }
         .grid-box:hover {
             background: rgba(0, 60, 30, 0.9); border-color: #5f5; color: #fff;
             box-shadow: 0 0 30px #ff6600; transform: scale(1.02); z-index: 10;
         }
-        .grid-box.locked { border: 1px dashed #242; color: #242; background: rgba(0,0,0,0.2); pointer-events: none; }
         
         .box-label { font-weight: bold; font-size: 18px; margin-top: 10px; text-transform: uppercase;}
         .box-sub { font-size: 13px; margin-top: 5px; opacity: 0.8; }
@@ -52,7 +51,7 @@
 
     <div id="splash" onclick="toMissionSelect()">
         <div class="title">ZEEWOLF: SAR</div>
-        <div class="subtitle">v15.4 DYNAMIC BANKING</div>
+        <div class="subtitle">v16.9 CAPTAIN'S FIX</div>
         <canvas id="menu-heli-big"></canvas>
         <p class="start-hint">CLICK TO START SYSTEM</p>
     </div>
@@ -61,19 +60,29 @@
         <div class="title">SELECT MISSION</div>
         <div class="subtitle">OPERATION THEATER</div>
         <div class="mission-grid">
-            <div class="grid-box" onclick="selectMission('coastal')"><div class="box-label">COASTAL TRAINING</div><div class="box-sub">Sunny / Standard</div><div class="box-sub">Goal: 10 Survivors</div></div>
-            <div class="grid-box" onclick="selectMission('recovery')"><div class="box-label">RECOVERY OP</div><div class="box-sub" style="color:#fb0">HEAVY CRATES (Pendulum)</div><div class="box-sub">Goal: 3 Crates</div></div>
-            <div class="grid-box" onclick="selectMission('storm')"><div class="box-label">THE STORM</div><div class="box-sub" style="color:#0cf">RAIN / WIND / SEA</div><div class="box-sub">Goal: 8 Survivors</div></div>
+            <div class="grid-box" onclick="selectMission('coastal')"><div class="box-label">COASTAL TRAINING</div><div class="box-sub">Sunny / Landbase</div><div class="box-sub">Goal: 10 Survivors</div></div>
+            <div class="grid-box" onclick="selectMission('recovery')"><div class="box-label">RECOVERY OP</div><div class="box-sub" style="color:#fb0">Hilly / Heavy Crates</div><div class="box-sub">Goal: 3 Crates</div></div>
+            <div class="grid-box" onclick="selectMission('storm')"><div class="box-label">THE STORM</div><div class="box-sub" style="color:#0cf">Rain / Islands</div><div class="box-sub">Goal: 8 Survivors</div></div>
+            <div class="grid-box" onclick="selectMission('sea')"><div class="box-label" style="color:#aaa">CARRIER OPS</div><div class="box-sub" style="color:#fff">MOVING SHIP / DECK OPS</div><div class="box-sub">Goal: 15 Survivors</div></div>
         </div>
     </div>
 
     <div id="heli-select">
         <div class="title">HANGAR</div>
         <div class="subtitle">SELECT AIRFRAME</div>
-        <div class="grid-container">
-            <div class="grid-box" onclick="startGame('classic')"><canvas id="icon-classic" class="mini-canvas" width="300" height="200"></canvas><div class="box-label">CLASSIC (TYPE-Z)</div><div class="box-sub">Balanced</div><div class="box-sub" style="color:#aaa">Cap: 5</div></div>
-            <div class="grid-box" onclick="startGame('dolphin')"><canvas id="icon-dolphin" class="mini-canvas" width="300" height="200"></canvas><div class="box-label">MH-65 DOLPHIN</div><div class="box-sub">Agile / Fast</div><div class="box-sub" style="color:#aaa">Cap: 3 (Lightweight)</div></div>
-            <div class="grid-box" onclick="startGame('jayhawk')"><canvas id="icon-jayhawk" class="mini-canvas" width="300" height="200"></canvas><div class="box-label">MH-60T JAYHAWK</div><div class="box-sub">Heavy / Stable</div><div class="box-sub" style="color:#aaa">Cap: 10 (Heavy Lift)</div></div>
+        <div class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width:900px;">
+            <div class="grid-box" onclick="startGame('classic')" onmouseenter="setHover('classic', true)" onmouseleave="setHover('classic', false)">
+                <canvas id="icon-classic" class="mini-canvas" width="300" height="200"></canvas>
+                <div class="box-label">CLASSIC (TYPE-Z)</div><div class="box-sub">Balanced</div><div class="box-sub" style="color:#aaa">Cap: 5</div>
+            </div>
+            <div class="grid-box" onclick="startGame('dolphin')" onmouseenter="setHover('dolphin', true)" onmouseleave="setHover('dolphin', false)">
+                <canvas id="icon-dolphin" class="mini-canvas" width="300" height="200"></canvas>
+                <div class="box-label">MH-65 DOLPHIN</div><div class="box-sub">Agile / Fast</div><div class="box-sub" style="color:#aaa">Cap: 3 (Lightweight)</div>
+            </div>
+            <div class="grid-box" onclick="startGame('jayhawk')" onmouseenter="setHover('jayhawk', true)" onmouseleave="setHover('jayhawk', false)">
+                <canvas id="icon-jayhawk" class="mini-canvas" width="300" height="200"></canvas>
+                <div class="box-label">MH-60T JAYHAWK</div><div class="box-sub">Heavy / Stable</div><div class="box-sub" style="color:#aaa">Cap: 10 (Heavy Lift)</div>
+            </div>
         </div>
     </div>
 
@@ -84,7 +93,8 @@
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const tileW = 64, tileH = 32, stepH = 25, gridSize = 200;
+    const tileW = 64, tileH = 32, stepH = 25;
+    let gridSize = 200; 
     
     // STATE
     let gameStarted = false, crashed = false;
@@ -93,12 +103,36 @@
     let goalCount = 10, totalRescued = 0, totalSpawned = 0; 
     let stormActive = false;
 
+    let menuHover = { classic: false, dolphin: false, jayhawk: false };
+    let menuAngles = { classic: -0.5, dolphin: -0.5, jayhawk: -0.5 };
+
     let points = [], particles = [];
     let cam = { x: 0, y: 0 };
-    const PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25 };
-    const START_POS = { x: 21.5, y: 21.5 };
     
-    for(let x=0; x<=gridSize; x++) { points[x] = []; for(let y=0; y<=gridSize; y++) { points[x][y] = 0; } }
+    // --- CONFIGURATION ---
+    let PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 }; 
+    let START_POS = { x: 21.5, y: 21.5 };
+
+    // CARRIER DEFINITION
+    // Elliptical Path: Rx=50, Ry=120 (Long Oval)
+    let CARRIER = { 
+        x: 100, y: 100, 
+        w: 3.5, l: 11, 
+        zDeck: 0.6, zHull: 0.2, 
+        angle: 0, 
+        turnSpeed: 0.00015, // VERY SLOW
+        radiusX: 50, radiusY: 120, // OVAL
+        centerX: 150, centerY: 200
+    }; 
+    let seaTime = 0;
+    
+    const parkedHelis = [
+        { type: 'jayhawk', xRel: -1.8, yRel: -6, angle: Math.PI/2 },
+        { type: 'jayhawk', xRel: -1.8, yRel: -3, angle: Math.PI/2 },
+        { type: 'dolphin', xRel: 2.0, yRel: 0, angle: -Math.PI/2 },
+        { type: 'dolphin', xRel: 2.0, yRel: 2.5, angle: -Math.PI/2 },
+        { type: 'dolphin', xRel: 2.0, yRel: 5, angle: -Math.PI/2 }
+    ];
 
     let heli = { 
         type: 'classic', x: 0, y: 0, z: 0.5, vx: 0, vy: 0, vz: 0, angle: 0, 
@@ -112,33 +146,104 @@
     let wind = { x: 0, y: 0, phase: 0 }; 
     let keys = {};
 
+    function initGrid(size) {
+        gridSize = size;
+        points = [];
+        for(let x=0; x<=gridSize; x++) { points[x] = []; for(let y=0; y<=gridSize; y++) { points[x][y] = 0; } }
+    }
+    initGrid(200);
+
     function toMissionSelect() { document.getElementById('splash').style.display='none'; document.getElementById('mission-select').style.display='flex'; }
     
+    function setHover(type, state) { menuHover[type] = state; }
+
     function selectMission(type) {
         missionType = type;
-        if(type === 'coastal') { goalCount = 10; stormActive = false; }
-        if(type === 'recovery') { goalCount = 3; stormActive = false; }
+        stormActive = false;
+        PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 };
+        START_POS = { x: 21.5, y: 21.5 };
+        initGrid(200);
+
+        if(type === 'coastal') { goalCount = 10; }
+        if(type === 'recovery') { goalCount = 3; }
         if(type === 'storm') { goalCount = 8; stormActive = true; }
+        
+        if(type === 'sea') { 
+            goalCount = 15; 
+            stormActive = true; 
+            initGrid(400); // Huge map
+            CARRIER.centerX = 200; CARRIER.centerY = 200;
+            seaTime = 0;
+            
+            // 1. Calculate Initial Ship Position
+            updateCarrierPos(true); // FORCE UPDATE to set initial X,Y,Angle
+            
+            // 2. Calculate Start Pos RELATIVE to that exact ship position
+            // Start at {0, 8} (Front of deck)
+            let rot = rotatePoint(0, 8, CARRIER.angle);
+            START_POS = { x: CARRIER.x + rot.x, y: CARRIER.y + rot.y };
+        }
+
         document.getElementById('mission-select').style.display='none';
         document.getElementById('heli-select').style.display='flex';
         animateHeliPreviews();
     }
 
+    // forceUpdate: Calculate Angle strictly from Math, not from delta position
+    function updateCarrierPos(forceUpdate = false) {
+        if(missionType !== 'sea') return;
+        
+        if(!forceUpdate) seaTime += CARRIER.turnSpeed;
+        
+        // Elliptical Path Position
+        let nx = CARRIER.centerX + Math.cos(seaTime) * CARRIER.radiusX;
+        let ny = CARRIER.centerY + Math.sin(seaTime) * CARRIER.radiusY;
+        
+        // Angle Calculation
+        if (forceUpdate) {
+            // Analytical tangent for ellipse: dx/dt = -Rx sin(t), dy/dt = Ry cos(t)
+            let dx = -CARRIER.radiusX * Math.sin(seaTime);
+            let dy = CARRIER.radiusY * Math.cos(seaTime);
+            CARRIER.angle = Math.atan2(dy, dx) + Math.PI/2;
+        } else {
+            // Delta based for smoothness during play
+            let dx = nx - CARRIER.x;
+            let dy = ny - CARRIER.y;
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) {
+                 CARRIER.angle = Math.atan2(dy, dx) + Math.PI/2;
+            }
+        }
+
+        CARRIER.x = nx;
+        CARRIER.y = ny;
+    }
+
+    function rotatePoint(x, y, rad) {
+        return {
+            x: x * Math.cos(rad) - y * Math.sin(rad),
+            y: x * Math.sin(rad) + y * Math.cos(rad)
+        };
+    }
+
     function generateTerrain() {
         for(let x=0; x<=gridSize; x++) {
             for(let y=0; y<=gridSize; y++) {
-                if (x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1) {
-                    points[x][y] = 0.5;
+                if (missionType === 'sea') {
+                    points[x][y] = -1.0 + Math.sin(x*0.1)*Math.cos(y*0.1)*0.2;
                 } else {
-                    if (missionType === 'storm') {
-                        let island = Math.sin(x*0.05) * Math.cos(y*0.05) * 4 - 3.5;
-                        points[x][y] = Math.max(-0.5, island);
-                    } else if (missionType === 'recovery') {
-                        let h = Math.sin(x*0.15) * Math.cos(y*0.15) * 4;
-                        points[x][y] = Math.max(-0.2, h);
+                    if (x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1) {
+                        points[x][y] = PAD.z; 
                     } else {
-                        let h = Math.sin(x*0.1) * Math.cos(y*0.1) * 3 + Math.cos(x*0.05) * 2;
-                        points[x][y] = Math.max(-0.2, h);
+                        if (missionType === 'storm') {
+                            let island = Math.sin(x*0.05) * Math.cos(y*0.05) * 4 - 3.5;
+                            points[x][y] = Math.max(-0.5, island);
+                        } else if (missionType === 'recovery') {
+                            let h = Math.sin(x*0.15) * Math.cos(y*0.15) * 4;
+                            points[x][y] = Math.max(-0.2, h);
+                        } else {
+                            let h = Math.sin(x*0.1) * Math.cos(y*0.1) * 3 + Math.cos(x*0.05) * 2;
+                            points[x][y] = Math.max(-0.2, h);
+                        }
                     }
                 }
             }
@@ -153,11 +258,45 @@
         };
     }
 
+    function drawFace(points, color, strokeColor, zOffset, cX, cY) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        let first = iso(points[0].x, points[0].y, points[0].z + zOffset, cX, cY);
+        ctx.moveTo(first.x, first.y);
+        for(let i=1; i<points.length; i++) {
+            let p = iso(points[i].x, points[i].y, points[i].z + zOffset, cX, cY);
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        if(strokeColor) { ctx.strokeStyle = strokeColor; ctx.lineWidth=1; ctx.stroke(); }
+    }
+
+    function getCarrierLocal(globX, globY) {
+        let dx = globX - CARRIER.x;
+        let dy = globY - CARRIER.y;
+        let ang = -CARRIER.angle;
+        return {
+            x: dx * Math.cos(ang) - dy * Math.sin(ang),
+            y: dx * Math.sin(ang) + dy * Math.cos(ang)
+        };
+    }
+
     function getGround(fx, fy) {
         let x1 = Math.floor(fx), y1 = Math.floor(fy);
-        if(x1 < 0 || y1 < 0 || x1 >= gridSize - 1 || y1 >= gridSize - 1) return -0.5;
+        if(x1 < 0 || y1 < 0 || x1 >= gridSize - 1 || y1 >= gridSize - 1) return -1.0;
+        
+        if (missionType === 'sea') {
+            let local = getCarrierLocal(fx, fy);
+            if (local.x >= -CARRIER.w && local.x <= CARRIER.w && 
+                local.y >= -CARRIER.l && local.y <= CARRIER.l) {
+                if (local.x > 1.5 && local.y > 4 && local.y < 9) return CARRIER.zDeck + 1.2; 
+                return CARRIER.zDeck; 
+            }
+        }
+
         let tX = fx - x1, tY = fy - y1;
-        return points[x1][y1]*(1-tX)*(1-tY) + points[x1+1][y1]*tX*(1-tY) + points[x1][y1+1]*(1-tX)*tY + points[x1+1][y1+1]*tX*tY;
+        return points[x1][y1]*(1-tX)*(1-tY) + points[x1+1][y1]*tX*(1-tY) + points[x1+1][y1+1]*(1-tX)*tY + points[x1+1][y1+1]*tX*tY;
     }
 
     function spawnPayload() {
@@ -168,8 +307,12 @@
                 payload.x = 5 + Math.random() * (gridSize - 10);
                 payload.y = 5 + Math.random() * (gridSize - 10);
                 let g = getGround(payload.x, payload.y);
-                if (missionType === 'storm') { if (g < 0) valid = true; }
-                else { if (g > 0 && (payload.x < PAD.xMin || payload.x > PAD.xMax)) valid = true; }
+                if (missionType === 'sea') { 
+                    let d = Math.hypot(payload.x - CARRIER.x, payload.y - CARRIER.y);
+                    if (g < 0 && d > 30) valid = true; 
+                }
+                else if (missionType === 'storm') { if (g < 0) valid = true; } 
+                else { if (g > 0 && (payload.x < PAD.xMin || payload.x > PAD.xMax)) valid = true; } 
             }
             if(!valid) { payload.x = 30; payload.y = 30; } 
             payload.z = getGround(payload.x, payload.y);
@@ -187,15 +330,13 @@
 
     function handleParticles() {
         let gH = getGround(heli.x, heli.y);
-        // Land Dust
-        if (heli.z < 2.5 && heli.rotorRPM > 0.8 && gH > 0) { 
+        if (heli.z < 2.5 && heli.rotorRPM > 0.8 && gH > 0.1) { 
             for(let i=0; i<1; i++) { 
                 let a = Math.random() * Math.PI * 2; 
                 particles.push({ x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: gH + 0.1, vx: Math.cos(a)*0.06, vy: Math.sin(a)*0.06, life: 0.5, color: "150, 140, 120" }); 
             } 
         }
-        // Water Spray
-        else if (heli.z < 2.0 && heli.rotorRPM > 0.8 && gH < 0) { 
+        else if (heli.z < 2.0 && heli.rotorRPM > 0.8 && gH < 0.1) { 
             for(let i=0; i<2; i++) { 
                 let a = Math.random() * Math.PI * 2; 
                 particles.push({ x: heli.x + Math.cos(a)*0.6, y: heli.y + Math.sin(a)*0.6, z: 0, vx: Math.cos(a)*0.08, vy: Math.sin(a)*0.08, life: 0.4, color: "200, 230, 255" }); 
@@ -212,10 +353,58 @@
         wind.x = Math.cos(windAngle) * baseWind * gust;
         wind.y = Math.sin(windAngle) * baseWind * gust;
 
-        let groundH = getGround(heli.x, heli.y);
-        let onPad = (heli.x >= PAD.xMin && heli.x <= PAD.xMax && heli.y >= PAD.yMin && heli.y <= PAD.yMax);
+        let carrierVX = 0, carrierVY = 0, carrierRot = 0;
 
-        if(keys['KeyW'] && !heli.engineOn && heli.fuel > 0 && onPad) heli.engineOn = true;
+        if (missionType === 'sea' && !crashed) {
+            let oldX = CARRIER.x;
+            let oldY = CARRIER.y;
+            let oldAng = CARRIER.angle;
+            
+            updateCarrierPos();
+            
+            carrierVX = CARRIER.x - oldX;
+            carrierVY = CARRIER.y - oldY;
+            carrierRot = CARRIER.angle - oldAng;
+
+            let local = getCarrierLocal(heli.x, heli.y);
+            let onDeck = (local.x >= -CARRIER.w && local.x <= CARRIER.w && local.y >= -CARRIER.l && local.y <= CARRIER.l);
+            
+            if (onDeck && !heli.inAir) {
+                heli.x += carrierVX;
+                heli.y += carrierVY;
+                
+                // Rotational physics transform
+                let dx = heli.x - CARRIER.x; 
+                let dy = heli.y - CARRIER.y;
+                let newDX = dx * Math.cos(carrierRot) - dy * Math.sin(carrierRot);
+                let newDY = dx * Math.sin(carrierRot) + dy * Math.cos(carrierRot);
+                
+                heli.x += (newDX - dx);
+                heli.y += (newDY - dy);
+                heli.angle += carrierRot;
+                
+                heli.vx *= 0.8; 
+                heli.vy *= 0.8;
+            }
+        }
+
+        let groundH = getGround(heli.x, heli.y);
+        let onPad = false;
+        if(missionType === 'sea') {
+             let local = getCarrierLocal(heli.x, heli.y);
+             if(local.x >= -CARRIER.w && local.x <= CARRIER.w && local.y >= -CARRIER.l && local.y <= CARRIER.l) onPad = true;
+        } else {
+             if(heli.x >= PAD.xMin && heli.x <= PAD.xMax && heli.y >= PAD.yMin && heli.y <= PAD.yMax) onPad = true;
+        }
+        
+        if (missionType === 'sea' && onPad && heli.z < CARRIER.zDeck + 1.0) {
+             let local = getCarrierLocal(heli.x, heli.y);
+             if (local.x > 1.5 && local.y > 4 && local.y < 9) triggerCrash("COLLISION WITH TOWER");
+        }
+
+        // --- MOTOR START BLOCK DURING INTRO ---
+        if(keys['KeyW'] && !heli.engineOn && heli.fuel > 0 && onPad && !introActive) heli.engineOn = true;
+        
         if(keys['KeyS'] && !heli.inAir && heli.engineOn && heli.rotorRPM < 0.1) heli.engineOn = false;
         heli.rotorRPM = (heli.engineOn && heli.fuel > 0) ? Math.min(1, heli.rotorRPM + 0.005) : Math.max(0, heli.rotorRPM - 0.004);
         heli.rotationPos += heli.rotorRPM * 0.75;
@@ -253,40 +442,17 @@
                 let dX = Math.cos(heli.angle), dY = Math.sin(heli.angle);
                 let sX = Math.cos(heli.angle + Math.PI/2), sY = Math.sin(heli.angle + Math.PI/2);
                 
-                // PITCH & SPEED
                 if(keys['ArrowUp']) { heli.vx += dX * heli.accel * mod; heli.vy += dY * heli.accel * mod; heli.tilt = Math.max(heli.tilt - heli.tiltSpeed, -0.4); }
                 else if(keys['ArrowDown']) { heli.vx -= dX * heli.accel * mod; heli.vy -= dY * heli.accel * mod; heli.tilt = Math.min(heli.tilt + heli.tiltSpeed, 0.2); }
                 else heli.tilt *= 0.96;
 
-                // --- NEW: DYNAMIC BANKING LOGIC ---
                 let turning = false;
+                if(keys['KeyA']) { heli.vx -= sX*0.001*mod; heli.vy -= sY*0.001*mod; heli.roll = Math.min(heli.roll+0.02, 0.4); turning = true; }
+                else if(keys['KeyD']) { heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; heli.roll = Math.max(heli.roll-0.02, -0.4); turning = true; }
 
-                // Strafing (Strong Roll)
-                if(keys['KeyA']) { 
-                    heli.vx -= sX*0.001*mod; heli.vy -= sY*0.001*mod; 
-                    heli.roll = Math.min(heli.roll+0.02, 0.4); 
-                    turning = true; 
-                }
-                else if(keys['KeyD']) { 
-                    heli.vx += sX*0.001*mod; heli.vy += sY*0.001*mod; 
-                    heli.roll = Math.max(heli.roll-0.02, -0.4); 
-                    turning = true; 
-                }
-
-                // Turning (Subtle Bank Roll)
-                if(keys['ArrowLeft']) { 
-                    heli.angle -= 0.045 * mod * aero; 
-                    heli.roll = Math.min(heli.roll + 0.012, 0.4); // Lean into turn
-                    turning = true;
-                }
-                if(keys['ArrowRight']) { 
-                    heli.angle += 0.045 * mod * aero; 
-                    heli.roll = Math.max(heli.roll - 0.012, -0.4); // Lean into turn
-                    turning = true;
-                }
-
+                if(keys['ArrowLeft']) { heli.angle -= 0.045 * mod * aero; heli.roll = Math.min(heli.roll + 0.012, 0.4); turning = true;}
+                if(keys['ArrowRight']) { heli.angle += 0.045 * mod * aero; heli.roll = Math.max(heli.roll - 0.012, -0.4); turning = true;}
                 if(!turning) heli.roll *= 0.96;
-                // ----------------------------------
                 
                 if(keys['KeyW']) heli.vz += heli.liftPower * mod;
                 else if(keys['KeyS']) heli.vz -= 0.002;
@@ -301,18 +467,13 @@
         heli.vx *= heli.friction; heli.vy *= heli.friction; 
         heli.x += heli.vx; heli.y += heli.vy; heli.z += heli.vz;
         
-        // BOUNDARIES
         const margin = 2;
         if(heli.x < margin) { heli.x = margin; heli.vx = 0; }
         if(heli.x > gridSize - margin) { heli.x = gridSize - margin; heli.vx = 0; }
         if(heli.y < margin) { heli.y = margin; heli.vy = 0; }
         if(heli.y > gridSize - margin) { heli.y = gridSize - margin; heli.vy = 0; }
 
-        // ALTITUDE CEILING
-        if(heli.z > 20.0) { 
-            heli.z = 20.0; heli.vz = 0; 
-            if(Math.random() < 0.05) showMsg("MAX ALTITUDE");
-        }
+        if(heli.z > 20.0) { heli.z = 20.0; heli.vz = 0; if(Math.random() < 0.05) showMsg("MAX ALTITUDE"); }
         if(heli.z < groundH + 0.1) { heli.z = groundH + 0.1; heli.vz = 0; }
 
         if(keys['KeyQ']) heli.winch = Math.max(0, heli.winch - 0.02);
@@ -321,7 +482,7 @@
         if(!payload.rescued && !payload.hanging) {
             let dist = Math.hypot(heli.x - payload.x, heli.y - payload.y);
             let hZ = heli.z - heli.winch;
-            if(dist < 1.5 && Math.abs(hZ - getGround(payload.x, payload.y)) < 0.8) {
+            if(dist < 1.8 && Math.abs(hZ - getGround(payload.x, payload.y)) < 1.0) {
                 payload.hanging = true; showMsg(payload.type === 'crate' ? "CARGO SECURED!" : "PATIENT SECURED!");
                 heli.winch = Math.max(0, heli.winch - 0.5);
             }
@@ -342,9 +503,8 @@
             }
         }
         
-        // REFUELING & UNLOADING
         if(!inAir && onPad) {
-            if(heli.fuel < 100) heli.fuel = Math.min(100, heli.fuel + 0.5); // Refuel speed
+            if(heli.fuel < 100) heli.fuel = Math.min(100, heli.fuel + 0.5); 
             if(heli.onboard > 0) {
                 totalRescued += heli.onboard; heli.onboard = 0;
                 if(totalRescued >= goalCount) document.getElementById('win-screen').style.display = 'flex';
@@ -353,9 +513,11 @@
         }
         
         if (!introActive) {
-            if (!onPad && heli.z < 0.1 && getGround(heli.x, heli.y) < 0) triggerCrash("WATER IMPACT");
+            let safeToLand = onPad;
+            if (!safeToLand && heli.z < 0.1 && getGround(heli.x, heli.y) < -0.2) triggerCrash("WATER IMPACT");
+            
             if(heli.z < groundH + 0.25) { 
-                if(!onPad && groundH > 0.1) triggerCrash("BAD LANDING ZONE"); 
+                if(!onPad && groundH > 0.1 && missionType !== 'sea') triggerCrash("BAD LANDING ZONE"); 
                 else if(Math.hypot(heli.vx, heli.vy) > 0.12) triggerCrash("TOO FAST"); 
                 else if(heli.vz < -0.15) triggerCrash("HARD IMPACT"); 
             }
@@ -367,7 +529,61 @@
         document.getElementById('crash-screen').style.display = 'flex';
     }
 
+    function drawVectorCarrier(cx, cy) {
+        let cw = CARRIER.w; let cl = CARRIER.l;
+        let cX = CARRIER.x; let cY = CARRIER.y;
+        let deckZ = CARRIER.zDeck; let hullZ = CARRIER.zHull;
+        let ang = CARRIER.angle;
+
+        function r(rx, ry) {
+            let nx = rx * Math.cos(ang) - ry * Math.sin(ang);
+            let ny = rx * Math.sin(ang) + ry * Math.cos(ang);
+            return { x: cX + nx, y: cY + ny };
+        }
+
+        // Hull
+        let h1=r(-cw,-cl); let h2=r(cw,-cl); let h3=r(cw,cl); let h4=r(-cw,cl);
+        drawFace([{x:h1.x,y:h1.y,z:0}, {x:h2.x,y:h2.y,z:0}, {x:h3.x,y:h3.y,z:0}, {x:h4.x,y:h4.y,z:0}], "rgba(0,0,0,0.5)", null, 0, cx, cy);
+        drawFace([{x:h2.x,y:h2.y,z:0}, {x:h3.x,y:h3.y,z:0}, {x:h3.x,y:h3.y,z:hullZ}, {x:h2.x,y:h2.y,z:hullZ}], "#445", null, 0, cx, cy); 
+        drawFace([{x:h4.x,y:h4.y,z:0}, {x:h3.x,y:h3.y,z:0}, {x:h3.x,y:h3.y,z:hullZ}, {x:h4.x,y:h4.y,z:hullZ}], "#334", null, 0, cx, cy); 
+
+        // Deck
+        let dw = cw + 2; let dl = cl + 2; 
+        let d1=r(-dw,-dl); let d2=r(dw,-dl); let d3=r(dw,dl); let d4=r(-dw,dl);
+        drawFace([{x:d1.x,y:d1.y,z:hullZ}, {x:d2.x,y:d2.y,z:hullZ}, {x:d3.x,y:d3.y,z:hullZ}, {x:d4.x,y:d4.y,z:hullZ}], "#222", null, 0, cx, cy);
+        drawFace([{x:d2.x,y:d2.y,z:hullZ}, {x:d3.x,y:d3.y,z:hullZ}, {x:d3.x,y:d3.y,z:deckZ}, {x:d2.x,y:d2.y,z:deckZ}], "#333", null, 0, cx, cy);
+        drawFace([{x:d4.x,y:d4.y,z:hullZ}, {x:d3.x,y:d3.y,z:hullZ}, {x:d3.x,y:d3.y,z:deckZ}, {x:d4.x,y:d4.y,z:deckZ}], "#222", null, 0, cx, cy);
+        drawFace([{x:d4.x,y:d4.y,z:hullZ}, {x:d1.x,y:d1.y,z:hullZ}, {x:d1.x,y:d1.y,z:deckZ}, {x:d4.x,y:d4.y,z:deckZ}], "#333", null, 0, cx, cy);
+        
+        drawFace([{x:d1.x,y:d1.y,z:deckZ}, {x:d2.x,y:d2.y,z:deckZ}, {x:d3.x,y:d3.y,z:deckZ}, {x:d4.x,y:d4.y,z:deckZ}], "#3a3a44", "#555", 0, cx, cy);
+
+        // Stripes
+        let sw=0.3;
+        let s1=r(-sw,-dl+2); let s2=r(sw,-dl+2); let s3=r(sw,dl-2); let s4=r(-sw,dl-2);
+        drawFace([{x:s1.x,y:s1.y,z:deckZ+0.01}, {x:s2.x,y:s2.y,z:deckZ+0.01}, {x:s3.x,y:s3.y,z:deckZ+0.01}, {x:s4.x,y:s4.y,z:deckZ+0.01}], "rgba(255,255,255,0.4)", null, 0, cx, cy);
+        
+        let c1=r(-2,2); let c2=r(2,2); let c3=r(2,6); let c4=r(-2,6);
+        drawFace([{x:c1.x,y:c1.y,z:deckZ+0.02}, {x:c2.x,y:c2.y,z:deckZ+0.02}, {x:c3.x,y:c3.y,z:deckZ+0.02}, {x:c4.x,y:c4.y,z:deckZ+0.02}], "rgba(255,255,255,0.2)", null, 0, cx, cy);
+
+        // Island
+        let ix=2.0; let iy=6; let iw=1.2; let il=3.5; let ih=1.2;
+        let i1=r(ix,iy); let i2=r(ix+iw,iy); let i3=r(ix+iw,iy+il); let i4=r(ix,iy+il);
+        drawFace([{x:i1.x,y:i1.y,z:deckZ}, {x:i2.x,y:i2.y,z:deckZ}, {x:i2.x,y:i2.y,z:deckZ+ih}, {x:i1.x,y:i1.y,z:deckZ+ih}], "#555", null, 0, cx, cy); 
+        drawFace([{x:i1.x,y:i1.y,z:deckZ}, {x:i4.x,y:i4.y,z:deckZ}, {x:i4.x,y:i4.y,z:deckZ+ih}, {x:i1.x,y:i1.y,z:deckZ+ih}], "#444", null, 0, cx, cy); 
+        drawFace([{x:i2.x,y:i2.y,z:deckZ}, {x:i3.x,y:i3.y,z:deckZ}, {x:i3.x,y:i3.y,z:deckZ+ih}, {x:i2.x,y:i2.y,z:deckZ+ih}], "#444", null, 0, cx, cy); 
+        drawFace([{x:i1.x,y:i1.y,z:deckZ+ih}, {x:i2.x,y:i2.y,z:deckZ+ih}, {x:i3.x,y:i3.y,z:deckZ+ih}, {x:i4.x,y:i4.y,z:deckZ+ih}], "#222", "#000", 0, cx, cy); 
+
+        // PARKED HELIS (Rotated)
+        parkedHelis.forEach(h => {
+            let pos = r(h.xRel, h.yRel);
+            let totalAng = h.angle + ang;
+            drawHeli(h.type, pos.x, pos.y, deckZ+0.1, totalAng, 0, 0, 0, cx, cy, ctx, canvas, true, 0.8); 
+            drawHeli(h.type, pos.x, pos.y, deckZ+0.1, totalAng, 0, 0, 0, cx, cy, ctx, canvas, false, 0.8); 
+        });
+    }
+
     function drawHangar(cx, cy) {
+        if(missionType === 'sea') return;
         const hX = 21; const hY = 17; const hZ = 0.5;
         const bFL = iso(hX, hY + 2.0, hZ, cx, cy); const bFR = iso(hX + 4, hY + 2.0, hZ, cx, cy);         
         const bBL = iso(hX, hY, hZ, cx, cy); const bBR = iso(hX + 4, hY, hZ, cx, cy); 
@@ -468,15 +684,29 @@
     }
 
     function drawPadLights(cx, cy) {
-        const lights = [{x: PAD.xMin+0.5, y: PAD.yMin+0.5}, {x: PAD.xMax+0.5, y: PAD.yMin+0.5}, {x: PAD.xMax+0.5, y: PAD.yMax+0.5}, {x: PAD.xMin+0.5, y: PAD.yMax+0.5}];
         let blink = Math.floor(Date.now() / 500) % 2 === 0;
+        let lights = [];
+        if(missionType === 'sea') {
+            let cw = CARRIER.w + 2; let cl = CARRIER.l + 2;
+            let ang = CARRIER.angle;
+            function r(rx, ry) {
+                return { x: CARRIER.x + rx*Math.cos(ang) - ry*Math.sin(ang), 
+                         y: CARRIER.y + rx*Math.sin(ang) + ry*Math.cos(ang) };
+            }
+            lights = [r(-cw,-cl), r(cw,-cl), r(cw,cl), r(-cw,cl)];
+        } else {
+            lights = [{x: PAD.xMin+0.5, y: PAD.yMin+0.5}, {x: PAD.xMax+0.5, y: PAD.yMin+0.5}, {x: PAD.xMax+0.5, y: PAD.yMax+0.5}, {x: PAD.xMin+0.5, y: PAD.yMax+0.5}];
+        }
+
         lights.forEach(l => {
-            let p = iso(l.x, l.y, 0.5, cx, cy);
+            let z = (missionType==='sea') ? CARRIER.zDeck : PAD.z;
+            let p = iso(l.x, l.y, z + 0.05, cx, cy);
             ctx.fillStyle = blink ? "#f00" : "#500"; ctx.beginPath(); ctx.arc(p.x, p.y, blink?3:2.5, 0, 7); ctx.fill();
         });
     }
 
     function drawWindsock(cx, cy) {
+        if(missionType === 'sea') return; 
         let wx = PAD.xMin - 1, wy = PAD.yMin + 1; 
         let base = iso(wx, wy, getGround(wx, wy), cx, cy);
         let top = iso(wx, wy, getGround(wx, wy) + 1.2, cx, cy);
@@ -538,26 +768,42 @@
             cam.x += (tx - cam.x)*0.1; cam.y += (ty - cam.y)*0.1;
         } else {
             introProgress += 0.005; 
-            const startX = 23.0; const startY = 17.5;
-            heli.x = startX + (START_POS.x - startX) * introProgress; heli.y = startY + (START_POS.y - startY) * introProgress;
-            heli.z = 0.5; heli.angle = -Math.PI / 4; heli.rotorRPM = 0; 
+            // Fixed Intro Animation: FROM Hangar TO Start
+            let hX = PAD.xMin + 3; 
+            let hY = PAD.yMin + 3;
+            heli.x = hX + (START_POS.x - hX) * introProgress; 
+            heli.y = hY + (START_POS.y - hY) * introProgress;
+            
+            heli.z = PAD.z; heli.angle = -Math.PI / 4; heli.rotorRPM = 0; 
             if(introProgress >= 1) { introActive = false; heli.engineOn = false; heli.rotorRPM = 0; heli.x = START_POS.x; heli.y = START_POS.y; showMsg("SYSTEM READY - START ENGINE [W]"); }
         }
         let rx = introActive ? START_POS.x : heli.x; let ry = introActive ? START_POS.y : heli.y;
 
-        for (let x = Math.floor(rx - 12); x < rx + 12; x++) {
-            for (let y = Math.floor(ry - 12); y < ry + 12; y++) {
+        for (let x = Math.floor(rx - 14); x < rx + 14; x++) {
+            for (let y = Math.floor(ry - 14); y < ry + 14; y++) {
                 if(x < 0 || y < 0 || x >= gridSize-1 || y >= gridSize-1) continue;
                 let h = [points[x][y], points[x+1][y], points[x+1][y+1], points[x][y+1]];
                 let p = [iso(x,y,h[0],cam.x,cam.y), iso(x+1,y,h[1],cam.x,cam.y), iso(x+1,y+1,h[2],cam.x,cam.y), iso(x,y+1,h[3],cam.x,cam.y)];
-                let isPad = (x>=PAD.xMin && x<=PAD.xMax && y>=PAD.yMin && y<=PAD.yMax);
+                
+                let isPad = (missionType !== 'sea' && x>=PAD.xMin && x<=PAD.xMax && y>=PAD.yMin && y<=PAD.yMax);
                 let c = 35 + Math.floor(h[0] * 15);
-                let fill = isPad ? "#444" : (h[0]>0 ? `rgb(${c-10},${c+30},${c-10})` : "#003d7a");
-                if(stormActive && h[0]<0) fill = "#002244";
+                let fill;
+                
+                if (missionType === 'sea') {
+                    fill = "#002244"; 
+                } else {
+                    fill = isPad ? "#444" : (h[0]>0 ? `rgb(${c-10},${c+30},${c-10})` : "#003d7a");
+                    if(stormActive && h[0]<0) fill = "#002244";
+                }
+
                 ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); ctx.lineTo(p[1].x, p[1].y); ctx.lineTo(p[2].x, p[2].y); ctx.lineTo(p[3].x, p[3].y); ctx.fill();
             }
         }
         
+        if (missionType === 'sea') {
+            drawVectorCarrier(cam.x, cam.y);
+        }
+
         drawPadLights(cam.x, cam.y);
         drawWindsock(cam.x, cam.y);
         drawHangar(cam.x, cam.y);
@@ -596,7 +842,17 @@
             const sc = ms / gridSize;
             ctx.fillStyle = "rgba(0,20,10,0.8)"; ctx.fillRect(bx, by, ms, ms);
             ctx.strokeStyle = "#5f5"; ctx.strokeRect(bx, by, ms, ms);
-            ctx.fillStyle = "#666"; ctx.fillRect(bx + PAD.xMin * sc, by + PAD.yMin * sc, (PAD.xMax - PAD.xMin) * sc, (PAD.yMax - PAD.yMin) * sc);
+            
+            // Draw Pad/Carrier on minimap
+            ctx.fillStyle = (missionType === 'sea') ? "#889" : "#666";
+            if(missionType === 'sea') {
+                ctx.beginPath();
+                ctx.arc(bx + CARRIER.x * sc, by + CARRIER.y * sc, 4, 0, 7);
+                ctx.fill();
+            } else {
+                ctx.fillRect(bx + PAD.xMin * sc, by + PAD.yMin * sc, (PAD.xMax - PAD.xMin) * sc, (PAD.yMax - PAD.yMin) * sc);
+            }
+            
             ctx.fillStyle = "#fff"; ctx.fillRect(bx + heli.x * sc - 1.5, by + heli.y * sc - 1.5, 3, 3);
             if(!payload.rescued && !payload.hanging) {
                 ctx.fillStyle = payload.type === 'crate' ? "#d84" : "#f00";
@@ -623,8 +879,22 @@
         generateTerrain();
         
         document.getElementById('heli-select').style.display = 'none';
-        gameStarted = true; introActive = true; introProgress = 0;
-        cam.x = (START_POS.x - START_POS.y) * (tileW / 2); cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+        gameStarted = true; 
+        
+        if (missionType === 'sea') {
+            introActive = false; 
+            introProgress = 1;
+            heli.x = START_POS.x; heli.y = START_POS.y; heli.z = CARRIER.zDeck + 0.1;
+            heli.vx = 0; heli.vy = 0; heli.vz = 0; heli.angle = CARRIER.angle;
+            heli.engineOn = false; heli.rotorRPM = 0;
+            cam.x = (START_POS.x - START_POS.y) * (tileW / 2); cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+            showMsg("SYSTEM READY - START ENGINE [W]");
+        } else {
+            introActive = true; 
+            introProgress = 0;
+            cam.x = (START_POS.x - START_POS.y) * (tileW / 2); cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+        }
+
         totalRescued = 0; 
         payload.rescued=true; payload.hanging=false; 
         spawnPayload(); 
@@ -637,17 +907,32 @@
         const c = document.getElementById('menu-heli-big'); if(!c) return;
         const cx = c.getContext('2d'); c.width = 800; c.height = 300; cx.clearRect(0,0,c.width,c.height);
         const t = Date.now() * 0.001;
-        drawHeli('classic', 0, 0, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3.5);
+        drawHeli('dolphin', 0, 0, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3.5);
         if(document.getElementById('splash').style.display !== 'none') requestAnimationFrame(drawMenuHeli);
     }
     drawMenuHeli();
 
     function animateHeliPreviews() {
         if(document.getElementById('heli-select').style.display === 'none') return;
-        const t = Date.now() * 0.001;
-        const c1 = document.getElementById('icon-classic'); if(c1) { const cx1 = c1.getContext('2d'); c1.width=300; c1.height=200; cx1.clearRect(0,0,300,200); drawHeli('classic', 0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx1, c1, false, 2.5); }
-        const c2 = document.getElementById('icon-dolphin'); if(c2) { const cx2 = c2.getContext('2d'); c2.width=300; c2.height=200; cx2.clearRect(0,0,300,200); drawHeli('dolphin', 0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx2, c2, false, 2.5); }
-        const c3 = document.getElementById('icon-jayhawk'); if(c3) { const cx3 = c3.getContext('2d'); c3.width=300; c3.height=200; cx3.clearRect(0,0,300,200); drawHeli('jayhawk', 0, 0, 0, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx3, c3, false, 2.5); }
+        
+        ['classic', 'dolphin', 'jayhawk'].forEach(id => {
+            if (menuHover[id]) {
+                menuAngles[id] += 0.03; 
+            } else {
+                let diff = -0.5 - menuAngles[id];
+                if (Math.abs(diff) > 0.01) menuAngles[id] += diff * 0.1;
+                else menuAngles[id] = -0.5;
+            }
+
+            const c = document.getElementById('icon-' + id);
+            if(c) {
+                const cx = c.getContext('2d');
+                c.width = 300; c.height = 200;
+                cx.clearRect(0,0,300,200);
+                drawHeli(id, 0, 0, 0, menuAngles[id], 0, 0, 0, 0, 0, cx, c, false, 2.0);
+            }
+        });
+
         requestAnimationFrame(animateHeliPreviews);
     }
 
