@@ -6,14 +6,14 @@ ZEEWOLF: SAR is a lightweight, browser-based isometric helicopter simulator buil
 
 ## Controls
 
-| Key	| Action
-|-------------
-| W	| Start Engine / Increase Collective (Ascend)
-| S	| Decrease Collective (Descend) / Stop Engine (on ground)
-| Arrow Keys | Pitch & Roll (Move Helicopter)
-| A / D	| Yaw (Turn Left / Right)
-| Q |	Winch Up
-| E	| Winch Down
+| Key	| Action |
+| --- | --- |
+| W	| Start Engine / Increase Collective (Ascend) |
+| S	| Decrease Collective (Descend) / Stop Engine (on ground) |
+| Arrow Keys | Pitch & Roll (Move Helicopter) |
+| A / D	| Yaw (Turn Left / Right) |
+| Q |	Winch Up |
+| E	| Winch Down |
 
 ## Run the game
 
