@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v16.9 - CAPTAIN'S FIX</title>
+    <title>ZEEWOLF: SAR v17.0 - COMPACT CARRIER</title>
     <style>
         body { background: #050505; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; user-select: none; }
         
@@ -51,7 +51,7 @@
 
     <div id="splash" onclick="toMissionSelect()">
         <div class="title">ZEEWOLF: SAR</div>
-        <div class="subtitle">v16.9 CAPTAIN'S FIX</div>
+        <div class="subtitle">v17.0 COMPACT CARRIER</div>
         <canvas id="menu-heli-big"></canvas>
         <p class="start-hint">CLICK TO START SYSTEM</p>
     </div>
@@ -113,25 +113,27 @@
     let PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 }; 
     let START_POS = { x: 21.5, y: 21.5 };
 
-    // CARRIER DEFINITION
-    // Elliptical Path: Rx=50, Ry=120 (Long Oval)
+    // CARRIER DEFINITION (Verkürzt/Verkleinert)
     let CARRIER = { 
         x: 100, y: 100, 
-        w: 3.5, l: 11, 
+        w: 3.0, l: 7.5, // Reduced from 3.5 and 11
         zDeck: 0.6, zHull: 0.2, 
         angle: 0, 
-        turnSpeed: 0.00015, // VERY SLOW
-        radiusX: 50, radiusY: 120, // OVAL
+        turnSpeed: 0.00015, 
+        radiusX: 150, radiusY: 120, 
         centerX: 150, centerY: 200
     }; 
     let seaTime = 0;
     
+    // Parked Helis (Repositioned for shorter deck)
     const parkedHelis = [
-        { type: 'jayhawk', xRel: -1.8, yRel: -6, angle: Math.PI/2 },
-        { type: 'jayhawk', xRel: -1.8, yRel: -3, angle: Math.PI/2 },
-        { type: 'dolphin', xRel: 2.0, yRel: 0, angle: -Math.PI/2 },
-        { type: 'dolphin', xRel: 2.0, yRel: 2.5, angle: -Math.PI/2 },
-        { type: 'dolphin', xRel: 2.0, yRel: 5, angle: -Math.PI/2 }
+        // Left Side (Jayhawks) - moved back to fit shorter length
+        { type: 'jayhawk', xRel: -2, yRel: -5.5, angle: Math.PI/-2.4 }, 
+        { type: 'jayhawk', xRel: -1.6, yRel: -1.5, angle: Math.PI/-2.4 }, 
+        // Right Side (Dolphins) - squeezed in
+        { type: 'dolphin', xRel: 1.8, yRel: 0, angle: -Math.PI/-1.2 },
+        { type: 'dolphin', xRel: 1.8, yRel: -2.5, angle: -Math.PI/-1.2 },
+        { type: 'dolphin', xRel: 1.8, yRel: -5.0, angle: -Math.PI/-1.2 }
     ];
 
     let heli = { 
@@ -171,16 +173,14 @@
         if(type === 'sea') { 
             goalCount = 15; 
             stormActive = true; 
-            initGrid(400); // Huge map
+            initGrid(400); 
             CARRIER.centerX = 200; CARRIER.centerY = 200;
             seaTime = 0;
             
-            // 1. Calculate Initial Ship Position
-            updateCarrierPos(true); // FORCE UPDATE to set initial X,Y,Angle
+            updateCarrierPos(true);
             
-            // 2. Calculate Start Pos RELATIVE to that exact ship position
-            // Start at {0, 8} (Front of deck)
-            let rot = rotatePoint(0, 8, CARRIER.angle);
+            // Adjusted Start Position for Shorter Carrier (was y: 8)
+            let rot = rotatePoint(0, 4.0, CARRIER.angle);
             START_POS = { x: CARRIER.x + rot.x, y: CARRIER.y + rot.y };
         }
 
@@ -201,12 +201,10 @@
         
         // Angle Calculation
         if (forceUpdate) {
-            // Analytical tangent for ellipse: dx/dt = -Rx sin(t), dy/dt = Ry cos(t)
             let dx = -CARRIER.radiusX * Math.sin(seaTime);
             let dy = CARRIER.radiusY * Math.cos(seaTime);
             CARRIER.angle = Math.atan2(dy, dx) + Math.PI/2;
         } else {
-            // Delta based for smoothness during play
             let dx = nx - CARRIER.x;
             let dy = ny - CARRIER.y;
             if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) {
@@ -290,7 +288,8 @@
             let local = getCarrierLocal(fx, fy);
             if (local.x >= -CARRIER.w && local.x <= CARRIER.w && 
                 local.y >= -CARRIER.l && local.y <= CARRIER.l) {
-                if (local.x > 1.5 && local.y > 4 && local.y < 9) return CARRIER.zDeck + 1.2; 
+                // Simplified tower logic for smaller carrier
+                if (local.x > 1.2 && local.y > 1.5 && local.y < 5.0) return CARRIER.zDeck + 1.2; 
                 return CARRIER.zDeck; 
             }
         }
@@ -399,7 +398,7 @@
         
         if (missionType === 'sea' && onPad && heli.z < CARRIER.zDeck + 1.0) {
              let local = getCarrierLocal(heli.x, heli.y);
-             if (local.x > 1.5 && local.y > 4 && local.y < 9) triggerCrash("COLLISION WITH TOWER");
+             if (local.x > 1.2 && local.y > 1.5 && local.y < 5.0) triggerCrash("COLLISION WITH TOWER");
         }
 
         // --- MOTOR START BLOCK DURING INTRO ---
@@ -548,7 +547,7 @@
         drawFace([{x:h4.x,y:h4.y,z:0}, {x:h3.x,y:h3.y,z:0}, {x:h3.x,y:h3.y,z:hullZ}, {x:h4.x,y:h4.y,z:hullZ}], "#334", null, 0, cx, cy); 
 
         // Deck
-        let dw = cw + 2; let dl = cl + 2; 
+        let dw = cw + 1.2; let dl = cl + 1.2; // Slightly smaller margin for compact look
         let d1=r(-dw,-dl); let d2=r(dw,-dl); let d3=r(dw,dl); let d4=r(-dw,dl);
         drawFace([{x:d1.x,y:d1.y,z:hullZ}, {x:d2.x,y:d2.y,z:hullZ}, {x:d3.x,y:d3.y,z:hullZ}, {x:d4.x,y:d4.y,z:hullZ}], "#222", null, 0, cx, cy);
         drawFace([{x:d2.x,y:d2.y,z:hullZ}, {x:d3.x,y:d3.y,z:hullZ}, {x:d3.x,y:d3.y,z:deckZ}, {x:d2.x,y:d2.y,z:deckZ}], "#333", null, 0, cx, cy);
@@ -562,11 +561,11 @@
         let s1=r(-sw,-dl+2); let s2=r(sw,-dl+2); let s3=r(sw,dl-2); let s4=r(-sw,dl-2);
         drawFace([{x:s1.x,y:s1.y,z:deckZ+0.01}, {x:s2.x,y:s2.y,z:deckZ+0.01}, {x:s3.x,y:s3.y,z:deckZ+0.01}, {x:s4.x,y:s4.y,z:deckZ+0.01}], "rgba(255,255,255,0.4)", null, 0, cx, cy);
         
-        let c1=r(-2,2); let c2=r(2,2); let c3=r(2,6); let c4=r(-2,6);
+        let c1=r(-1.5,1.5); let c2=r(1.5,1.5); let c3=r(1.5,4); let c4=r(-1.5,4);
         drawFace([{x:c1.x,y:c1.y,z:deckZ+0.02}, {x:c2.x,y:c2.y,z:deckZ+0.02}, {x:c3.x,y:c3.y,z:deckZ+0.02}, {x:c4.x,y:c4.y,z:deckZ+0.02}], "rgba(255,255,255,0.2)", null, 0, cx, cy);
 
-        // Island
-        let ix=2.0; let iy=6; let iw=1.2; let il=3.5; let ih=1.2;
+        // Island (Scaled Down)
+        let ix=2.6; let iy=1.0; let iw=1.5; let il=4.5; let ih=2.5;
         let i1=r(ix,iy); let i2=r(ix+iw,iy); let i3=r(ix+iw,iy+il); let i4=r(ix,iy+il);
         drawFace([{x:i1.x,y:i1.y,z:deckZ}, {x:i2.x,y:i2.y,z:deckZ}, {x:i2.x,y:i2.y,z:deckZ+ih}, {x:i1.x,y:i1.y,z:deckZ+ih}], "#555", null, 0, cx, cy); 
         drawFace([{x:i1.x,y:i1.y,z:deckZ}, {x:i4.x,y:i4.y,z:deckZ}, {x:i4.x,y:i4.y,z:deckZ+ih}, {x:i1.x,y:i1.y,z:deckZ+ih}], "#444", null, 0, cx, cy); 
@@ -687,7 +686,7 @@
         let blink = Math.floor(Date.now() / 500) % 2 === 0;
         let lights = [];
         if(missionType === 'sea') {
-            let cw = CARRIER.w + 2; let cl = CARRIER.l + 2;
+            let cw = CARRIER.w + 1.2; let cl = CARRIER.l + 1.2;
             let ang = CARRIER.angle;
             function r(rx, ry) {
                 return { x: CARRIER.x + rx*Math.cos(ang) - ry*Math.sin(ang), 
@@ -768,7 +767,6 @@
             cam.x += (tx - cam.x)*0.1; cam.y += (ty - cam.y)*0.1;
         } else {
             introProgress += 0.005; 
-            // Fixed Intro Animation: FROM Hangar TO Start
             let hX = PAD.xMin + 3; 
             let hY = PAD.yMin + 3;
             heli.x = hX + (START_POS.x - hX) * introProgress; 
@@ -832,18 +830,22 @@
             let hX = iso(heli.x, heli.y, heli.z, cam.x, cam.y).x + 45, hY = iso(heli.x, heli.y, heli.z, cam.x, cam.y).y - 35;
             ctx.fillText(`ALT: ${Math.round((heli.z-getGround(heli.x, heli.y))*10)}m`, hX, hY);
             ctx.fillText(`WINCH: ${Math.round(heli.winch*10)}m`, hX, hY + 16);
+            
+            // HUD UPDATED: PAX Capacity
+            ctx.fillStyle = heli.onboard >= heli.maxLoad ? "#f90" : "#5f5";
+            ctx.fillText(`PAX: ${heli.onboard}/${heli.maxLoad}`, hX, hY + 32);
+
             ctx.fillStyle = heli.fuel < 20 ? "#f00" : "#5f5";
-            ctx.fillText(`FUEL: ${Math.max(0, Math.round(heli.fuel))}%`, hX, hY + 32);
+            ctx.fillText(`FUEL: ${Math.max(0, Math.round(heli.fuel))}%`, hX, hY + 48);
             ctx.fillStyle = "#5f5";
             let lbl = (missionType === 'recovery') ? "CRATES:" : "SAVED:";
-            ctx.fillText(`${lbl} ${totalRescued}/${goalCount}`, hX, hY + 48);
+            ctx.fillText(`${lbl} ${totalRescued}/${goalCount}`, hX, hY + 64); // Shifted down
 
             const ms = 140, mp = 20, bx = canvas.width - ms - mp, by = canvas.height - ms - mp;
             const sc = ms / gridSize;
             ctx.fillStyle = "rgba(0,20,10,0.8)"; ctx.fillRect(bx, by, ms, ms);
             ctx.strokeStyle = "#5f5"; ctx.strokeRect(bx, by, ms, ms);
             
-            // Draw Pad/Carrier on minimap
             ctx.fillStyle = (missionType === 'sea') ? "#889" : "#666";
             if(missionType === 'sea') {
                 ctx.beginPath();
@@ -907,7 +909,7 @@
         const c = document.getElementById('menu-heli-big'); if(!c) return;
         const cx = c.getContext('2d'); c.width = 800; c.height = 300; cx.clearRect(0,0,c.width,c.height);
         const t = Date.now() * 0.001;
-        drawHeli('dolphin', 0, 0, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3.5);
+        drawHeli('dolphin', 1.5, 1.5, 0.8, t*0.5, Math.sin(t)*0.1, Math.cos(t)*0.1, t*12, 0, 0, cx, c, false, 3);
         if(document.getElementById('splash').style.display !== 'none') requestAnimationFrame(drawMenuHeli);
     }
     drawMenuHeli();
@@ -917,7 +919,7 @@
         
         ['classic', 'dolphin', 'jayhawk'].forEach(id => {
             if (menuHover[id]) {
-                menuAngles[id] += 0.03; 
+                menuAngles[id] += 0.01; 
             } else {
                 let diff = -0.5 - menuAngles[id];
                 if (Math.abs(diff) > 0.01) menuAngles[id] += diff * 0.1;
