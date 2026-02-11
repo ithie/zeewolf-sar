@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ZEEWOLF: SAR v17.0 - COMPACT CARRIER</title>
+    <title>ZEEWOLF: SAR v17.0 - COMPACT CARRIER + MUSIC + LIGHTHOUSE</title>
     <style>
         body { background: #050505; color: #5f5; font-family: monospace; margin: 0; overflow: hidden; user-select: none; }
         
@@ -119,6 +119,70 @@
     let PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 }; 
     let START_POS = { x: 21.5, y: 21.5 };
 
+    // --- Z-SYNTH AUDIO ENGINE (INSERTED) ---
+    const ZSynth = {
+        ctx: null, isPlaying: false, tempo: 110, nextNoteTime: 0.0, step: 0, timerID: null,
+        freqs: { 'A1': 55.00, 'C2': 65.41, 'D2': 73.42, 'E2': 82.41, 'F2': 87.31, 'G2': 98.00, 'A2': 110.0 },
+        freqs2: { 'A1': 55.00, 'C2': null, 'D2': 73.42, 'E2': null, 'F2': 87.31, 'G2': null, 'A2': null },
+        pattern: ['A1', null, 'A1', null, 'C2', null, 'A1', null, 'F2', null, 'F2', null, 'G2', null, 'E2', null],
+        init: function() { window.AudioContext = window.AudioContext || window.webkitAudioContext; this.ctx = new AudioContext(); },
+        playTone: function(freq, time) {
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.type = 'sawtooth'; osc.frequency.value = freq;
+            const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 600; 
+            gain.gain.setValueAtTime(0.3, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(time); osc.stop(time + 0.25);
+        },
+        playAnotherTone: function(freq, time) {
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.type = 'sawtooth'; osc.frequency.value = freq;
+            const filter = this.ctx.createBiquadFilter(); filter.type = 'notch'; filter.frequency.value = 200; 
+            gain.gain.setValueAtTime(0.3, time); gain.gain.exponentialRampToValueAtTime(0.04, time + 0.4);
+            osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(time); osc.stop(time + 0.25);
+        },
+        playDrum: function(time, type) {
+           const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            if (type === 'kick') {
+                osc.frequency.setValueAtTime(150, time); osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+                gain.gain.setValueAtTime(0.8, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5); osc.connect(gain);
+            } else { 
+                osc.type = 'square'; osc.frequency.value = 800; 
+                osc.frequency.exponentialRampToValueAtTime(100, time + 0.1);
+                gain.gain.setValueAtTime(0.2, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+                const filter = this.ctx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 1000;
+                osc.connect(filter); filter.connect(gain);
+            }
+            gain.connect(this.ctx.destination); osc.start(time); osc.stop(time + 0.5);
+        },
+        scheduler: function() {
+            while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
+                this.playStep(this.nextNoteTime);
+                const secondsPerBeat = 60.0 / this.tempo; this.nextNoteTime += 0.25 * secondsPerBeat; 
+            }
+            this.timerID = requestAnimationFrame(this.scheduler.bind(this));
+        },
+        playStep: function(time) {
+            const currentNote = this.pattern[this.step % 16];
+            if (currentNote && this.freqs[currentNote]) this.playTone(this.freqs[currentNote], time);
+            if (currentNote && this.freqs2[currentNote]) this.playAnotherTone(this.freqs[currentNote], time);
+            const beat = this.step % 16;
+            if (beat % 4 === 0) this.playDrum(time, 'kick');
+            if (beat % 8 === 4) this.playDrum(time, 'snare');
+            if (beat % 2 === 0) this.playDrum(time, 'hat'); 
+            this.step++;
+        },
+        start: function() {
+            if (this.isPlaying) return;
+            if (!this.ctx) this.init();
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            this.isPlaying = true; this.step = 0; this.nextNoteTime = this.ctx.currentTime + 0.1; this.scheduler();
+        },
+        stop: function() { this.isPlaying = false; cancelAnimationFrame(this.timerID); }
+    };
+    // ------------------------------------------
+
     // CARRIER DEFINITION (Verkürzt/Verkleinert)
     let CARRIER = { 
         x: 100, y: 100, 
@@ -161,7 +225,12 @@
     }
     initGrid(200);
 
-    function toMissionSelect() { document.getElementById('splash').style.display='none'; document.getElementById('mission-select').style.display='flex'; }
+    function toMissionSelect() { 
+        // --- MUSIC START INJECTION ---
+        ZSynth.start(); 
+        // -----------------------------
+        document.getElementById('splash').style.display='none'; document.getElementById('mission-select').style.display='flex'; 
+    }
     
     function setHover(type, state) { menuHover[type] = state; }
 
@@ -534,7 +603,10 @@
             if(heli.fuel < 100) heli.fuel = Math.min(100, heli.fuel + 0.5); 
             if(heli.onboard > 0) {
                 totalRescued += heli.onboard; heli.onboard = 0;
-                if(totalRescued >= goalCount) document.getElementById('win-screen').style.display = 'flex';
+                if(totalRescued >= goalCount) {
+                    ZSynth.stop(); // --- STOP MUSIC (WIN) ---
+                    document.getElementById('win-screen').style.display = 'flex';
+                }
                 else { showMsg(`SECURED: ${totalRescued}/${goalCount}`); spawnPayload(); }
             }
         }
@@ -548,10 +620,20 @@
                 else if(Math.hypot(heli.vx, heli.vy) > 0.12) triggerCrash("TOO FAST"); 
                 else if(heli.vz < -0.15) triggerCrash("HARD IMPACT"); 
             }
+
+            // --- LIGHTHOUSE COLLISION CHECK ---
+            if (missionType === 'sea') {
+                let distToLH = Math.hypot(heli.x - 200, heli.y - 200);
+                // Check if within horizontal radius (approx 2.0) and below max height (8.5)
+                if (distToLH < 2.0 && heli.z < 8.5) {
+                        triggerCrash("TOWER COLLISION");
+                }
+            }
         }
     }
 
     function triggerCrash(reason) {
+        ZSynth.stop(); // --- STOP MUSIC (CRASH) ---
         crashed = true; document.getElementById('crash-reason').innerHTML = reason;
         document.getElementById('crash-screen').style.display = 'flex';
     }
@@ -607,6 +689,43 @@
             drawHeli(h.type, pos.x, pos.y, deckZ+0.1, totalAng, 0, 0, 0, cx, cy, ctx, canvas, true, 1); 
             drawHeli(h.type, pos.x, pos.y, deckZ+0.1, totalAng, 0, 0, 0, cx, cy, ctx, canvas, false, 1); 
         });
+    }
+
+    // --- ROUND LIGHTHOUSE (CYLINDER) ---
+    function drawLighthouse(cx, cy) {
+        if (missionType !== "sea") return;
+        let lhX = 200, lhY = 200; 
+        
+        function drawCyl(zB, zT, col, borderCol, radius) {
+            let topPos = iso(lhX, lhY, zT, cx, cy);
+            let botPos = iso(lhX, lhY, zB, cx, cy);
+            let steps = 6; 
+            let r = radius || 1.0;
+            
+            // Draw body
+            ctx.fillStyle = col; 
+            ctx.beginPath();
+            ctx.ellipse(botPos.x, botPos.y, r * tileW/2, r * tileH/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Fill sides by stacking (hack for 2d context)
+            for(let i=0; i<steps*4; i++) {
+                let cz = zB + (i * ((zT-zB)/(steps*4)));
+                let p = iso(lhX, lhY, cz, cx, cy);
+                ctx.beginPath(); ctx.ellipse(p.x, p.y, r * tileW/2, r * tileH/2, 0, 0, Math.PI * 2); ctx.fill();
+            }
+            // Cap
+            ctx.fillStyle = borderCol; ctx.beginPath(); ctx.ellipse(topPos.x, topPos.y, r * tileW/2, r * tileH/2, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(topPos.x, topPos.y, (r*0.8) * tileW/2, (r*0.8) * tileH/2, 0, 0, Math.PI*2); ctx.fill();
+        }
+
+        drawCyl(0, 0.4, "#404040", "#606060", 4);
+        drawCyl(0.4, 3, "#d22", "#900");
+        drawCyl(3, 6, "#eee", "#ccc");
+        drawCyl(6, 7, "#d22", "#900");
+        drawCyl(7, 8, "#ff0", "#cc0");
+        let p = iso(lhX, lhY, 8.1, cx, cy); ctx.fillStyle = "#333"; ctx.fillRect(p.x-2, p.y-10, 4, 10); 
+        if(Math.floor(Date.now()/300)%2===0) { ctx.fillStyle = "rgba(255, 255, 200, 0.8)"; ctx.beginPath(); ctx.ellipse(p.x, p.y, 25, 12, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill(); }
     }
 
     function drawHangar(cx, cy) {
@@ -826,6 +945,8 @@
                 ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); ctx.lineTo(p[1].x, p[1].y); ctx.lineTo(p[2].x, p[2].y); ctx.lineTo(p[3].x, p[3].y); ctx.fill();
             }
         }
+
+        drawLighthouse(cam.x, cam.y);
         
         if (missionType === 'sea') {
             drawVectorCarrier(cam.x, cam.y);
