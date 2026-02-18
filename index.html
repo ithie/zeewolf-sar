@@ -181,56 +181,13 @@
         <div id="mission-select">
             <div class="title">SELECT MISSION</div>
             <div class="subtitle">OPERATION THEATER</div>
-            <div class="mission-grid">
-                <div class="grid-box" onclick="selectMission('tut_fly')" style="border-color: #ff9900">
-                    <div class="box-label" style="color: #ff9900">ACADEMY 1</div>
-                    <div class="box-sub">FLIGHT SCHOOL</div>
-                    <div class="box-sub">Engine & Movement</div>
-                </div>
-                <div class="grid-box" onclick="selectMission('tut_winch')" style="border-color: #ff9900">
-                    <div class="box-label" style="color: #ff9900">ACADEMY 2</div>
-                    <div class="box-sub">CARGO & WINCH</div>
-                    <div class="box-sub">Hooks & Drops</div>
-                </div>
-                <div class="grid-box" onclick="selectMission('coastal')" style="border-color: #ff9900">
-                    <div class="box-label" style="color: #ff9900">COASTAL TRAINING</div>
-                    <div class="box-sub">Sunny / Landbase</div>
-                    <div class="box-sub">Goal: 10 Survivors</div>
-                </div>
-
-                <div class="grid-box" onclick="selectMission('recovery')">
-                    <div class="box-label">RECOVERY OP</div>
-                    <div class="box-sub" style="color: #fb0">Hilly / Heavy Crates</div>
-                    <div class="box-sub">Goal: 3 Crates</div>
-                </div>
-                <div class="grid-box" onclick="selectMission('storm')">
-                    <div class="box-label">THE STORM</div>
-                    <div class="box-sub" style="color: #0cf">Rain / Islands</div>
-                    <div class="box-sub">Goal: 8 Survivors</div>
-                </div>
-                <div class="grid-box" onclick="selectMission('sea')">
-                    <div class="box-label" style="color: #aaa">CARRIER OPS</div>
-                    <div class="box-sub" style="color: #fff">MOVING SHIP / DECK OPS</div>
-                    <div class="box-sub">Goal: 15 Survivors</div>
-                </div>
-            </div>
+            <div class="mission-grid" id="mission-grid"></div>
         </div>
 
         <div id="heli-select">
             <div class="title">HANGAR</div>
             <div class="subtitle">SELECT AIRFRAME</div>
-            <div class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width: 900px">
-                <div
-                    class="grid-box"
-                    onclick="startGame('classic')"
-                    onmouseenter="setHover('classic', true)"
-                    onmouseleave="setHover('classic', false)"
-                >
-                    <canvas id="icon-classic" class="mini-canvas" width="300" height="200"></canvas>
-                    <div class="box-label">CLASSIC (TYPE-Z)</div>
-                    <div class="box-sub">Balanced</div>
-                    <div class="box-sub" style="color: #aaa">Cap: 5</div>
-                </div>
+            <div class="grid-container" style="grid-template-columns: 1fr 1fr; width: 900px">
                 <div
                     class="grid-box"
                     onclick="startGame('dolphin')"
@@ -269,6 +226,12 @@
         <canvas id="gameCanvas"></canvas>
 
         <script>
+            /**
+             * @todo
+             * Winde kann nur bei langsamer Geschwindigkeit ausgefahren werden.
+             * Ist die Winde ausgefahren, kann nicht mehr beschleunigt werden.
+             */
+
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
             const tileW = 64,
@@ -294,9 +257,128 @@
                 particles = [];
             let cam = { x: 0, y: 0 };
 
-            // --- CONFIGURATION ---
-            let PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 };
-            let START_POS = { x: 21.5, y: 21.5 };
+            const Missions = {
+                tut_fly: {
+                    conditions: {
+                        goalCount: 1,
+                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
+                        START_POS: { x: 21.5, y: 21.5 },
+                    },
+                    color: 'ff9900',
+                    headline: {
+                        label: 'ACADEMY 1',
+                        color: 'ff9900',
+                    },
+                    sublines: ['FLIGHT SCHOOL', 'Engine & Movement'],
+                },
+                tut_winch: {
+                    conditions: {
+                        goalCount: 1,
+                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
+                        START_POS: { x: 21.5, y: 21.5 },
+                    },
+                    color: 'ff9900',
+                    headline: {
+                        label: 'ACADEMY 2',
+                        color: 'ff9900',
+                    },
+                    sublines: ['CARGO & WINCH', 'Hooks & Drops'],
+                },
+                coastal: {
+                    conditions: {
+                        goalCount: 10,
+                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
+                        START_POS: { x: 21.5, y: 21.5 },
+                    },
+                    color: 'ff9900',
+                    headline: {
+                        label: 'COASTAL TRAINIG',
+                        color: 'ff9900',
+                    },
+                    sublines: ['Sunny / Landbase', 'Goal: 10 Survivors'],
+                },
+                recovery: {
+                    conditions: {
+                        goalCount: 3,
+                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
+                        START_POS: { x: 21.5, y: 21.5 },
+                    },
+                    headline: 'RECOVERY OP',
+                    sublines: [{ label: 'Hilly / Heavy Crates', color: 'fb0' }, 'Goal: 3 Crates'],
+                },
+                storm: {
+                    conditions: {
+                        goalCount: 8,
+                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
+                        START_POS: { x: 21.5, y: 21.5 },
+                        storm: true,
+                    },
+                    headline: 'THE STORM',
+                    sublines: [{ label: 'Rain / Islands', color: '0cf' }, 'Goal: 8 Survivors'],
+                },
+                sea: {
+                    conditions: {
+                        goalCount: 15,
+                        storm: true,
+                        init: () => {
+                            initGrid(400);
+                            CARRIER.centerX = 200;
+                            CARRIER.centerY = 200;
+                            seaTime = 0;
+
+                            updateCarrierPos(true);
+
+                            let rot = rotatePoint(0, 4.0, CARRIER.angle);
+                            return { START_POS: { x: CARRIER.x + rot.x, y: CARRIER.y + rot.y } };
+                        },
+                    },
+                    headline: {
+                        label: 'CARRIER OPS',
+                        color: 'fff',
+                    },
+                    sublines: [{ label: 'MOVING SHIP / DECK OPS', color: 'fff' }, 'Goal: 15 Survivors'],
+                },
+                night: {
+                    conditions: {
+                        goalCount: 6,
+                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
+                        START_POS: { x: 21.5, y: 21.5 },
+                        night: true,
+                    },
+                    headline: {
+                        label: 'NIGHT OPS',
+                        color: 'aaf',
+                    },
+                    sublines: ['Darkness / Spotlight', 'Goal: 6 Lost Souls'],
+                },
+                canyon: {
+                    conditions: {
+                        goalCount: 5,
+                        START_POS: { x: 100, y: 10 },
+                        PAD: { xMin: 95, xMax: 105, yMin: 5, yMax: 15, z: 0.5 },
+                    },
+                    color: 'd84',
+                    headline: {
+                        label: 'CANYON RUN',
+                        color: 'd84',
+                    },
+                    sublines: ['Windy High / Calm low', 'Goal: 5 Climbers'],
+                },
+                rig: {
+                    conditions: {
+                        storm: true,
+                        goalCount: 12,
+                        START_POS: { x: 100, y: 100 },
+                        PAD: { xMin: 96, xMax: 104, yMin: 96, yMax: 104, z: 2.0 },
+                    },
+                    color: 'f33',
+                    headline: {
+                        label: 'BURNING RIG',
+                        color: 'f33',
+                    },
+                    sublines: ['Fire / Obstacles', 'Goal: 12 Workers'],
+                },
+            };
 
             // --- Z-SYNTH AUDIO ENGINE (INSERTED) ---
             const ZSynth = {
@@ -421,7 +503,6 @@
             };
             // ------------------------------------------
 
-            // CARRIER DEFINITION (Verkürzt/Verkleinert)
             let CARRIER = {
                 x: 100,
                 y: 100,
@@ -438,19 +519,16 @@
             };
             let seaTime = 0;
 
-            // Parked Helis (Repositioned for shorter deck)
             const parkedHelis = [
-                // Left Side (Jayhawks) - moved back to fit shorter length
                 { type: 'jayhawk', xRel: -2, yRel: -5.5, angle: Math.PI / -2.4 },
                 { type: 'jayhawk', xRel: -1.6, yRel: -1.5, angle: Math.PI / -2.4 },
-                // Right Side (Dolphins) - squeezed in
                 { type: 'dolphin', xRel: 1.8, yRel: 0, angle: -Math.PI / -1.2 },
                 { type: 'dolphin', xRel: 1.8, yRel: -2.5, angle: -Math.PI / -1.2 },
                 { type: 'dolphin', xRel: 1.8, yRel: -5.0, angle: -Math.PI / -1.2 },
             ];
 
             let heli = {
-                type: 'classic',
+                type: 'dolphin',
                 x: 0,
                 y: 0,
                 z: 0.5,
@@ -498,7 +576,29 @@
                 ZSynth.start();
                 // -----------------------------
                 document.getElementById('splash').style.display = 'none';
+
+                const missions = [];
+
+                for (const [missionKey, missionValues] of Object.entries(Missions)) {
+                    let sublines = '';
+
+                    missionValues.sublines.forEach(subline => {
+                        sublines += `<div class="box-sub"${subline.color ? `style="${subline.color}"` : ''}>
+                        ${subline.label ? subline.label : subline}
+                            </div>`;
+                    });
+                    missions.push(
+                        `<div class="grid-box" onclick="selectMission('${missionKey}')"${missionValues.color ? ` style="border-color: #${missionValues.color}"` : ''}>
+                    <div class="box-label"${missionValues.headline && missionValues.headline.color ? ` style="color: #${missionValues.headline.color}"` : ''}>
+                        ${missionValues.headline.label ? missionValues.headline.label : missionValues.headline}
+                    </div>
+                    ${sublines}
+                </div>`
+                    );
+                }
+
                 document.getElementById('mission-select').style.display = 'flex';
+                document.getElementById('mission-grid').innerHTML = missions.join('');
             }
 
             function setHover(type, state) {
@@ -512,38 +612,31 @@
                 START_POS = { x: 21.5, y: 21.5 };
                 initGrid(200);
 
-                if (type === 'tut_fly') {
-                    goalCount = 1;
-                }
-                if (type === 'tut_winch') {
-                    goalCount = 1;
-                }
-                if (type === 'coastal') {
-                    goalCount = 10;
-                }
-                if (type === 'recovery') {
-                    goalCount = 3;
-                }
-                if (type === 'storm') {
-                    goalCount = 8;
+                const currentMission = Missions[type].conditions;
+
+                goalCount = currentMission.goalCount;
+
+                if (currentMission.storm) {
                     stormActive = true;
                 }
+                if (currentMission.night) {
+                    night = true;
+                }
+                if (currentMission.START_POS) {
+                    START_POS = currentMission.START_POS;
+                }
+                if (currentMission.PAD) {
+                    PAD = currentMission.PAD;
+                }
+                if (currentMission.init) {
+                    const initValues = currentMission.init();
 
-                if (type === 'sea') {
-                    goalCount = 15;
-                    stormActive = true;
-                    initGrid(400);
-                    CARRIER.centerX = 200;
-                    CARRIER.centerY = 200;
-                    seaTime = 0;
-
-                    updateCarrierPos(true);
-
-                    // Adjusted Start Position for Shorter Carrier (was y: 8)
-                    let rot = rotatePoint(0, 4.0, CARRIER.angle);
-                    START_POS = { x: CARRIER.x + rot.x, y: CARRIER.y + rot.y };
+                    if (initValues.START_POS) {
+                        START_POS = initValues.START_POS;
+                    }
                 }
 
+                document.getElementById('mission-grid').innerHTML = '';
                 document.getElementById('mission-select').style.display = 'none';
                 document.getElementById('heli-select').style.display = 'flex';
                 animateHeliPreviews();
@@ -600,6 +693,32 @@
                                 } else if (missionType === 'recovery') {
                                     let h = Math.sin(x * 0.15) * Math.cos(y * 0.15) * 4;
                                     points[x][y] = Math.max(-0.2, h);
+                                } else if (missionType === 'night') {
+                                    let h = Math.sin(x * 0.08) * Math.cos(y * 0.08) * 2.5;
+                                    points[x][y] = Math.max(-0.2, h);
+                                } else if (missionType === 'canyon') {
+                                    // Ein tiefer Graben in der Mitte (y-Achse)
+                                    // Wir nutzen eine Cosinus-Welle, um den Canyon zu formen
+                                    let canyonCenter = gridSize / 2;
+                                    let width = 20;
+                                    let dist = Math.abs(x - canyonCenter);
+
+                                    // Boden ist wellig, Wände gehen steil hoch
+                                    let floor = Math.sin(y * 0.1) * 0.5;
+                                    let walls = 0;
+
+                                    if (dist > width) {
+                                        // Außerhalb des Canyons geht es hoch
+                                        walls = (dist - width) * 0.5;
+                                        if (walls > 8) walls = 8 + Math.random(); // Zickzack oben
+                                    }
+                                    points[x][y] = Math.max(-0.5, floor + walls);
+                                } else if (missionType === 'rig') {
+                                    points[x][y] = -1.0;
+
+                                    if (x >= 85 && x <= 115 && y >= 85 && y <= 115) {
+                                        points[x][y] = 2.5;
+                                    }
                                 } else {
                                     let h = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 3 + Math.cos(x * 0.05) * 2;
                                     points[x][y] = Math.max(-0.2, h);
@@ -676,9 +795,7 @@
             }
 
             function spawnPayload() {
-                console.log('SPAWN PAYLOAD');
                 if (missionType === 'tut_fly') {
-                    console.log('PERSON');
                     payload.x = 15;
                     payload.y = 15;
                     payload.vx = 0;
@@ -741,6 +858,23 @@
             }
 
             function handleParticles() {
+                if (missionType === 'rig') {
+                    if (Math.random() < 0.3) {
+                        let rx = 100 + (Math.random() - 0.5) * 30;
+                        let ry = 100 + (Math.random() - 0.5) * 30;
+                        if (getGround(rx, ry) > 3.0) {
+                            particles.push({
+                                x: rx,
+                                y: ry,
+                                z: getGround(rx, ry),
+                                vx: 0.1 + Math.random() * 0.1,
+                                vy: 0.1,
+                                life: 1.0,
+                                color: '50, 50, 50',
+                            });
+                        }
+                    }
+                }
                 let gH = getGround(heli.x, heli.y);
                 if (heli.z < 2.5 && heli.rotorRPM > 0.8 && gH > 0.1) {
                     for (let i = 0; i < 1; i++) {
@@ -778,7 +912,7 @@
             }
 
             function updatePhysics() {
-                let baseWind = stormActive ? 0.0004 : 0.00015;
+                let baseWind = stormActive ? 0.002 : 0.00015;
                 wind.phase += 0.01;
                 let gust = 1 + Math.sin(wind.phase) * (stormActive ? 0.8 : 0.2);
                 wind.x = Math.cos(windAngle) * baseWind * gust;
@@ -788,6 +922,14 @@
                     carrierVY = 0,
                     carrierRot = 0;
 
+                if (missionType === 'canyon') {
+                    if (heli.z < 4.0) {
+                        wind.x = 0.0002;
+                        wind.y = 0.0005;
+                    } else {
+                        showMsg('HIGH WIND WARNING!');
+                    }
+                }
                 if (missionType === 'sea' && !crashed) {
                     let oldX = CARRIER.x;
                     let oldY = CARRIER.y;
@@ -1020,7 +1162,7 @@
                         totalRescued += heli.onboard;
                         heli.onboard = 0;
                         if (totalRescued >= goalCount) {
-                            ZSynth.stop(); // --- STOP MUSIC (WIN) ---
+                            ZSynth.stop();
                             document.getElementById('win-screen').style.display = 'flex';
                         } else {
                             showMsg(`SECURED: ${totalRescued}/${goalCount}`);
@@ -1292,7 +1434,6 @@
                     cy
                 );
 
-                // PARKED HELIS (Rotated)
                 parkedHelis.forEach(h => {
                     let pos = r(h.xRel, h.yRel);
                     let totalAng = h.angle + ang;
@@ -1300,7 +1441,116 @@
                     drawHeli(h.type, pos.x, pos.y, deckZ + 0.1, totalAng, 0, 0, 0, cx, cy, ctx, canvas, false, 1);
                 });
             }
+            function drawRig(cx, cy) {
+                let rX = 100; // Position X (Mitte der Map)
+                let rY = 100; // Position Y
+                let size = 15; // Größe der Plattform (halbe Breite)
+                let dZ = 2.5; // Höhe des Decks über Wasser
+                let wZ = -1.0; // Wasserhöhe
 
+                // Hilfsfunktion für Punkte relativ zur Rig-Mitte
+                function r(ox, oy, z) {
+                    return iso(rX + ox, rY + oy, z, cx, cy);
+                }
+
+                // 1. Die Stelzen (4 Beine im Wasser)
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 4;
+                let legs = [
+                    [-size, -size],
+                    [size, -size],
+                    [size, size],
+                    [-size, size],
+                ];
+                legs.forEach(l => {
+                    let top = r(l[0], l[1], dZ);
+                    let bot = r(l[0], l[1], wZ);
+                    ctx.beginPath();
+                    ctx.moveTo(bot.x, bot.y);
+                    ctx.lineTo(top.x, top.y);
+                    ctx.stroke();
+                });
+
+                // 2. Das Hauptdeck (Unterseite dunkel, Seite mittel, Oben hell)
+                let p1 = r(-size, -size, dZ);
+                let p2 = r(size, -size, dZ);
+                let p3 = r(size, size, dZ);
+                let p4 = r(-size, size, dZ);
+
+                // Dicke des Decks (0.5 Einheiten nach unten)
+                let p1b = r(-size, -size, dZ - 0.5);
+                let p2b = r(size, -size, dZ - 0.5);
+                let p3b = r(size, size, dZ - 0.5);
+
+                // Seitenwände des Decks (Rostig)
+                ctx.fillStyle = '#632'; // Rost-Rot
+                ctx.beginPath();
+                ctx.moveTo(p2.x, p2.y);
+                ctx.lineTo(p3.x, p3.y);
+                ctx.lineTo(p3b.x, p3b.y);
+                ctx.lineTo(p2b.x, p2b.y);
+                ctx.fill();
+                ctx.fillStyle = '#521'; // Schattenseite
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(p2b.x, p2b.y);
+                ctx.lineTo(p1b.x, p1b.y);
+                ctx.fill();
+
+                ctx.fillStyle = '#222';
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(p3.x, p3.y);
+                ctx.lineTo(p4.x, p4.y);
+                ctx.fill();
+
+                ctx.strokeStyle = '#aa0';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(p1.x + 10, p1.y + 5);
+                ctx.lineTo(p3.x - 10, p3.y - 5); // X
+                ctx.moveTo(p2.x - 10, p2.y + 5);
+                ctx.lineTo(p4.x + 10, p4.y - 5);
+                ctx.stroke();
+
+                let tBaseX = rX - 8;
+                let tBaseY = rY - 8;
+                let tW = 4;
+                let tH = 8.0;
+
+                let t1 = iso(tBaseX - tW, tBaseY - tW, dZ, cx, cy);
+                let t2 = iso(tBaseX + tW, tBaseY - tW, dZ, cx, cy);
+                let t3 = iso(tBaseX + tW, tBaseY + tW, dZ, cx, cy);
+                let t4 = iso(tBaseX - tW, tBaseY + tW, dZ, cx, cy);
+                let tTop = iso(tBaseX, tBaseY, dZ + tH, cx, cy); // Spitze
+
+                ctx.fillStyle = 'rgba(40, 40, 50, 0.8)';
+                ctx.strokeStyle = '#889';
+                ctx.lineWidth = 1;
+
+                ctx.beginPath();
+                ctx.moveTo(t1.x, t1.y);
+                ctx.lineTo(t2.x, t2.y);
+                ctx.lineTo(tTop.x, tTop.y);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(t2.x, t2.y);
+                ctx.lineTo(t3.x, t3.y);
+                ctx.lineTo(tTop.x, tTop.y);
+                ctx.fill();
+                ctx.stroke();
+
+                if (Math.random() > 0.5) {
+                    ctx.fillStyle = '#fa0';
+                    ctx.beginPath();
+                    ctx.arc(tTop.x, tTop.y - 5, 4 + Math.random() * 4, 0, 7);
+                    ctx.fill();
+                }
+            }
             // --- ROUND LIGHTHOUSE (CYLINDER) ---
             function drawLighthouse(cx, cy) {
                 if (missionType !== 'sea') return;
@@ -1810,10 +2060,58 @@
                         let isPad =
                             missionType !== 'sea' && x >= PAD.xMin && x <= PAD.xMax && y >= PAD.yMin && y <= PAD.yMax;
                         let c = 35 + Math.floor(h[0] * 15);
+                        let baseColor = c;
                         let fill;
 
                         if (missionType === 'sea') {
                             fill = '#002244';
+                        } else if (missionType === 'night') {
+                            // Höhe über Boden
+                            let alt = heli.z - getGround(heli.x, heli.y);
+
+                            // Kegel-Berechnung
+                            // Winkel zum aktuellen Tile
+                            let ang = Math.atan2(y - heli.y, x - heli.x);
+                            // Differenz zur Heli-Ausrichtung
+                            let diff = ang - heli.angle;
+                            // Normalisieren auf -PI bis +PI
+                            while (diff < -Math.PI) diff += Math.PI * 2;
+                            while (diff > Math.PI) diff -= Math.PI * 2;
+
+                            // Kegelbreite: Je höher, desto breiter der Streuwinkel (tan-artig)
+                            // Bei Boden (0m) = schmal (0.3), bei 10m Höhe = breiter (0.8)
+                            let coneWidth = 0.3 + alt * 0.05;
+
+                            // Reichweite: Je höher, desto größer der Lichtfleck am Boden
+                            let range = 10 + alt * 2.0;
+
+                            // Helligkeit: Nimmt mit Höhe rapide ab (Inverse Square Law fake)
+                            // Bei 15m Höhe ist es fast schwarz
+                            let brightness = Math.max(0.1, 1.0 - alt / 15);
+
+                            // Distanz zum Heli
+                            let d = Math.hypot(x - heli.x, y - heli.y);
+
+                            // Ist Tile im Lichtkegel (Vorne) ODER sehr nah (Positionslicht)?
+                            let inLight = Math.abs(diff) < coneWidth && d < range;
+
+                            if (inLight) {
+                                // Helles, kaltes Licht (angepasst an Helligkeit)
+                                let intensity = Math.floor(255 * brightness);
+                                fill = h[0] > 0 ? `rgb(${intensity}, ${intensity}, ${intensity - 50})` : '#004488';
+                            } else {
+                                // Zappenduster
+                                fill = '#020205';
+                            }
+                        } else if (missionType === 'rig') {
+                            if (h[0] > 1.5)
+                                fill = '#222'; // Plattform Boden (Dunkelgrau)
+                            else if (h[0] > 3.0)
+                                fill = '#522'; // Gebäude (Rötlich)
+                            else fill = '#112233'; // Dunkles Wasser
+                        } else if (missionType === 'canyon') {
+                            // Rötlicher Fels
+                            fill = h[0] > 0.5 ? `rgb(${c + 60},${c + 20},${c - 10})` : `rgb(${c + 20},${c + 10},${c})`;
                         } else {
                             fill = isPad ? '#444' : h[0] > 0 ? `rgb(${c - 10},${c + 30},${c - 10})` : '#003d7a';
                             if (stormActive && h[0] < 0) fill = '#002244';
@@ -1833,6 +2131,10 @@
 
                 if (missionType === 'sea') {
                     drawVectorCarrier(cam.x, cam.y);
+                }
+
+                if (missionType === 'rig') {
+                    drawRig(cam.x, cam.y);
                 }
 
                 drawPadLights(cam.x, cam.y);
@@ -2093,13 +2395,13 @@
             function animateHeliPreviews() {
                 if (document.getElementById('heli-select').style.display === 'none') return;
 
-                ['classic', 'dolphin', 'jayhawk'].forEach(id => {
+                ['dolphin', 'jayhawk'].forEach(id => {
                     if (menuHover[id]) {
-                        menuAngles[id] += 0.01;
+                        menuAngles[id] += 0.05;
                     } else {
-                        let diff = -0.5 - menuAngles[id];
+                        let diff = -0.075 - menuAngles[id];
                         if (Math.abs(diff) > 0.01) menuAngles[id] += diff * 0.1;
-                        else menuAngles[id] = -0.5;
+                        else menuAngles[id] = -0.075;
                     }
 
                     const c = document.getElementById('icon-' + id);
@@ -2108,7 +2410,8 @@
                         c.width = 300;
                         c.height = 200;
                         cx.clearRect(0, 0, 300, 200);
-                        drawHeli(id, 0, 0, 0, menuAngles[id], 0, 0, 0, 0, 0, cx, c, false, 2.0);
+
+                        drawHeli(id, 0, 0, 0, menuAngles[id], 0, 0, 0, 0, 0, cx, c, false, 2.5);
                     }
                 });
 
