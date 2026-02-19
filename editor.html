@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+    <head>
+        <title>ZEEWOLF - Level Editor v2 (Retro-Compatible & Flat Water)</title>
+        <style>
+            body {
+                background: #222;
+                color: #fff;
+                font-family: monospace;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            canvas {
+                border: 2px solid #5f5;
+                cursor: crosshair;
+                background: #002244;
+                margin-top: 10px;
+            }
+            .controls {
+                margin-top: 15px;
+                text-align: center;
+                max-width: 800px;
+                width: 100%;
+            }
+            button {
+                background: #5f5;
+                color: #000;
+                border: none;
+                padding: 10px 15px;
+                font-weight: bold;
+                cursor: pointer;
+                margin: 5px;
+            }
+            button:hover {
+                background: #fff;
+            }
+            .tool-bar {
+                background: #111;
+                padding: 10px;
+                border: 1px solid #5f5;
+                display: inline-block;
+                margin-bottom: 10px;
+            }
+            label {
+                margin: 0 10px;
+                cursor: pointer;
+                font-size: 16px;
+            }
+            textarea {
+                width: 100%;
+                height: 120px;
+                margin-top: 10px;
+                background: #111;
+                color: #5f5;
+                border: 1px solid #5f5;
+                font-family: monospace;
+                padding: 10px;
+                box-sizing: border-box;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>ZEEWOLF Map Editor</h2>
+
+        <div class="tool-bar">
+            <strong>WERKZEUG:</strong>
+            <label
+                ><input type="radio" name="tool" value="terrain" checked onchange="currentTool = 'terrain'" /> ⛰️
+                Terrain (L-Klick: Hoch | Shift+Klick: Runter)</label
+            >
+            <label
+                ><input type="radio" name="tool" value="pad" onchange="currentTool = 'pad'" /> 🚁 Start/Hangar setzen
+                (Klick)</label
+            >
+        </div>
+
+        <canvas id="editorCanvas" width="800" height="800"></canvas>
+
+        <div class="controls">
+            <button onclick="exportMap()">⬆️ Map Exportieren (JSON)</button>
+            <button onclick="importMap()">⬇️ Map Importieren</button>
+            <button onclick="clearMap()" style="background: #f55; color: white">🗑️ Map Reset</button>
+            <br />
+            <textarea
+                id="output"
+                placeholder="Code zum Importieren hier einfügen, oder Export-Code hier kopieren..."
+            ></textarea>
+        </div>
+
+        <script>
+            const canvas = document.getElementById('editorCanvas');
+            const ctx = canvas.getContext('2d');
+            const gridSize = 100; // Mapgröße (100x100)
+            const tileSize = canvas.width / gridSize;
+
+            let points = [];
+            let padX = 10; // Standard Startposition
+            let padY = 10;
+            let isDrawing = false;
+            let currentTool = 'terrain';
+
+            // --- MAP INITIALISIEREN ---
+            function initMap() {
+                points = [];
+                for (let x = 0; x <= gridSize; x++) {
+                    points[x] = [];
+                    for (let y = 0; y <= gridSize; y++) {
+                        points[x][y] = 0; // 0 = Flachland/Strand
+                    }
+                }
+                padX = 10;
+                padY = 10;
+                drawMap();
+                document.getElementById('output').value = '';
+            }
+
+            // --- ZEICHNEN ---
+            function drawMap() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 1. Terrain zeichnen
+                for (let x = 0; x < gridSize; x++) {
+                    for (let y = 0; y < gridSize; y++) {
+                        let h = points[x][y];
+
+                        // Farbgebung (Wasser hat nun keine Tiefe mehr, konstantes Blau)
+                        if (h < 0)
+                            ctx.fillStyle = '#004488'; // Wasser
+                        else if (h === 0)
+                            ctx.fillStyle = '#d84'; // Strand/Flachland
+                        else ctx.fillStyle = `rgb(${50 + h * 20}, ${150 + h * 10}, 50)`; // Berge
+
+                        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    }
+                }
+
+                // 2. Pad / Hangar zeichnen (8x8 Felder)
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
+                ctx.strokeStyle = '#5f5';
+                ctx.lineWidth = 2;
+                let pW = 8 * tileSize;
+                let pH = 8 * tileSize;
+                ctx.fillRect(padX * tileSize, padY * tileSize, pW, pH);
+                ctx.strokeRect(padX * tileSize, padY * tileSize, pW, pH);
+
+                // Startpunkt des Helis markieren (Mitte des Pads)
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc((padX + 4) * tileSize, (padY + 4) * tileSize, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // --- MAUS-INTERAKTION ---
+            function paint(e) {
+                if (!isDrawing && e.type !== 'mousedown') return;
+                const rect = canvas.getBoundingClientRect();
+                const gridX = Math.floor((e.clientX - rect.left) / tileSize);
+                const gridY = Math.floor((e.clientY - rect.top) / tileSize);
+
+                if (gridX >= 0 && gridX <= gridSize && gridY >= 0 && gridY <= gridSize) {
+                    if (currentTool === 'terrain') {
+                        // Shift = absenken, Normal = anheben
+                        let amount = e.shiftKey ? -0.2 : 0.2;
+
+                        // 3x3 Brush für weichere Hügel
+                        for (let dx = -1; dx <= 1; dx++) {
+                            for (let dy = -1; dy <= 1; dy++) {
+                                let nx = gridX + dx,
+                                    ny = gridY + dy;
+                                if (nx >= 0 && nx <= gridSize && ny >= 0 && ny <= gridSize) {
+                                    let currentH = points[nx][ny];
+                                    let newH = currentH + amount;
+
+                                    // WASSER-LOGIK (Keine Tiefenwerte)
+                                    if (newH < 0) {
+                                        newH = -1; // Snappt direkt auf Wasserlevel
+                                    }
+                                    if (currentH < 0 && amount > 0) {
+                                        newH = 0; // Snappt aus dem Wasser direkt auf Strandlevel
+                                    }
+
+                                    points[nx][ny] = Math.min(10, newH); // Max Höhe bleibt 10
+                                }
+                            }
+                        }
+                    } else if (currentTool === 'pad') {
+                        // Verhindern, dass das Pad über den rechten/unteren Rand ragt
+                        padX = Math.min(gridX, gridSize - 8);
+                        padY = Math.min(gridY, gridSize - 8);
+                    }
+                    drawMap();
+                }
+            }
+
+            canvas.addEventListener('mousedown', e => {
+                isDrawing = true;
+                paint(e);
+            });
+            canvas.addEventListener('mousemove', paint);
+            window.addEventListener('mouseup', () => {
+                isDrawing = false;
+            });
+
+            // --- EXPORT & IMPORT (Rückwärtskompatibel) ---
+            function exportMap() {
+                let exportData = [...points];
+                exportData.push({ padX: padX, padY: padY });
+                document.getElementById('output').value = JSON.stringify(exportData);
+            }
+
+            function importMap() {
+                try {
+                    const jsonString = document.getElementById('output').value;
+                    if (!jsonString) return alert('Textfeld ist leer!');
+
+                    let imported = JSON.parse(jsonString);
+                    let lastElement = imported[imported.length - 1];
+
+                    if (lastElement && typeof lastElement === 'object' && !Array.isArray(lastElement)) {
+                        let meta = imported.pop();
+                        padX = meta.padX !== undefined ? meta.padX : 10;
+                        padY = meta.padY !== undefined ? meta.padY : 10;
+                    } else {
+                        padX = 10;
+                        padY = 10;
+                    }
+
+                    points = imported;
+
+                    // Beim Import alte Wasser-Tiefenwerte vorsichtshalber auf -1 glätten,
+                    // falls du eine alte Map lädst, die noch tiefere Werte hatte
+                    for (let x = 0; x <= gridSize; x++) {
+                        for (let y = 0; y <= gridSize; y++) {
+                            if (points[x] && points[x][y] < 0) points[x][y] = -1;
+                        }
+                    }
+
+                    drawMap();
+                    alert('Map erfolgreich geladen!');
+                } catch (e) {
+                    alert('Fehler beim Importieren! Überprüfe den JSON-Code.\n\nDetails: ' + e);
+                }
+            }
+
+            function clearMap() {
+                if (confirm('Bist du sicher? Alle ungespeicherten Änderungen gehen verloren.')) {
+                    initMap();
+                }
+            }
+
+            // Start
+            initMap();
+        </script>
+    </body>
+</html>
