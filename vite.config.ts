@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
         plugins: [makeSingleFile()],
         build: {
             // Trennung der Ausgabeverzeichnisse
-            outDir: isEditorBuild ? 'dist/editor' : 'dist/game',
+            outDir: isEditorBuild ? 'dist/editor' : 'dist',
 
             // Da wir jetzt in Unterordner bauen, können wir das Leeren
             // wieder auf true setzen, damit alte Artefakte verschwinden.

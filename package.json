@@ -10,7 +10,7 @@
         "build": "npm run build:game && npm run build:editor",
         "preview": "vite preview",
         "predeploy": "npm run build:game",
-        "deploy": "gh-pages -d dist/game"
+        "deploy": "gh-pages -d dist"
     },
     "devDependencies": {
         "@types/node": "^25.3.0",
