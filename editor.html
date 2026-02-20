@@ -105,6 +105,38 @@
                 justify-content: center;
                 align-items: flex-start;
             }
+            .canvas-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            /* HEADER PIXELGENAU FÜR BEIDE KARTEN */
+            .canvas-header {
+                background: #111;
+                color: var(--accent);
+                border: 2px solid var(--accent);
+                border-bottom: none;
+                padding: 5px 10px;
+                box-sizing: border-box;
+                font-weight: bold;
+                font-size: 12px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .header-2d {
+                width: 604px;
+            } /* 600px + 2x2px Border */
+            .header-3d {
+                width: 504px;
+            } /* 500px + 2x2px Border */
+            .canvas-hint {
+                font-size: 10px;
+                color: #aaa;
+                font-weight: normal;
+            }
+
             .editor-wrapper {
                 position: relative;
                 width: 600px;
@@ -159,16 +191,26 @@
                 margin-top: -5px;
             }
 
-            .tool-bar,
-            .mission-config {
-                margin-top: 15px;
+            /* FIX: 1128px Max-Width (inklusive der 8px Canvas Rahmen) und Abstände (Margin) */
+            .tool-bar {
                 width: 100%;
-                max-width: 1120px;
+                max-width: 1128px;
                 box-sizing: border-box;
                 background: #111;
                 border: 1px solid var(--accent);
                 padding: 15px;
+                margin-bottom: 20px;
             }
+            .mission-config {
+                width: 100%;
+                max-width: 1128px;
+                box-sizing: border-box;
+                background: #111;
+                border: 1px solid var(--accent);
+                padding: 15px;
+                margin-top: 20px;
+            }
+
             .flex-row {
                 display: flex;
                 gap: 20px;
@@ -417,124 +459,139 @@ Viel Glück, Pilot.</textarea
             </div>
 
             <div class="workspace">
-                <div class="editor-wrapper">
-                    <canvas id="editorCanvas" width="600" height="600"></canvas>
-
-                    <div
-                        id="ui_wind"
-                        class="floating-ui"
-                        style="left: 90px; top: 15px"
-                        onmousedown="event.stopPropagation()"
-                        onwheel="event.stopPropagation()"
-                    >
-                        <span
-                            class="close-btn"
-                            onclick="
-                                selectedUI = null;
-                                drawMap();
-                            "
-                            >✖</span
-                        >
-                        <strong style="color: cyan">💨 WIND VECTOR</strong><br />
-                        Direction:
-                        <input
-                            type="number"
-                            id="m_wind_dir"
-                            value="45"
-                            min="0"
-                            max="359"
-                            style="width: 50px"
-                            oninput="syncToData()"
-                        /><br />
-                        Force: &nbsp;&nbsp;&nbsp;&nbsp;<input
-                            type="number"
-                            id="m_wind_str"
-                            value="1.0"
-                            step="0.1"
-                            min="0"
-                            style="width: 50px"
-                            oninput="syncToData()"
-                        /><br />
-                        <label
-                            ><input type="checkbox" id="m_wind_var" onchange="syncToData()" /> Dynamic Variance</label
-                        >
+                <div class="canvas-container">
+                    <div class="canvas-header header-2d">
+                        <span>2D Editor & Tactical Map</span>
+                        <span class="canvas-hint">Klick auf Pad/Träger/Wind für Details</span>
                     </div>
+                    <div class="editor-wrapper">
+                        <canvas id="editorCanvas" width="600" height="600"></canvas>
 
-                    <div
-                        id="ui_carrier"
-                        class="floating-ui"
-                        onmousedown="event.stopPropagation()"
-                        onwheel="event.stopPropagation()"
-                    >
-                        <span
-                            class="close-btn"
-                            onclick="
-                                selectedUI = null;
-                                drawMap();
-                            "
-                            >✖</span
+                        <div
+                            id="ui_wind"
+                            class="floating-ui"
+                            style="left: 90px; top: 15px"
+                            onmousedown="event.stopPropagation()"
+                            onwheel="event.stopPropagation()"
                         >
-                        <strong style="color: #88aaff">🚢 CARRIER OPS</strong><br />
-                        <button id="btn_spawn_carrier" onclick="setSpawn('carrier')" style="width: 100%; margin: 5px 0">
-                            Set Start Point</button
-                        ><br />
-                        Angle (°):
-                        <input
-                            type="number"
-                            id="m_carrier_angle"
-                            value="0"
-                            min="0"
-                            max="359"
-                            style="width: 45px"
-                            oninput="syncToData()"
-                        /><br />
-                        Speed (kn):<input
-                            type="number"
-                            id="m_carrier_speed"
-                            value="0"
-                            step="0.5"
-                            style="width: 45px"
-                            oninput="syncToData()"
-                        /><br />
-                        Path:
-                        <select id="m_carrier_path" onchange="syncToData()" style="width: 80px">
-                            <option value="static">Static</option>
-                            <option value="straight">Straight</option>
-                            <option value="circle">Circle</option></select
-                        ><br />
-                        Radius:
-                        <input
-                            type="number"
-                            id="m_carrier_radius"
-                            value="40"
-                            step="5"
-                            style="width: 45px"
-                            oninput="syncToData()"
-                        />
-                    </div>
+                            <span
+                                class="close-btn"
+                                onclick="
+                                    selectedUI = null;
+                                    drawMap();
+                                "
+                                >✖</span
+                            >
+                            <strong style="color: cyan">💨 WIND VECTOR</strong><br />
+                            Direction:
+                            <input
+                                type="number"
+                                id="m_wind_dir"
+                                value="45"
+                                min="0"
+                                max="359"
+                                style="width: 50px"
+                                oninput="syncToData()"
+                            /><br />
+                            Force: &nbsp;&nbsp;&nbsp;&nbsp;<input
+                                type="number"
+                                id="m_wind_str"
+                                value="1.0"
+                                step="0.1"
+                                min="0"
+                                style="width: 50px"
+                                oninput="syncToData()"
+                            /><br />
+                            <label
+                                ><input type="checkbox" id="m_wind_var" onchange="syncToData()" /> Dynamic
+                                Variance</label
+                            >
+                        </div>
 
-                    <div
-                        id="ui_pad"
-                        class="floating-ui"
-                        onmousedown="event.stopPropagation()"
-                        onwheel="event.stopPropagation()"
-                    >
-                        <span
-                            class="close-btn"
-                            onclick="
-                                selectedUI = null;
-                                drawMap();
-                            "
-                            >✖</span
+                        <div
+                            id="ui_carrier"
+                            class="floating-ui"
+                            onmousedown="event.stopPropagation()"
+                            onwheel="event.stopPropagation()"
                         >
-                        <strong style="color: #5f5">🚁 BASE PAD</strong><br />
-                        <button id="btn_spawn_pad" onclick="setSpawn('pad')" style="width: 100%; margin: 5px 0">
-                            Set Start Point
-                        </button>
+                            <span
+                                class="close-btn"
+                                onclick="
+                                    selectedUI = null;
+                                    drawMap();
+                                "
+                                >✖</span
+                            >
+                            <strong style="color: #88aaff">🚢 CARRIER OPS</strong><br />
+                            <button
+                                id="btn_spawn_carrier"
+                                onclick="setSpawn('carrier')"
+                                style="width: 100%; margin: 5px 0"
+                            >
+                                Set Start Point</button
+                            ><br />
+                            Angle (°):
+                            <input
+                                type="number"
+                                id="m_carrier_angle"
+                                value="0"
+                                min="0"
+                                max="359"
+                                style="width: 45px"
+                                oninput="syncToData()"
+                            /><br />
+                            Speed (kn):<input
+                                type="number"
+                                id="m_carrier_speed"
+                                value="0"
+                                step="0.5"
+                                style="width: 45px"
+                                oninput="syncToData()"
+                            /><br />
+                            Path:
+                            <select id="m_carrier_path" onchange="syncToData()" style="width: 80px">
+                                <option value="static">Static</option>
+                                <option value="straight">Straight</option>
+                                <option value="circle">Circle</option></select
+                            ><br />
+                            Radius:
+                            <input
+                                type="number"
+                                id="m_carrier_radius"
+                                value="40"
+                                step="5"
+                                style="width: 45px"
+                                oninput="syncToData()"
+                            />
+                        </div>
+
+                        <div
+                            id="ui_pad"
+                            class="floating-ui"
+                            onmousedown="event.stopPropagation()"
+                            onwheel="event.stopPropagation()"
+                        >
+                            <span
+                                class="close-btn"
+                                onclick="
+                                    selectedUI = null;
+                                    drawMap();
+                                "
+                                >✖</span
+                            >
+                            <strong style="color: #5f5">🚁 BASE PAD</strong><br />
+                            <button id="btn_spawn_pad" onclick="setSpawn('pad')" style="width: 100%; margin: 5px 0">
+                                Set Start Point
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <div class="canvas-container">
+                    <div class="canvas-header header-3d">
+                        <span>3D Engine Preview</span>
+                        <span class="canvas-hint">Drag = Pan | D-Klick = Reset</span>
+                    </div>
                     <canvas id="previewCanvas" width="500" height="600"></canvas>
                 </div>
             </div>
@@ -622,11 +679,12 @@ Viel Glück, Pilot.</textarea
                 let grid = [];
                 for (let x = 0; x <= gs; x++) {
                     grid[x] = [];
-                    for (let y = 0; y <= gs; y++) grid[x][y] = 0;
+                    // Jede neue Map besteht jetzt initial aus tiefem Wasser (-1)
+                    for (let y = 0; y <= gs; y++) grid[x][y] = -1;
                 }
                 return {
                     headline: name,
-                    briefing: 'Befehle für diese Mission hier eintragen...', // Geändert zu Briefing (String)
+                    briefing: 'Befehle für diese Mission hier eintragen...',
                     gridSize: gs,
                     terrain: grid,
                     padX: 10,
@@ -810,7 +868,6 @@ Viel Glück, Pilot.</textarea
                 ctx.clearRect(0, 0, 600, 600);
                 let tSize = (600 / m.gridSize) * zoom;
 
-                // HIER IST DER FIX: Alle UIs erstmal ausblenden!
                 let pUI = document.getElementById('ui_pad');
                 let cUI = document.getElementById('ui_carrier');
                 let wUI = document.getElementById('ui_wind');
@@ -818,14 +875,14 @@ Viel Glück, Pilot.</textarea
                 cUI.style.display = 'none';
                 wUI.style.display = 'none';
 
-                // Terrain
+                // Terrain Rendering (ALLES <= 0 IST JETZT BLAUES WASSER)
                 for (let x = Math.floor(panX); x < Math.min(m.gridSize, panX + 600 / tSize + 1); x++) {
                     for (let y = Math.floor(panY); y < Math.min(m.gridSize, panY + 600 / tSize + 1); y++) {
                         let h = m.terrain[x][y];
-                        if (h < 0) ctx.fillStyle = '#004488';
-                        else if (h === 0) ctx.fillStyle = '#d84';
-                        else ctx.fillStyle = `rgb(${50 + h * 20}, ${150 + h * 10}, 50)`;
-                        ctx.fillRect((x - panX) * tSize, (y - panY) * tSize, tSize + 1, tSize + 1);
+                        if (h <= 0)
+                            ctx.fillStyle = '#004488'; // Wasser für h=0 und h=-1
+                        else ctx.fillStyle = `rgb(${50 + h * 20}, ${150 + h * 10}, 50)`; // Land
+                        ctx.fillRect((x - panX) * tSize, (y - panY) * tSize, tSize + 1.5, tSize + 1.5);
                     }
                 }
 
@@ -833,12 +890,11 @@ Viel Glück, Pilot.</textarea
                 if (m.padX >= 0) {
                     let px = (m.padX - panX) * tSize,
                         py = (m.padY - panY) * tSize;
-
                     if (selectedUI === 'pad') {
                         ctx.shadowBlur = 10;
                         ctx.shadowColor = '#5f5';
                     }
-                    ctx.fillStyle = 'rgba(0,255,0,0.3)';
+                    ctx.fillStyle = 'rgba(0,255,0,0.4)';
                     ctx.fillRect(px, py, 8 * tSize, 8 * tSize);
                     ctx.strokeStyle = '#5f5';
                     ctx.strokeRect(px, py, 8 * tSize, 8 * tSize);
@@ -1003,14 +1059,11 @@ Viel Glück, Pilot.</textarea
 
                         if (mode === 'filled') {
                             let r, g, b;
-                            if (h0 < 0) {
+                            // Rendering Anpassung: h <= 0 ist jetzt IMMER Wasser (Kein Orange mehr!)
+                            if (h0 <= 0) {
                                 r = 0;
                                 g = 60;
                                 b = 120;
-                            } else if (h0 === 0) {
-                                r = 200;
-                                g = 120;
-                                b = 50;
                             } else {
                                 r = 50 + h0 * 20;
                                 g = 150 + h0 * 10;
@@ -1034,7 +1087,6 @@ Viel Glück, Pilot.</textarea
                     }
                 }
 
-                // Objekte im 3D (Simpel)
                 if (m.padX >= 0) {
                     let pp = getIso(
                         m.padX + 4,
@@ -1133,7 +1185,6 @@ Viel Glück, Pilot.</textarea
                 let gx = mx / tSize + panX,
                     gy = my / tSize + panY;
 
-                // UI Click Detection
                 if (Math.hypot(mx - 50, my - 50) < 30) {
                     selectedUI = selectedUI === 'wind' ? null : 'wind';
                     drawMap();
@@ -1329,19 +1380,12 @@ Viel Glück, Pilot.</textarea
             }
 
             function exportCampaign() {
-                let expCanvas = document.createElement('canvas');
-                expCanvas.width = 400;
-                expCanvas.height = 300;
-                let eCtx = expCanvas.getContext('2d');
-                eCtx.fillStyle = '#050505';
-                eCtx.fillRect(0, 0, 400, 300);
-                renderIso(eCtx, 400, 300, 'wireframe', 0, 1.0, 0, 0, true);
-
                 let data = campaign.map(m => {
                     let c = { ...m };
                     c.terrain = compress(m.terrain);
                     return c;
                 });
+
                 let exportData = {
                     type: 'ZEEWOLF_CAMPAIGN',
                     campaignTitle: document.getElementById('c_title').value,
@@ -1349,11 +1393,11 @@ Viel Glück, Pilot.</textarea
                         .getElementById('c_sublines')
                         .value.split('\n')
                         .filter(l => l.trim() !== ''),
-                    previewBase64: expCanvas.toDataURL('image/jpeg', 0.6),
                     levels: data,
                 };
+
                 document.getElementById('output').value = JSON.stringify(exportData);
-                alert('Kampagne bereit!');
+                alert('Kampagne exportiert!');
             }
 
             function importCampaign() {
@@ -1368,13 +1412,10 @@ Viel Glück, Pilot.</textarea
                             m.terrain = decompress(m.terrain, m.gridSize);
                             return m;
                         });
+                        loadMission(0);
                     } else {
-                        document.getElementById('c_title').value = 'Single Map Import';
-                        document.getElementById('c_sublines').value = 'Old format converted.';
-                        parsed.terrain = decompress(parsed.terrain, parsed.gridSize);
-                        campaign = [parsed];
+                        alert('Ungültiges Format! Bitte verwende eine aktuelle Kampagnen-Datei (ZEEWOLF_CAMPAIGN).');
                     }
-                    loadMission(0);
                 } catch (e) {
                     alert('Import Fehler!\n\n' + e);
                 }
