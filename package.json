@@ -1,22 +1,18 @@
 {
-  "name": "zeewolf-sar",
-  "version": "17.2.0",
-  "description": "Isometric Helicopter Simulator",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "keywords": [
-    "game",
-    "helicopter",
-    "canvas",
-    "vite",
-    "vanilla-js"
-  ],
-  "author": "Michael Draws-Beer",
-  "license": "MIT",
-  "devDependencies": {
-    "vite": "^5.2.0"
-  }
+    "name": "zeewolf-sar",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build:game": "vite build --mode game",
+        "build:editor": "vite build --mode editor",
+        "build": "npm run build:game && npm run build:editor",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "@types/node": "^25.3.0",
+        "typescript": "~5.9.3",
+        "vite": "^7.3.1"
+    }
 }

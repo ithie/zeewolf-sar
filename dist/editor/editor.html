@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ZEEWOLF - Campaign Builder & 3D Editor</title>
+      <script type="module">
+(function(){const r=document.createElement("link").relList;if(r&&r.supports&&r.supports("modulepreload"))return;for(const o of document.querySelectorAll('link[rel="modulepreload"]'))i(o);new MutationObserver(o=>{for(const n of o)if(n.type==="childList")for(const l of n.addedNodes)l.tagName==="LINK"&&l.rel==="modulepreload"&&i(l)}).observe(document,{childList:!0,subtree:!0});function c(o){const n={};return o.integrity&&(n.integrity=o.integrity),o.referrerPolicy&&(n.referrerPolicy=o.referrerPolicy),o.crossOrigin==="use-credentials"?n.credentials="include":o.crossOrigin==="anonymous"?n.credentials="omit":n.credentials="same-origin",n}function i(o){if(o.ep)return;o.ep=!0;const n=c(o);fetch(o.href,n)}})();const H=(t="Mission Alpha")=>{const c=[];for(let i=0;i<=100;i++){c[i]=[];for(let o=0;o<=100;o++)c[i][o]=-1}return{headline:t,briefing:"Befehle für diese Mission hier eintragen...",gridSize:100,terrain:c,padX:10,padY:10,carrierX:-1,carrierY:-1,carrierAngle:0,carrierPath:"static",carrierSpeed:0,carrierRadius:40,lighthouseX:-1,lighthouseY:-1,spawnPoint:"pad",goalPersons:5,goalCrates:0,rain:!1,night:!1,windDir:45,windStr:1,windVar:!1}},e={campaign:[H()],curIdx:0,zoom:1,panX:0,panY:0,prevZoom:1,prevPanX:0,prevPanY:0,currentTool:"terrain",brushRadius:1.5,isCustomBrush:!1,selectedUI:null,isDrawing:!1,isEditorDragging:!1,isPrevDragging:!1,lastMX:0,lastMY:0},w=()=>e.campaign[e.curIdx],g={water:"#004488",waterNight:"#001433",bgNight:"#000408",bgRain:"#001122",padStroke:"#5f5",padFill:"rgba(0, 255, 0, 0.4)",padNight:"#2a2",carrierBase:"#888",carrierNight:"#333",carrierAccent:"red",carrierPath:"orange",lighthouseBase:"#d22",lighthouseLight:"#fff",uiHighlight:"#ffcc00",windActive:"cyan",textLight:"#fff",textDark:"#000",shadow:"rgba(0, 0, 0, 0.5)"},Z=(t,r)=>{let c=50+t*20,i=150+t*10,o=50;return r&&(c=Math.floor(c*.3),i=Math.floor(i*.4),o=Math.floor(o*.6)),`rgb(${c}, ${i}, ${o})`},q=document.getElementById("editorCanvas"),s=q.getContext("2d"),V=document.getElementById("previewCanvas"),v=V.getContext("2d"),_=()=>{const t=w();if(!t)return;s.clearRect(0,0,600,600);const r=600/t.gridSize*e.zoom,c=document.getElementById("ui_pad"),i=document.getElementById("ui_carrier"),o=document.getElementById("ui_wind");c&&(c.style.display="none"),i&&(i.style.display="none"),o&&(o.style.display="none");for(let l=Math.floor(e.panX);l<Math.min(t.gridSize,e.panX+600/r+1);l++)for(let p=Math.floor(e.panY);p<Math.min(t.gridSize,e.panY+600/r+1);p++){const d=t.terrain[l][p];s.fillStyle=d<=0?g.water:Z(d,!1),s.fillRect((l-e.panX)*r,(p-e.panY)*r,r+1.5,r+1.5)}if(t.padX>=0){const l=(t.padX-e.panX)*r,p=(t.padY-e.panY)*r;if(e.selectedUI==="pad"&&(s.shadowBlur=10,s.shadowColor=g.padStroke),s.fillStyle=g.padFill,s.fillRect(l,p,8*r,8*r),s.strokeStyle=g.padStroke,s.strokeRect(l,p,8*r,8*r),s.fillStyle=g.textLight,s.beginPath(),s.arc(l+4*r,p+4*r,Math.max(4,r/2),0,Math.PI*2),s.fill(),s.shadowBlur=0,t.spawnPoint==="pad"&&(s.fillStyle=g.uiHighlight,s.font="bold 12px monospace",s.fillText("START",l,p-5)),e.selectedUI==="pad"&&c){c.style.display="block",c.style.left=Math.min(450,Math.max(0,l+8*r+10))+"px",c.style.top=Math.min(500,Math.max(0,p))+"px";const d=document.getElementById("btn_spawn_pad");d&&(d.style.background=t.spawnPoint==="pad"?g.uiHighlight:"var(--accent)")}}if(t.carrierX>=0){const l=(t.carrierX-e.panX)*r,p=(t.carrierY-e.panY)*r,d=t.carrierAngle*Math.PI/180;if(s.save(),s.setLineDash([5,5]),s.strokeStyle=g.carrierPath,t.carrierPath==="straight")s.beginPath(),s.moveTo(l,p),s.lineTo(l+Math.cos(d)*1e3,p+Math.sin(d)*1e3),s.stroke();else if(t.carrierPath==="circle"){const a=t.carrierRadius*r,m=d+Math.PI/2,z=l+Math.cos(m)*a,X=p+Math.sin(m)*a;s.beginPath(),s.arc(z,X,a,0,Math.PI*2),s.stroke(),s.fillStyle=g.carrierPath,s.fillRect(z-3,X-3,6,6)}if(s.restore(),s.save(),s.translate(l,p),s.rotate(d),e.selectedUI==="carrier"&&(s.shadowBlur=10,s.shadowColor=g.textLight),s.fillStyle=g.carrierBase,s.fillRect(-6*r,-1.5*r,12*r,3*r),s.fillStyle=g.carrierAccent,s.beginPath(),s.moveTo(6*r,0),s.lineTo(3*r,-1.5*r),s.lineTo(3*r,1.5*r),s.fill(),s.shadowBlur=0,s.translate(0,0),s.rotate(-d),s.fillStyle=g.textDark,s.font="bold 11px monospace",s.fillText(t.carrierSpeed+"kn",-15,4),t.spawnPoint==="carrier"&&(s.fillStyle=g.uiHighlight,s.fillText("START",-15,-15)),s.restore(),e.selectedUI==="carrier"&&i){i.style.display="block",i.style.left=Math.min(420,Math.max(0,l+20))+"px",i.style.top=Math.min(420,Math.max(0,p+20))+"px";const a=document.getElementById("btn_spawn_carrier");a&&(a.style.background=t.spawnPoint==="carrier"?g.uiHighlight:"var(--accent)")}}if(t.lighthouseX>=0){const l=(t.lighthouseX+.5-e.panX)*r,p=(t.lighthouseY+.5-e.panY)*r;s.fillStyle=g.lighthouseBase,s.beginPath(),s.arc(l,p,r*.8,0,Math.PI*2),s.fill(),s.fillStyle=g.lighthouseLight,s.beginPath(),s.arc(l,p,r*.4,0,Math.PI*2),s.fill()}const n=t.windDir*Math.PI/180;e.selectedUI==="wind"&&(s.shadowBlur=10,s.shadowColor=g.windActive),s.fillStyle=g.shadow,s.beginPath(),s.arc(50,50,30,0,Math.PI*2),s.fill(),s.strokeStyle=e.selectedUI==="wind"?g.windActive:g.padStroke,s.stroke(),s.shadowBlur=0,t.windStr>0&&(s.beginPath(),s.moveTo(50,50),s.lineTo(50+Math.cos(n)*25,50+Math.sin(n)*25),s.stroke()),e.selectedUI==="wind"&&o&&(o.style.display="block")},A=(t,r,c,i,o,n,l,p,d=!1)=>{const a=w();if(!a)return;const m=a.gridSize,z=a.gridSize/2+5,X=r*.9/m,K=c*.9/z,R=Math.min(X,K)*(d?1:n),C=R/2,$=R*.3,W=r/2+(d?0:l),G=c*.1+o+(d?0:p),T=i==="wireframe"?Math.max(1,Math.round(a.gridSize/25)):1,b=(f,y,S)=>({x:W+(f-y)*(R/2),y:G+(f+y)*(C/2)-S*$});for(let f=0;f<a.gridSize;f+=T)for(let y=0;y<a.gridSize;y+=T){const S=Math.min(f+T,a.gridSize),P=Math.min(y+T,a.gridSize),M=a.terrain[f][y],x=a.terrain[S]?a.terrain[S][y]:M,E=a.terrain[S]&&a.terrain[S][P]?a.terrain[S][P]:M,J=a.terrain[f]&&a.terrain[f][P]?a.terrain[f][P]:M,B=b(f,y,M),D=b(S,y,x),U=b(S,P,E),L=b(f,P,J);t.beginPath(),t.moveTo(B.x,B.y),t.lineTo(D.x,D.y),t.lineTo(U.x,U.y),t.lineTo(L.x,L.y),t.closePath(),i==="filled"?(M<=0?t.fillStyle=a.night?g.waterNight:g.water:t.fillStyle=Z(M,a.night),t.fill(),M>0&&(t.strokeStyle=a.night?"rgba(0,0,0,0.4)":"rgba(0,0,0,0.1)",t.stroke())):(t.strokeStyle="rgba(255,100,0,0.4)",t.stroke())}if(a.padX>=0){const f=b(a.padX+4,a.padY+4,a.terrain[a.padX+4]?a.terrain[a.padX+4][a.padY+4]:0);i==="filled"?(t.fillStyle=a.night?g.padNight:g.padStroke,t.fillRect(f.x-10,f.y-5,20,10)):(t.strokeStyle=g.uiHighlight,t.strokeRect(f.x-10,f.y-5,20,10))}if(a.carrierX>=0){const f=a.carrierAngle*Math.PI/180,y=Math.cos(f),S=Math.sin(f),P=b(a.carrierX+6*y-1.5*S,a.carrierY+6*S+1.5*y,.5),M=b(a.carrierX-6*y-1.5*S,a.carrierY-6*S+1.5*y,.5),x=b(a.carrierX-6*y+1.5*S,a.carrierY-6*S-1.5*y,.5),E=b(a.carrierX+6*y+1.5*S,a.carrierY+6*S-1.5*y,.5);t.beginPath(),t.moveTo(P.x,P.y),t.lineTo(M.x,M.y),t.lineTo(x.x,x.y),t.lineTo(E.x,E.y),t.closePath(),i==="filled"?(t.fillStyle=a.night?g.carrierNight:g.carrierBase,t.fill()):(t.strokeStyle=g.uiHighlight,t.stroke())}},I=()=>{const t=w();v.clearRect(0,0,500,600),t&&(t.night||t.rain)&&(v.fillStyle=t.night?g.bgNight:g.bgRain,v.fillRect(0,0,500,600)),v.save(),v.beginPath(),v.rect(0,0,500,300),v.clip(),A(v,500,300,"filled",0,e.prevZoom,e.prevPanX,e.prevPanY),v.restore(),v.strokeStyle="#444",v.beginPath(),v.moveTo(0,300),v.lineTo(500,300),v.stroke(),v.save(),v.beginPath(),v.rect(0,300,500,300),v.clip(),A(v,500,300,"wireframe",300,1,0,0,!0),v.restore()},j=t=>{const r=[];t.forEach(n=>n.forEach(l=>r.push(Math.round(l*10))));const c=[];let i=1,o=r[0];for(let n=1;n<r.length;n++)r[n]===o?i++:(c.push(i>1?`${o}x${i}`:o),o=r[n],i=1);return c.push(i>1?`${o}x${i}`:o),c.join(",")},Q=(t,r)=>{const c=[];t.split(",").forEach(n=>{if(n.includes("x")){const[l,p]=n.split("x");for(let d=0;d<parseInt(p,10);d++)c.push(parseInt(l,10)/10)}else c.push(parseInt(n,10)/10)});const i=[];let o=0;for(let n=0;n<=r;n++){i[n]=[];for(let l=0;l<=r;l++)i[n][l]=c[o++]}return i},u=t=>document.getElementById(t),h=t=>u(t),ee=()=>{const t=w();t&&(t.headline=h("m_headline").value,t.briefing=u("m_briefing").value,t.goalPersons=parseInt(h("m_persons").value)||0,t.goalCrates=parseInt(h("m_crates").value)||0,t.rain=h("m_rain").checked,t.night=h("m_night").checked,t.windDir=parseInt(h("m_wind_dir").value)||0,t.windStr=parseFloat(h("m_wind_str").value)||0,t.windVar=h("m_wind_var").checked,t.carrierPath=u("m_carrier_path").value,t.carrierSpeed=parseFloat(h("m_carrier_speed").value)||0,t.carrierRadius=parseFloat(h("m_carrier_radius").value)||40,t.carrierAngle=parseInt(h("m_carrier_angle").value)||0,t.gridSize=parseInt(h("m_grid_size").value)||100,F(),_(),I())},Y=t=>{e.curIdx=t;const r=w();r&&(h("m_headline").value=r.headline,u("m_briefing").value=r.briefing||"",h("m_grid_size").value=r.gridSize.toString(),h("m_persons").value=r.goalPersons.toString(),h("m_crates").value=r.goalCrates.toString(),h("m_rain").checked=r.rain,h("m_night").checked=r.night,h("m_wind_dir").value=r.windDir.toString(),h("m_wind_str").value=r.windStr.toString(),h("m_wind_var").checked=r.windVar,u("m_carrier_path").value=r.carrierPath,h("m_carrier_speed").value=r.carrierSpeed.toString(),h("m_carrier_radius").value=r.carrierRadius.toString(),h("m_carrier_angle").value=r.carrierAngle.toString(),e.selectedUI=null,F(),_(),I())},F=()=>{const t=u("mission-list");t.innerHTML="",e.campaign.forEach((r,c)=>{const i=document.createElement("div");i.className="mission-item"+(c===e.curIdx?" active":"");const o=document.createElement("span");o.innerText=`${c+1}. ${r.headline.substring(0,18)}`;const n=document.createElement("div");n.className="m-controls";const l=document.createElement("button");l.innerText="↑",l.onclick=a=>{a.stopPropagation(),N(c,-1)};const p=document.createElement("button");p.innerText="↓",p.onclick=a=>{a.stopPropagation(),N(c,1)};const d=document.createElement("button");d.innerText="X",d.style.background="#822",d.onclick=a=>{a.stopPropagation(),te(c)},n.append(l,p,d),i.append(o,n),i.onclick=()=>Y(c),t.appendChild(i)})},N=(t,r)=>{if(t+r<0||t+r>=e.campaign.length)return;const c=e.campaign[t];e.campaign[t]=e.campaign[t+r],e.campaign[t+r]=c,Y(t+r)},te=t=>{e.campaign.length<=1||confirm("Mission wirklich löschen?")&&(e.campaign.splice(t,1),Y(Math.max(0,t-1)))},k=()=>{const t=w();if(!t)return;const r=600/t.gridSize*e.zoom,c=600/r,i=600/r;e.panX=Math.max(0,Math.min(e.panX,t.gridSize-c)),e.panY=Math.max(0,Math.min(e.panY,t.gridSize-i)),c>=t.gridSize&&(e.panX=0),i>=t.gridSize&&(e.panY=0)},O=t=>{const r=w();if(!r)return;const i=u("editorCanvas").getBoundingClientRect(),o=600/r.gridSize*e.zoom,n=Math.floor((t.clientX-i.left)/o+e.panX),l=Math.floor((t.clientY-i.top)/o+e.panY);if(!(n<0||n>=r.gridSize||l<0||l>=r.gridSize)){if(e.currentTool==="terrain"){const p=t.shiftKey?-.2:.2,d=Math.ceil(e.brushRadius);for(let a=-d;a<=d;a++)for(let m=-d;m<=d;m++)Math.hypot(a,m)<=e.brushRadius&&r.terrain[n+a]&&(r.terrain[n+a][l+m]=Math.max(-1,Math.min(15,r.terrain[n+a][l+m]+p)))}else if(e.currentTool==="flatten"){const p=t.shiftKey?-1:1,d=Math.ceil(e.brushRadius);for(let a=-d;a<=d;a++)for(let m=-d;m<=d;m++)Math.hypot(a,m)<=e.brushRadius&&r.terrain[n+a]&&(r.terrain[n+a][l+m]=p)}else e.currentTool==="pad"?t.shiftKey?(r.padX=-1,r.padY=-1):(r.padX=n,r.padY=l):e.currentTool==="carrier"?t.shiftKey?(r.carrierX=-1,r.carrierY=-1):(r.carrierX=n,r.carrierY=l):e.currentTool==="lighthouse"&&(t.shiftKey?(r.lighthouseX=-1,r.lighthouseY=-1):(r.lighthouseX=n,r.lighthouseY=l));_()}},re=()=>{u("btn-add-mission").onclick=()=>{e.campaign.push(H()),Y(e.campaign.length-1)},u("btn-copy-mission").onclick=()=>{const i=JSON.parse(JSON.stringify(w()));i.headline+=" (Kopie)",e.campaign.push(i),Y(e.campaign.length-1)},document.querySelectorAll('input[name="tool"]').forEach(i=>{i.onchange=o=>{e.currentTool=o.target.value,u("editorCanvas").style.cursor=e.currentTool==="move"?"grab":"crosshair"}}),document.querySelectorAll('input[name="brush"]').forEach(i=>{i.onchange=o=>{const n=o.target.value;n==="custom"?(e.isCustomBrush=!0,e.brushRadius=parseFloat(h("m_custom_brush").value)||8):(e.isCustomBrush=!1,e.brushRadius=parseFloat(n))}}),h("m_custom_brush").oninput=()=>{e.isCustomBrush&&(e.brushRadius=parseFloat(h("m_custom_brush").value)||8)},u("btn-zoom-in").onclick=()=>{e.zoom=Math.min(15,e.zoom+.5),k(),_()},u("btn-zoom-out").onclick=()=>{e.zoom=Math.max(1,e.zoom-.5),k(),_()},u("btn-resize-map").onclick=()=>{const i=w();if(!i)return;const o=parseInt(h("m_grid_size").value),n=i.terrain;i.terrain=Array.from({length:o+1},(l,p)=>Array.from({length:o+1},(d,a)=>p<=i.gridSize&&a<=i.gridSize?n[p][a]:-1)),i.gridSize=o,k(),_(),I()},u("close-wind").onclick=()=>{e.selectedUI=null,_()},u("close-carrier").onclick=()=>{e.selectedUI=null,_()},u("close-pad").onclick=()=>{e.selectedUI=null,_()},u("btn_spawn_pad").onclick=()=>{w().spawnPoint="pad",_()},u("btn_spawn_carrier").onclick=()=>{w().spawnPoint="carrier",_()},["m_headline","m_briefing","m_persons","m_crates","m_rain","m_night","m_wind_dir","m_wind_str","m_wind_var","m_carrier_path","m_carrier_speed","m_carrier_radius","m_carrier_angle"].forEach(i=>u(i).addEventListener("input",ee));const r=u("editorCanvas");r.onmousedown=i=>{const o=r.getBoundingClientRect(),n=w(),l=600/n.gridSize*e.zoom,p=i.clientX-o.left,d=i.clientY-o.top,a=p/l+e.panX,m=d/l+e.panY;if(Math.hypot(p-50,d-50)<30){e.selectedUI=e.selectedUI==="wind"?null:"wind",_();return}if(n.padX>=0&&a>=n.padX&&a<=n.padX+8&&m>=n.padY&&m<=n.padY+8&&!i.shiftKey){e.selectedUI=e.selectedUI==="pad"?null:"pad",_();return}if(n.carrierX>=0&&Math.hypot(a-n.carrierX,m-n.carrierY)<6&&!i.shiftKey){e.selectedUI=e.selectedUI==="carrier"?null:"carrier",_();return}e.selectedUI=null,_(),e.currentTool==="move"?(e.isEditorDragging=!0,e.lastMX=i.clientX,e.lastMY=i.clientY,r.style.cursor="grabbing"):(e.isDrawing=!0,O(i))},window.addEventListener("mousemove",i=>{if(e.isEditorDragging){const o=600/w().gridSize*e.zoom;e.panX-=(i.clientX-e.lastMX)/o,e.panY-=(i.clientY-e.lastMY)/o,e.lastMX=i.clientX,e.lastMY=i.clientY,k(),_()}else e.isDrawing&&O(i)}),window.addEventListener("mouseup",()=>{e.isDrawing&&(e.isDrawing=!1,I()),e.isEditorDragging&&(e.isEditorDragging=!1,e.currentTool==="move"&&(r.style.cursor="grab"))}),r.onwheel=i=>{i.preventDefault();const o=r.getBoundingClientRect(),n=w(),l=600/n.gridSize*e.zoom,p=i.clientX-o.left,d=i.clientY-o.top,a=p/l+e.panX,m=d/l+e.panY,z=e.zoom;if(e.zoom=Math.max(1,Math.min(e.zoom+(i.deltaY<0?.5:-.5),15)),e.zoom!==z){const X=600/n.gridSize*e.zoom;e.panX=a-p/X,e.panY=m-d/X,k(),_()}};const c=u("previewCanvas");c.onmousedown=i=>{e.isPrevDragging=!0,e.lastMX=i.clientX,e.lastMY=i.clientY},window.addEventListener("mouseup",()=>{e.isPrevDragging=!1}),window.addEventListener("mousemove",i=>{e.isPrevDragging&&(e.prevPanX+=i.clientX-e.lastMX,e.prevPanY+=i.clientY-e.lastMY,e.lastMX=i.clientX,e.lastMY=i.clientY,I())}),c.ondblclick=()=>{e.prevZoom=1,e.prevPanX=0,e.prevPanY=0,I()},c.onwheel=i=>{i.preventDefault();const o=c.getBoundingClientRect(),n=i.clientX-o.left,l=i.clientY-o.top;if(l>300)return;const p=e.prevZoom;if(e.prevZoom=Math.max(1,Math.min(e.prevZoom*(i.deltaY<0?1.2:.83),20)),e.prevZoom===1)e.prevPanX=0,e.prevPanY=0;else{const d=e.prevZoom/p;e.prevPanX=n-250-(n-(250+e.prevPanX))*d,e.prevPanY=l-30-(l-(30+e.prevPanY))*d}I()},u("btn-export-campaign").onclick=()=>{const i=e.campaign.map(n=>({...n,terrain:j(n.terrain)})),o={type:"ZEEWOLF_CAMPAIGN",campaignTitle:h("c_title").value,campaignSublines:u("c_sublines").value.split(`
+`).filter(n=>n.trim()!==""),levels:i};u("output").value=JSON.stringify(o),alert("Kampagne bereit! (Clean & Lightweight)")},u("btn-import-campaign").onclick=()=>{const i=u("output").value;if(i)try{const o=JSON.parse(i);o.type==="ZEEWOLF_CAMPAIGN"?(h("c_title").value=o.campaignTitle||"Imported Campaign",u("c_sublines").value=(o.campaignSublines||[]).join(`
+`),e.campaign=o.levels.map(n=>({...n,terrain:Q(n.terrain,n.gridSize)})),Y(0)):alert("Ungültiges Format! Bitte verwende eine aktuelle Kampagnen-Datei.")}catch(o){alert(`Import Fehler!
+
+`+o)}}},ie=()=>{re(),Y(0)};ie();
+
+</script>
+      <style>
+:root{--accent: #5f5;--bg: #181818;--sidebar-w: 280px}body{background:var(--bg);color:#fff;font-family:monospace;display:flex;flex-direction:row;height:100vh;margin:0;overflow:hidden}#sidebar{width:var(--sidebar-w);background:#111;border-right:2px solid var(--accent);display:flex;flex-direction:column;padding:15px;box-sizing:border-box;box-shadow:5px 0 15px #00000080;z-index:20}.sidebar-header{border-bottom:1px solid #444;padding-bottom:10px;margin-bottom:15px;color:var(--accent);font-size:18px}#mission-list{flex-grow:1;overflow-y:auto;margin-bottom:15px;border:1px solid #333;padding:5px;background:#0a0a0a}.mission-item{padding:10px;background:#222;border:1px solid #444;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:12px;transition:all .2s}.mission-item.active{border-color:var(--accent);background:#1a331a;box-shadow:0 0 10px #5fff5f33}.mission-item:hover{background:#333;border-color:#888}.m-controls button{padding:4px 6px;font-size:10px;cursor:pointer;background:#444;color:#fff;border:none;margin-left:2px}.m-controls button:hover{background:var(--accent);color:#000}#main-content{flex-grow:1;display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:20px;background:#1c1c1c}h2{margin:0 0 15px;color:#f60;text-shadow:0 0 10px #ff6600;text-transform:uppercase;letter-spacing:2px}.workspace{display:flex;gap:20px;justify-content:center;align-items:flex-start}.canvas-container{display:flex;flex-direction:column;align-items:center}.canvas-header{background:#111;color:var(--accent);border:2px solid var(--accent);border-bottom:none;padding:5px 10px;box-sizing:border-box;font-weight:700;font-size:12px;display:flex;justify-content:space-between;align-items:center}.header-2d{width:604px}.header-3d{width:504px}.canvas-hint{font-size:10px;color:#aaa;font-weight:400}.editor-wrapper{position:relative;width:600px;height:600px;overflow:hidden;border:2px solid var(--accent);background:#024;box-shadow:0 0 20px #00000080}canvas{display:block;image-rendering:pixelated}#previewCanvas{border:2px solid var(--accent);background:#012;cursor:grab}#previewCanvas:active{cursor:grabbing}.floating-ui{position:absolute;background:#0a0a0af2;border:1px solid var(--accent);padding:12px;font-size:12px;color:#fff;border-radius:4px;z-index:100;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:none;box-shadow:0 5px 20px #000c}.floating-ui input,.floating-ui select{background:#000;color:var(--accent);border:1px solid #444;font-family:monospace;margin:2px 0}.close-btn{float:right;cursor:pointer;color:#f55;font-weight:700;font-size:16px;margin-top:-5px}.tool-bar{width:100%;max-width:1128px;box-sizing:border-box;background:#111;border:1px solid var(--accent);padding:15px;margin-bottom:20px}.mission-config{width:100%;max-width:1128px;box-sizing:border-box;background:#111;border:1px solid var(--accent);padding:15px;margin-top:20px}.flex-row{display:flex;gap:20px;margin-top:10px;align-items:flex-start;flex-wrap:wrap}.flex-col{flex:1;min-width:200px}button.primary{background:var(--accent);color:#000;border:none;padding:10px 15px;font-weight:700;cursor:pointer;text-transform:uppercase;width:100%;box-sizing:border-box}button.primary:hover{background:#fff}textarea{width:100%;background:#000;color:var(--accent);border:1px solid #444;padding:8px;font-family:monospace;resize:vertical;box-sizing:border-box}input[type=text],input[type=number]{padding:5px;box-sizing:border-box}label{cursor:pointer;display:inline-block;margin:5px 0}
+
+</style>
+    </head>
+    <body>
+        <div id="sidebar">
+            <div class="sidebar-header"><strong>ZEEWOLF OPS</strong></div>
+            <div id="mission-list"></div>
+            <button class="primary" id="btn-add-mission">➕ Mission hinzufügen</button>
+            <button
+                id="btn-copy-mission"
+                style="
+                    margin-top: 8px;
+                    background: #555;
+                    color: #fff;
+                    border: none;
+                    padding: 8px;
+                    cursor: pointer;
+                    width: 100%;
+                    box-sizing: border-box;
+                "
+            >
+                📋 Level duplizieren
+            </button>
+
+            <hr style="width: 100%; border-color: #333; margin: 20px 0" />
+
+            <div style="font-size: 12px; color: var(--accent); margin-bottom: 10px; font-weight: bold">
+                KAMPAGNEN INFO (HAUPTMENÜ)
+            </div>
+            <label style="font-size: 10px; color: #aaa">Titel:</label>
+            <input
+                type="text"
+                id="c_title"
+                value="OPERATION ZEEWOLF"
+                style="width: 100%; margin-bottom: 10px; background: #000; color: var(--accent); border: 1px solid #444"
+            />
+            <label style="font-size: 10px; color: #aaa">Sublines (1 pro Zeile):</label>
+            <textarea id="c_sublines" style="height: 50px; margin-bottom: 15px">
+Sichere den Archipel.
+Viel Glück, Pilot.</textarea
+            >
+
+            <button
+                id="btn-export-campaign"
+                style="
+                    background: #ff6600;
+                    color: #000;
+                    border: none;
+                    padding: 10px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    width: 100%;
+                    box-sizing: border-box;
+                "
+            >
+                ⬆️ EXPORT CAMPAIGN
+            </button>
+            <button
+                id="btn-import-campaign"
+                style="
+                    margin-top: 8px;
+                    background: #0088ff;
+                    color: #fff;
+                    border: none;
+                    padding: 10px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    width: 100%;
+                    box-sizing: border-box;
+                "
+            >
+                ⬇️ IMPORT DATA
+            </button>
+            <textarea id="output" placeholder="JSON Code hier einfügen..."></textarea>
+        </div>
+
+        <div id="main-content">
+            <h2>Mission Builder & Tactical Editor</h2>
+
+            <div class="tool-bar">
+                <div class="flex-row" style="margin-top: 0">
+                    <div class="flex-col">
+                        <strong>TOOLS:</strong><br />
+                        <label><input type="radio" name="tool" value="move" /> ✋ Drag & Pan</label><br />
+                        <label><input type="radio" name="tool" value="terrain" checked /> ⛰️ Berge (Shift: Tal)</label
+                        ><br />
+                        <label><input type="radio" name="tool" value="flatten" /> 🧽 Einebnen (Shift: Wasser)</label
+                        ><br />
+                        <label><input type="radio" name="tool" value="pad" /> 🚁 Landepad</label><br />
+                        <label><input type="radio" name="tool" value="lighthouse" /> 🗼 Turm</label><br />
+                        <label><input type="radio" name="tool" value="carrier" /> 🚢 Träger (Shift: Lösch)</label>
+                    </div>
+                    <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
+                        <strong>BRUSH RADIUS:</strong><br />
+                        <label><input type="radio" name="brush" value="0" /> 1 (Pixel)</label><br />
+                        <label><input type="radio" name="brush" value="1.5" checked /> 3 (Normal)</label><br />
+                        <label><input type="radio" name="brush" value="5.0" /> 10 (Groß)</label><br />
+                        <label><input type="radio" name="brush" value="15.0" /> 30 (Massiv)</label><br />
+                        <label
+                            ><input type="radio" name="brush" value="custom" /> Frei:
+                            <input type="number" id="m_custom_brush" value="8" min="1" max="50" style="width: 45px" />
+                        </label>
+                    </div>
+                    <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
+                        <strong>MAP PROPERTIES:</strong><br />
+                        Size:
+                        <input
+                            type="number"
+                            id="m_grid_size"
+                            value="100"
+                            step="10"
+                            min="40"
+                            max="400"
+                            style="width: 60px"
+                        />
+                        <button id="btn-resize-map" style="padding: 4px 8px; font-size: 11px">Resize</button
+                        ><br /><br />
+                        Zoom: <button id="btn-zoom-in" style="padding: 4px 8px; font-size: 11px">+</button>
+                        <button id="btn-zoom-out" style="padding: 4px 8px; font-size: 11px">-</button><br />
+                        <span style="font-size: 10px; color: #666">(Mausrad funktioniert ebenfalls)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace">
+                <div class="canvas-container">
+                    <div class="canvas-header header-2d">
+                        <span>2D Editor & Tactical Map</span>
+                        <span class="canvas-hint">Klick auf Pad/Träger/Wind für Details</span>
+                    </div>
+                    <div class="editor-wrapper">
+                        <canvas id="editorCanvas" width="600" height="600"></canvas>
+
+                        <div id="ui_wind" class="floating-ui" style="left: 90px; top: 15px">
+                            <span class="close-btn" id="close-wind">✖</span>
+                            <strong style="color: cyan">💨 WIND VECTOR</strong><br />
+                            Direction:
+                            <input
+                                type="number"
+                                id="m_wind_dir"
+                                value="45"
+                                min="0"
+                                max="359"
+                                style="width: 50px"
+                            /><br />
+                            Force: &nbsp;&nbsp;&nbsp;&nbsp;<input
+                                type="number"
+                                id="m_wind_str"
+                                value="1.0"
+                                step="0.1"
+                                min="0"
+                                style="width: 50px"
+                            /><br />
+                            <label><input type="checkbox" id="m_wind_var" /> Dynamic Variance</label>
+                        </div>
+
+                        <div id="ui_carrier" class="floating-ui">
+                            <span class="close-btn" id="close-carrier">✖</span>
+                            <strong style="color: #88aaff">🚢 CARRIER OPS</strong><br />
+                            <button id="btn_spawn_carrier" style="width: 100%; margin: 5px 0">Set Start Point</button
+                            ><br />
+                            Angle (°):
+                            <input
+                                type="number"
+                                id="m_carrier_angle"
+                                value="0"
+                                min="0"
+                                max="359"
+                                style="width: 45px"
+                            /><br />
+                            Speed (kn):<input
+                                type="number"
+                                id="m_carrier_speed"
+                                value="0"
+                                step="0.5"
+                                style="width: 45px"
+                            /><br />
+                            Path:
+                            <select id="m_carrier_path" style="width: 80px">
+                                <option value="static">Static</option>
+                                <option value="straight">Straight</option>
+                                <option value="circle">Circle</option></select
+                            ><br />
+                            Radius:
+                            <input type="number" id="m_carrier_radius" value="40" step="5" style="width: 45px" />
+                        </div>
+
+                        <div id="ui_pad" class="floating-ui">
+                            <span class="close-btn" id="close-pad">✖</span>
+                            <strong style="color: #5f5">🚁 BASE PAD</strong><br />
+                            <button id="btn_spawn_pad" style="width: 100%; margin: 5px 0">Set Start Point</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="canvas-container">
+                    <div class="canvas-header header-3d">
+                        <span>3D Engine Preview</span>
+                        <span class="canvas-hint">Drag = Pan | D-Klick = Reset</span>
+                    </div>
+                    <canvas id="previewCanvas" width="500" height="600"></canvas>
+                </div>
+            </div>
+
+            <div class="mission-config">
+                <div class="flex-row">
+                    <div class="flex-col" style="flex: 2">
+                        <strong>MISSION BRIEFING (In-Game Overlay):</strong><br />
+                        Mission Name: <input type="text" id="m_headline" value="Phase 1" style="width: 90%" /><br />
+                        Briefing Text:<br />
+                        <textarea
+                            id="m_briefing"
+                            style="height: 60px"
+                            placeholder="Text, der vor dem Abflug im Spiel angezeigt wird..."
+                        ></textarea>
+                    </div>
+                    <div class="flex-col">
+                        <strong>OBJECTIVES:</strong><br />
+                        Personnel: <input type="number" id="m_persons" value="5" min="0" style="width: 60px" /><br />
+                        Cargo: &nbsp;&nbsp;&nbsp;&nbsp;<input
+                            type="number"
+                            id="m_crates"
+                            value="0"
+                            min="0"
+                            style="width: 60px"
+                        />
+                        <hr style="border-color: #222" />
+                        <strong>ENVIRONMENT:</strong><br />
+                        <label><input type="checkbox" id="m_rain" /> 🌧️ Rain / Storm</label><br />
+                        <label><input type="checkbox" id="m_night" /> 🌙 Night Ops</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </body>
+</html>

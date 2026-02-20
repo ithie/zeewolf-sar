@@ -1,6 +1,6 @@
-![zeewolf sar](./splash.png)
-
 # zeewolf-sar
+
+![zeewolf sar](./splash.png)
 
 Current Version: v17.2
 
@@ -8,14 +8,14 @@ ZEEWOLF: SAR is a lightweight, browser-based isometric helicopter simulator buil
 
 ## Controls
 
-| Key	| Action |
-| --- | --- |
-| W	| Start Engine / Increase Collective (Ascend) |
-| S	| Decrease Collective (Descend) / Stop Engine (on ground) |
-| Arrow Keys | Pitch & Roll (Move Helicopter) |
-| A / D	| Yaw (Turn Left / Right) |
-| Q |	Winch Up |
-| E	| Winch Down |
+| Key        | Action                                                  |
+| ---------- | ------------------------------------------------------- |
+| W          | Start Engine / Increase Collective (Ascend)             |
+| S          | Decrease Collective (Descend) / Stop Engine (on ground) |
+| Arrow Keys | Pitch & Roll (Move Helicopter)                          |
+| A / D      | Yaw (Turn Left / Right)                                 |
+| Q          | Winch Up                                                |
+| E          | Winch Down                                              |
 
 ## Run the game
 
@@ -23,15 +23,15 @@ Simply open the index.html file in any modern web browser (Chrome, Firefox, Edge
 
 ### Development / HMR
 
-The project uses ```vite``` to ease the development-process
+The project uses `vite` to ease the development-process
 
-Installation: 
+Installation:
 
-```$: npm install```
+`$: npm install`
 
 Run server:
 
-```$: npm start```
+`$: npm start`
 
 ## License
 

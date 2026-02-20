@@ -1,272 +1,17 @@
 <!doctype html>
-<html>
+<html lang="de">
     <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>ZEEWOLF - Campaign Builder & 3D Editor</title>
-        <style>
-            :root {
-                --accent: #5f5;
-                --bg: #181818;
-                --sidebar-w: 280px;
-            }
-            body {
-                background: var(--bg);
-                color: #fff;
-                font-family: monospace;
-                display: flex;
-                flex-direction: row;
-                height: 100vh;
-                margin: 0;
-                overflow: hidden;
-            }
-
-            /* SIDEBAR STYLES */
-            #sidebar {
-                width: var(--sidebar-w);
-                background: #111;
-                border-right: 2px solid var(--accent);
-                display: flex;
-                flex-direction: column;
-                padding: 15px;
-                box-sizing: border-box;
-                box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
-                z-index: 20;
-            }
-            .sidebar-header {
-                border-bottom: 1px solid #444;
-                padding-bottom: 10px;
-                margin-bottom: 15px;
-                color: var(--accent);
-                font-size: 18px;
-            }
-            #mission-list {
-                flex-grow: 1;
-                overflow-y: auto;
-                margin-bottom: 15px;
-                border: 1px solid #333;
-                padding: 5px;
-                background: #0a0a0a;
-            }
-            .mission-item {
-                padding: 10px;
-                background: #222;
-                border: 1px solid #444;
-                margin-bottom: 8px;
-                cursor: pointer;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                font-size: 12px;
-                transition: all 0.2s;
-            }
-            .mission-item.active {
-                border-color: var(--accent);
-                background: #1a331a;
-                box-shadow: 0 0 10px rgba(95, 255, 95, 0.2);
-            }
-            .mission-item:hover {
-                background: #333;
-                border-color: #888;
-            }
-            .m-controls button {
-                padding: 4px 6px;
-                font-size: 10px;
-                cursor: pointer;
-                background: #444;
-                color: white;
-                border: none;
-                margin-left: 2px;
-            }
-            .m-controls button:hover {
-                background: var(--accent);
-                color: black;
-            }
-
-            /* MAIN CONTENT AREA */
-            #main-content {
-                flex-grow: 1;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                overflow-y: auto;
-                padding: 20px;
-                background: #1c1c1c;
-            }
-            h2 {
-                margin: 0 0 15px 0;
-                color: #ff6600;
-                text-shadow: 0 0 10px #ff6600;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-            }
-
-            .workspace {
-                display: flex;
-                gap: 20px;
-                justify-content: center;
-                align-items: flex-start;
-            }
-            .canvas-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
-
-            /* HEADER PIXELGENAU FÜR BEIDE KARTEN */
-            .canvas-header {
-                background: #111;
-                color: var(--accent);
-                border: 2px solid var(--accent);
-                border-bottom: none;
-                padding: 5px 10px;
-                box-sizing: border-box;
-                font-weight: bold;
-                font-size: 12px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .header-2d {
-                width: 604px;
-            } /* 600px + 2x2px Border */
-            .header-3d {
-                width: 504px;
-            } /* 500px + 2x2px Border */
-            .canvas-hint {
-                font-size: 10px;
-                color: #aaa;
-                font-weight: normal;
-            }
-
-            .editor-wrapper {
-                position: relative;
-                width: 600px;
-                height: 600px;
-                overflow: hidden;
-                border: 2px solid var(--accent);
-                background: #002244;
-                box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-            }
-
-            canvas {
-                display: block;
-                image-rendering: pixelated;
-            }
-            #previewCanvas {
-                border: 2px solid var(--accent);
-                background: #001122;
-                cursor: grab;
-            }
-            #previewCanvas:active {
-                cursor: grabbing;
-            }
-
-            /* Floating UI Styles */
-            .floating-ui {
-                position: absolute;
-                background: rgba(10, 10, 10, 0.95);
-                border: 1px solid var(--accent);
-                padding: 12px;
-                font-size: 12px;
-                color: #fff;
-                border-radius: 4px;
-                z-index: 100;
-                backdrop-filter: blur(8px);
-                display: none;
-                box-shadow: 0 5px 20px rgba(0, 0, 0, 0.8);
-            }
-            .floating-ui input,
-            .floating-ui select {
-                background: #000;
-                color: var(--accent);
-                border: 1px solid #444;
-                font-family: monospace;
-                margin: 2px 0;
-            }
-            .close-btn {
-                float: right;
-                cursor: pointer;
-                color: #f55;
-                font-weight: bold;
-                font-size: 16px;
-                margin-top: -5px;
-            }
-
-            /* FIX: 1128px Max-Width (inklusive der 8px Canvas Rahmen) und Abstände (Margin) */
-            .tool-bar {
-                width: 100%;
-                max-width: 1128px;
-                box-sizing: border-box;
-                background: #111;
-                border: 1px solid var(--accent);
-                padding: 15px;
-                margin-bottom: 20px;
-            }
-            .mission-config {
-                width: 100%;
-                max-width: 1128px;
-                box-sizing: border-box;
-                background: #111;
-                border: 1px solid var(--accent);
-                padding: 15px;
-                margin-top: 20px;
-            }
-
-            .flex-row {
-                display: flex;
-                gap: 20px;
-                margin-top: 10px;
-                align-items: flex-start;
-                flex-wrap: wrap;
-            }
-            .flex-col {
-                flex: 1;
-                min-width: 200px;
-            }
-
-            button.primary {
-                background: var(--accent);
-                color: #000;
-                border: none;
-                padding: 10px 15px;
-                font-weight: bold;
-                cursor: pointer;
-                text-transform: uppercase;
-                width: 100%;
-                box-sizing: border-box;
-            }
-            button.primary:hover {
-                background: #fff;
-            }
-
-            textarea {
-                width: 100%;
-                background: #000;
-                color: var(--accent);
-                border: 1px solid #444;
-                padding: 8px;
-                font-family: monospace;
-                resize: vertical;
-                box-sizing: border-box;
-            }
-            input[type='text'],
-            input[type='number'] {
-                padding: 5px;
-                box-sizing: border-box;
-            }
-            label {
-                cursor: pointer;
-                display: inline-block;
-                margin: 5px 0;
-            }
-        </style>
     </head>
     <body>
         <div id="sidebar">
             <div class="sidebar-header"><strong>ZEEWOLF OPS</strong></div>
             <div id="mission-list"></div>
-            <button class="primary" onclick="addNewMission(false)">➕ Mission hinzufügen</button>
+            <button class="primary" id="btn-add-mission">➕ Mission hinzufügen</button>
             <button
-                onclick="addNewMission(true)"
+                id="btn-copy-mission"
                 style="
                     margin-top: 8px;
                     background: #555;
@@ -300,7 +45,7 @@ Viel Glück, Pilot.</textarea
             >
 
             <button
-                onclick="exportCampaign()"
+                id="btn-export-campaign"
                 style="
                     background: #ff6600;
                     color: #000;
@@ -315,7 +60,7 @@ Viel Glück, Pilot.</textarea
                 ⬆️ EXPORT CAMPAIGN
             </button>
             <button
-                onclick="importCampaign()"
+                id="btn-import-campaign"
                 style="
                     margin-top: 8px;
                     background: #0088ff;
@@ -340,101 +85,24 @@ Viel Glück, Pilot.</textarea
                 <div class="flex-row" style="margin-top: 0">
                     <div class="flex-col">
                         <strong>TOOLS:</strong><br />
-                        <label
-                            ><input type="radio" name="tool" value="move" onchange="setTool('move')" /> ✋ Drag &
-                            Pan</label
+                        <label><input type="radio" name="tool" value="move" /> ✋ Drag & Pan</label><br />
+                        <label><input type="radio" name="tool" value="terrain" checked /> ⛰️ Berge (Shift: Tal)</label
                         ><br />
-                        <label
-                            ><input type="radio" name="tool" value="terrain" checked onchange="setTool('terrain')" /> ⛰️
-                            Berge (Shift: Tal)</label
+                        <label><input type="radio" name="tool" value="flatten" /> 🧽 Einebnen (Shift: Wasser)</label
                         ><br />
-                        <label
-                            ><input type="radio" name="tool" value="flatten" onchange="setTool('flatten')" /> 🧽
-                            Einebnen (Shift: Wasser)</label
-                        ><br />
-                        <label
-                            ><input type="radio" name="tool" value="pad" onchange="setTool('pad')" /> 🚁 Landepad</label
-                        ><br />
-                        <label
-                            ><input type="radio" name="tool" value="lighthouse" onchange="setTool('lighthouse')" /> 🗼
-                            Turm</label
-                        ><br />
-                        <label
-                            ><input type="radio" name="tool" value="carrier" onchange="setTool('carrier')" /> 🚢 Träger
-                            (Shift: Lösch)</label
-                        >
+                        <label><input type="radio" name="tool" value="pad" /> 🚁 Landepad</label><br />
+                        <label><input type="radio" name="tool" value="lighthouse" /> 🗼 Turm</label><br />
+                        <label><input type="radio" name="tool" value="carrier" /> 🚢 Träger (Shift: Lösch)</label>
                     </div>
                     <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
                         <strong>BRUSH RADIUS:</strong><br />
+                        <label><input type="radio" name="brush" value="0" /> 1 (Pixel)</label><br />
+                        <label><input type="radio" name="brush" value="1.5" checked /> 3 (Normal)</label><br />
+                        <label><input type="radio" name="brush" value="5.0" /> 10 (Groß)</label><br />
+                        <label><input type="radio" name="brush" value="15.0" /> 30 (Massiv)</label><br />
                         <label
-                            ><input
-                                type="radio"
-                                name="brush"
-                                value="0"
-                                onchange="
-                                    brushRadius = 0;
-                                    isCustomBrush = false;
-                                "
-                            />
-                            1 (Pixel)</label
-                        ><br />
-                        <label
-                            ><input
-                                type="radio"
-                                name="brush"
-                                value="1.5"
-                                checked
-                                onchange="
-                                    brushRadius = 1.5;
-                                    isCustomBrush = false;
-                                "
-                            />
-                            3 (Normal)</label
-                        ><br />
-                        <label
-                            ><input
-                                type="radio"
-                                name="brush"
-                                value="5.0"
-                                onchange="
-                                    brushRadius = 5.0;
-                                    isCustomBrush = false;
-                                "
-                            />
-                            10 (Groß)</label
-                        ><br />
-                        <label
-                            ><input
-                                type="radio"
-                                name="brush"
-                                value="15.0"
-                                onchange="
-                                    brushRadius = 15.0;
-                                    isCustomBrush = false;
-                                "
-                            />
-                            30 (Massiv)</label
-                        ><br />
-                        <label
-                            ><input
-                                type="radio"
-                                name="brush"
-                                value="custom"
-                                onchange="
-                                    isCustomBrush = true;
-                                    updateCustomBrush();
-                                "
-                            />
-                            Frei:
-                            <input
-                                type="number"
-                                id="m_custom_brush"
-                                value="8"
-                                min="1"
-                                max="50"
-                                style="width: 45px"
-                                oninput="updateCustomBrush()"
-                            />
+                            ><input type="radio" name="brush" value="custom" /> Frei:
+                            <input type="number" id="m_custom_brush" value="8" min="1" max="50" style="width: 45px" />
                         </label>
                     </div>
                     <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
@@ -449,10 +117,10 @@ Viel Glück, Pilot.</textarea
                             max="400"
                             style="width: 60px"
                         />
-                        <button onclick="resizeMap()" style="padding: 4px 8px; font-size: 11px">Resize</button
+                        <button id="btn-resize-map" style="padding: 4px 8px; font-size: 11px">Resize</button
                         ><br /><br />
-                        Zoom: <button onclick="changeZoom(0.5)" style="padding: 4px 8px; font-size: 11px">+</button>
-                        <button onclick="changeZoom(-0.5)" style="padding: 4px 8px; font-size: 11px">-</button><br />
+                        Zoom: <button id="btn-zoom-in" style="padding: 4px 8px; font-size: 11px">+</button>
+                        <button id="btn-zoom-out" style="padding: 4px 8px; font-size: 11px">-</button><br />
                         <span style="font-size: 10px; color: #666">(Mausrad funktioniert ebenfalls)</span>
                     </div>
                 </div>
@@ -467,21 +135,8 @@ Viel Glück, Pilot.</textarea
                     <div class="editor-wrapper">
                         <canvas id="editorCanvas" width="600" height="600"></canvas>
 
-                        <div
-                            id="ui_wind"
-                            class="floating-ui"
-                            style="left: 90px; top: 15px"
-                            onmousedown="event.stopPropagation()"
-                            onwheel="event.stopPropagation()"
-                        >
-                            <span
-                                class="close-btn"
-                                onclick="
-                                    selectedUI = null;
-                                    drawMap();
-                                "
-                                >✖</span
-                            >
+                        <div id="ui_wind" class="floating-ui" style="left: 90px; top: 15px">
+                            <span class="close-btn" id="close-wind">✖</span>
                             <strong style="color: cyan">💨 WIND VECTOR</strong><br />
                             Direction:
                             <input
@@ -491,7 +146,6 @@ Viel Glück, Pilot.</textarea
                                 min="0"
                                 max="359"
                                 style="width: 50px"
-                                oninput="syncToData()"
                             /><br />
                             Force: &nbsp;&nbsp;&nbsp;&nbsp;<input
                                 type="number"
@@ -500,35 +154,14 @@ Viel Glück, Pilot.</textarea
                                 step="0.1"
                                 min="0"
                                 style="width: 50px"
-                                oninput="syncToData()"
                             /><br />
-                            <label
-                                ><input type="checkbox" id="m_wind_var" onchange="syncToData()" /> Dynamic
-                                Variance</label
-                            >
+                            <label><input type="checkbox" id="m_wind_var" /> Dynamic Variance</label>
                         </div>
 
-                        <div
-                            id="ui_carrier"
-                            class="floating-ui"
-                            onmousedown="event.stopPropagation()"
-                            onwheel="event.stopPropagation()"
-                        >
-                            <span
-                                class="close-btn"
-                                onclick="
-                                    selectedUI = null;
-                                    drawMap();
-                                "
-                                >✖</span
-                            >
+                        <div id="ui_carrier" class="floating-ui">
+                            <span class="close-btn" id="close-carrier">✖</span>
                             <strong style="color: #88aaff">🚢 CARRIER OPS</strong><br />
-                            <button
-                                id="btn_spawn_carrier"
-                                onclick="setSpawn('carrier')"
-                                style="width: 100%; margin: 5px 0"
-                            >
-                                Set Start Point</button
+                            <button id="btn_spawn_carrier" style="width: 100%; margin: 5px 0">Set Start Point</button
                             ><br />
                             Angle (°):
                             <input
@@ -538,7 +171,6 @@ Viel Glück, Pilot.</textarea
                                 min="0"
                                 max="359"
                                 style="width: 45px"
-                                oninput="syncToData()"
                             /><br />
                             Speed (kn):<input
                                 type="number"
@@ -546,43 +178,21 @@ Viel Glück, Pilot.</textarea
                                 value="0"
                                 step="0.5"
                                 style="width: 45px"
-                                oninput="syncToData()"
                             /><br />
                             Path:
-                            <select id="m_carrier_path" onchange="syncToData()" style="width: 80px">
+                            <select id="m_carrier_path" style="width: 80px">
                                 <option value="static">Static</option>
                                 <option value="straight">Straight</option>
                                 <option value="circle">Circle</option></select
                             ><br />
                             Radius:
-                            <input
-                                type="number"
-                                id="m_carrier_radius"
-                                value="40"
-                                step="5"
-                                style="width: 45px"
-                                oninput="syncToData()"
-                            />
+                            <input type="number" id="m_carrier_radius" value="40" step="5" style="width: 45px" />
                         </div>
 
-                        <div
-                            id="ui_pad"
-                            class="floating-ui"
-                            onmousedown="event.stopPropagation()"
-                            onwheel="event.stopPropagation()"
-                        >
-                            <span
-                                class="close-btn"
-                                onclick="
-                                    selectedUI = null;
-                                    drawMap();
-                                "
-                                >✖</span
-                            >
+                        <div id="ui_pad" class="floating-ui">
+                            <span class="close-btn" id="close-pad">✖</span>
                             <strong style="color: #5f5">🚁 BASE PAD</strong><br />
-                            <button id="btn_spawn_pad" onclick="setSpawn('pad')" style="width: 100%; margin: 5px 0">
-                                Set Start Point
-                            </button>
+                            <button id="btn_spawn_pad" style="width: 100%; margin: 5px 0">Set Start Point</button>
                         </div>
                     </div>
                 </div>
@@ -600,828 +210,33 @@ Viel Glück, Pilot.</textarea
                 <div class="flex-row">
                     <div class="flex-col" style="flex: 2">
                         <strong>MISSION BRIEFING (In-Game Overlay):</strong><br />
-                        Mission Name:
-                        <input
-                            type="text"
-                            id="m_headline"
-                            value="Phase 1"
-                            style="width: 90%"
-                            oninput="
-                                syncToData();
-                                renderMissionList();
-                            "
-                        /><br />
+                        Mission Name: <input type="text" id="m_headline" value="Phase 1" style="width: 90%" /><br />
                         Briefing Text:<br />
                         <textarea
                             id="m_briefing"
                             style="height: 60px"
-                            oninput="syncToData()"
                             placeholder="Text, der vor dem Abflug im Spiel angezeigt wird..."
                         ></textarea>
                     </div>
                     <div class="flex-col">
                         <strong>OBJECTIVES:</strong><br />
-                        Personnel:
-                        <input
-                            type="number"
-                            id="m_persons"
-                            value="5"
-                            min="0"
-                            style="width: 60px"
-                            oninput="syncToData()"
-                        /><br />
+                        Personnel: <input type="number" id="m_persons" value="5" min="0" style="width: 60px" /><br />
                         Cargo: &nbsp;&nbsp;&nbsp;&nbsp;<input
                             type="number"
                             id="m_crates"
                             value="0"
                             min="0"
                             style="width: 60px"
-                            oninput="syncToData()"
                         />
                         <hr style="border-color: #222" />
                         <strong>ENVIRONMENT:</strong><br />
-                        <label><input type="checkbox" id="m_rain" onchange="syncToData()" /> 🌧️ Rain / Storm</label
-                        ><br />
-                        <label><input type="checkbox" id="m_night" onchange="syncToData()" /> 🌙 Night Ops</label>
+                        <label><input type="checkbox" id="m_rain" /> 🌧️ Rain / Storm</label><br />
+                        <label><input type="checkbox" id="m_night" /> 🌙 Night Ops</label>
                     </div>
                 </div>
             </div>
         </div>
 
-        <script>
-            const canvas = document.getElementById('editorCanvas');
-            const ctx = canvas.getContext('2d');
-            const prevCanvas = document.getElementById('previewCanvas');
-            const prevCtx = prevCanvas.getContext('2d');
-
-            let campaign = [];
-            let curIdx = 0;
-
-            let zoom = 1.0,
-                panX = 0,
-                panY = 0;
-            let prevZoom = 1.0,
-                prevPanX = 0,
-                prevPanY = 0;
-            let isDrawing = false,
-                isEditorDragging = false,
-                isPrevDragging = false;
-            let lastMX = 0,
-                lastMY = 0;
-            let currentTool = 'terrain',
-                brushRadius = 1.5,
-                isCustomBrush = false,
-                selectedUI = null;
-
-            // --- INIT & MISSION MANAGEMENT ---
-            function createEmptyMission(name = 'Mission Alpha') {
-                let gs = 100;
-                let grid = [];
-                for (let x = 0; x <= gs; x++) {
-                    grid[x] = [];
-                    // Jede neue Map besteht jetzt initial aus tiefem Wasser (-1)
-                    for (let y = 0; y <= gs; y++) grid[x][y] = -1;
-                }
-                return {
-                    headline: name,
-                    briefing: 'Befehle für diese Mission hier eintragen...',
-                    gridSize: gs,
-                    terrain: grid,
-                    padX: 10,
-                    padY: 10,
-                    carrierX: -1,
-                    carrierY: -1,
-                    carrierAngle: 0,
-                    carrierPath: 'static',
-                    carrierSpeed: 0,
-                    carrierRadius: 40,
-                    lighthouseX: -1,
-                    lighthouseY: -1,
-                    spawnPoint: 'pad',
-                    goalPersons: 5,
-                    goalCrates: 0,
-                    rain: false,
-                    night: false,
-                    windDir: 45,
-                    windStr: 1.0,
-                    windVar: false,
-                };
-            }
-
-            function addNewMission(copyFromPrevious = false) {
-                let nm;
-                if (copyFromPrevious && campaign[curIdx]) {
-                    nm = JSON.parse(JSON.stringify(campaign[curIdx]));
-                    nm.headline += ' (Kopie)';
-                } else {
-                    nm = createEmptyMission();
-                }
-                campaign.push(nm);
-                curIdx = campaign.length - 1;
-                loadMission(curIdx);
-            }
-
-            function loadMission(idx) {
-                curIdx = idx;
-                let m = campaign[curIdx];
-                if (!m) return;
-
-                document.getElementById('m_headline').value = m.headline;
-                document.getElementById('m_briefing').value = m.briefing || '';
-                document.getElementById('m_grid_size').value = m.gridSize;
-                document.getElementById('m_persons').value = m.goalPersons;
-                document.getElementById('m_crates').value = m.goalCrates;
-                document.getElementById('m_rain').checked = m.rain;
-                document.getElementById('m_night').checked = m.night;
-                document.getElementById('m_wind_dir').value = m.windDir;
-                document.getElementById('m_wind_str').value = m.windStr;
-                document.getElementById('m_wind_var').checked = m.windVar;
-                document.getElementById('m_carrier_path').value = m.carrierPath;
-                document.getElementById('m_carrier_speed').value = m.carrierSpeed;
-                document.getElementById('m_carrier_radius').value = m.carrierRadius;
-                document.getElementById('m_carrier_angle').value = m.carrierAngle;
-
-                selectedUI = null;
-                renderMissionList();
-                drawMap();
-                drawPreview();
-            }
-
-            function syncToData() {
-                let m = campaign[curIdx];
-                if (!m) return;
-                m.headline = document.getElementById('m_headline').value;
-                m.briefing = document.getElementById('m_briefing').value;
-                m.goalPersons = parseInt(document.getElementById('m_persons').value) || 0;
-                m.goalCrates = parseInt(document.getElementById('m_crates').value) || 0;
-                m.rain = document.getElementById('m_rain').checked;
-                m.night = document.getElementById('m_night').checked;
-                m.windDir = parseInt(document.getElementById('m_wind_dir').value) || 0;
-                m.windStr = parseFloat(document.getElementById('m_wind_str').value) || 0;
-                m.windVar = document.getElementById('m_wind_var').checked;
-                m.carrierPath = document.getElementById('m_carrier_path').value;
-                m.carrierSpeed = parseFloat(document.getElementById('m_carrier_speed').value) || 0;
-                m.carrierRadius = parseFloat(document.getElementById('m_carrier_radius').value) || 40;
-                m.carrierAngle = parseInt(document.getElementById('m_carrier_angle').value) || 0;
-                m.gridSize = parseInt(document.getElementById('m_grid_size').value) || 100;
-
-                drawMap();
-                drawPreview();
-            }
-
-            function renderMissionList() {
-                let container = document.getElementById('mission-list');
-                container.innerHTML = '';
-                campaign.forEach((m, i) => {
-                    let div = document.createElement('div');
-                    div.className = 'mission-item' + (i === curIdx ? ' active' : '');
-                    div.innerHTML = `<span>${i + 1}. ${m.headline.substring(0, 18)}</span>
-                    <div class="m-controls">
-                        <button onclick="moveM(${i},-1); event.stopPropagation();">↑</button>
-                        <button onclick="moveM(${i},1); event.stopPropagation();">↓</button>
-                        <button onclick="delM(${i}); event.stopPropagation();" style="background:#822">X</button>
-                    </div>`;
-                    div.onclick = () => loadMission(i);
-                    container.appendChild(div);
-                });
-            }
-
-            function moveM(i, dir) {
-                if (i + dir < 0 || i + dir >= campaign.length) return;
-                let temp = campaign[i];
-                campaign[i] = campaign[i + dir];
-                campaign[i + dir] = temp;
-                curIdx = i + dir;
-                loadMission(curIdx);
-            }
-
-            function delM(i) {
-                if (campaign.length <= 1) return;
-                if (confirm('Mission wirklich löschen?')) {
-                    campaign.splice(i, 1);
-                    curIdx = Math.max(0, i - 1);
-                    loadMission(curIdx);
-                }
-            }
-
-            // --- EDITOR ENGINE ---
-            function setTool(t) {
-                currentTool = t;
-                canvas.style.cursor = t === 'move' ? 'grab' : 'crosshair';
-            }
-            function setSpawn(s) {
-                campaign[curIdx].spawnPoint = s;
-                drawMap();
-            }
-            function updateCustomBrush() {
-                if (isCustomBrush) brushRadius = parseFloat(document.getElementById('m_custom_brush').value) || 8;
-            }
-
-            function checkSpawnFallback() {
-                let m = campaign[curIdx];
-                if (m.spawnPoint === 'pad' && m.padX < 0) {
-                    if (m.carrierX >= 0) m.spawnPoint = 'carrier';
-                } else if (m.spawnPoint === 'carrier' && m.carrierX < 0) {
-                    if (m.padX >= 0) m.spawnPoint = 'pad';
-                }
-            }
-
-            function changeZoom(amount) {
-                zoom = Math.max(1.0, Math.min(zoom + amount, 15.0));
-                clampCamera();
-                drawMap();
-            }
-
-            function clampCamera() {
-                let m = campaign[curIdx];
-                let tSize = (600 / m.gridSize) * zoom;
-                let viewGridW = 600 / tSize;
-                let viewGridH = 600 / tSize;
-                panX = Math.max(0, Math.min(panX, m.gridSize - viewGridW));
-                panY = Math.max(0, Math.min(panY, m.gridSize - viewGridH));
-                if (viewGridW >= m.gridSize) panX = 0;
-                if (viewGridH >= m.gridSize) panY = 0;
-            }
-
-            function resizeMap() {
-                let m = campaign[curIdx];
-                let newSize = parseInt(document.getElementById('m_grid_size').value);
-                let oldTerrain = m.terrain;
-                let oldSize = m.gridSize;
-                m.gridSize = newSize;
-                m.terrain = [];
-                for (let x = 0; x <= newSize; x++) {
-                    m.terrain[x] = [];
-                    for (let y = 0; y <= newSize; y++) {
-                        m.terrain[x][y] = x <= oldSize && y <= oldSize ? oldTerrain[x][y] : -1;
-                    }
-                }
-                clampCamera();
-                drawMap();
-                drawPreview();
-            }
-
-            // --- RENDERING 2D ---
-            function drawMap() {
-                let m = campaign[curIdx];
-                if (!m) return;
-                ctx.clearRect(0, 0, 600, 600);
-                let tSize = (600 / m.gridSize) * zoom;
-
-                let pUI = document.getElementById('ui_pad');
-                let cUI = document.getElementById('ui_carrier');
-                let wUI = document.getElementById('ui_wind');
-                pUI.style.display = 'none';
-                cUI.style.display = 'none';
-                wUI.style.display = 'none';
-
-                // Terrain Rendering (ALLES <= 0 IST JETZT BLAUES WASSER)
-                for (let x = Math.floor(panX); x < Math.min(m.gridSize, panX + 600 / tSize + 1); x++) {
-                    for (let y = Math.floor(panY); y < Math.min(m.gridSize, panY + 600 / tSize + 1); y++) {
-                        let h = m.terrain[x][y];
-                        if (h <= 0)
-                            ctx.fillStyle = '#004488'; // Wasser für h=0 und h=-1
-                        else ctx.fillStyle = `rgb(${50 + h * 20}, ${150 + h * 10}, 50)`; // Land
-                        ctx.fillRect((x - panX) * tSize, (y - panY) * tSize, tSize + 1.5, tSize + 1.5);
-                    }
-                }
-
-                // Objekte
-                if (m.padX >= 0) {
-                    let px = (m.padX - panX) * tSize,
-                        py = (m.padY - panY) * tSize;
-                    if (selectedUI === 'pad') {
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = '#5f5';
-                    }
-                    ctx.fillStyle = 'rgba(0,255,0,0.4)';
-                    ctx.fillRect(px, py, 8 * tSize, 8 * tSize);
-                    ctx.strokeStyle = '#5f5';
-                    ctx.strokeRect(px, py, 8 * tSize, 8 * tSize);
-                    ctx.fillStyle = 'white';
-                    ctx.beginPath();
-                    ctx.arc(px + 4 * tSize, py + 4 * tSize, Math.max(4, tSize / 2), 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    if (m.spawnPoint === 'pad') {
-                        ctx.fillStyle = 'yellow';
-                        ctx.font = 'bold 12px monospace';
-                        ctx.fillText('START', px, py - 5);
-                    }
-
-                    if (selectedUI === 'pad') {
-                        pUI.style.display = 'block';
-                        pUI.style.left = Math.min(600 - 150, Math.max(0, px + 8 * tSize + 10)) + 'px';
-                        pUI.style.top = Math.min(600 - 100, Math.max(0, py)) + 'px';
-                        document.getElementById('btn_spawn_pad').style.background =
-                            m.spawnPoint === 'pad' ? '#ffcc00' : 'var(--accent)';
-                    }
-                }
-
-                if (m.carrierX >= 0) {
-                    let cx = (m.carrierX - panX) * tSize,
-                        cy = (m.carrierY - panY) * tSize;
-                    let rad = (m.carrierAngle * Math.PI) / 180;
-
-                    ctx.save();
-                    ctx.setLineDash([5, 5]);
-                    ctx.strokeStyle = 'orange';
-                    if (m.carrierPath === 'straight') {
-                        ctx.beginPath();
-                        ctx.moveTo(cx, cy);
-                        ctx.lineTo(cx + Math.cos(rad) * 1000, cy + Math.sin(rad) * 1000);
-                        ctx.stroke();
-                    } else if (m.carrierPath === 'circle') {
-                        let pathRad = m.carrierRadius * tSize;
-                        let cRad = rad + Math.PI / 2;
-                        let c_px = cx + Math.cos(cRad) * pathRad,
-                            c_py = cy + Math.sin(cRad) * pathRad;
-                        ctx.beginPath();
-                        ctx.arc(c_px, c_py, pathRad, 0, Math.PI * 2);
-                        ctx.stroke();
-                        ctx.fillStyle = 'orange';
-                        ctx.fillRect(c_px - 3, c_py - 3, 6, 6);
-                    }
-                    ctx.restore();
-
-                    ctx.save();
-                    ctx.translate(cx, cy);
-                    ctx.rotate(rad);
-                    if (selectedUI === 'carrier') {
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = 'white';
-                    }
-                    ctx.fillStyle = '#888';
-                    ctx.fillRect(-6 * tSize, -1.5 * tSize, 12 * tSize, 3 * tSize);
-                    ctx.fillStyle = 'red';
-                    ctx.beginPath();
-                    ctx.moveTo(6 * tSize, 0);
-                    ctx.lineTo(3 * tSize, -1.5 * tSize);
-                    ctx.lineTo(3 * tSize, 1.5 * tSize);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    ctx.translate(0, 0);
-                    ctx.rotate(-rad);
-                    ctx.fillStyle = 'black';
-                    ctx.font = 'bold 11px monospace';
-                    ctx.fillText(m.carrierSpeed + 'kn', -15, 4);
-                    if (m.spawnPoint === 'carrier') {
-                        ctx.fillStyle = 'yellow';
-                        ctx.fillText('START', -15, -15);
-                    }
-                    ctx.restore();
-
-                    if (selectedUI === 'carrier') {
-                        cUI.style.display = 'block';
-                        cUI.style.left = Math.min(600 - 180, Math.max(0, cx + 20)) + 'px';
-                        cUI.style.top = Math.min(600 - 180, Math.max(0, cy + 20)) + 'px';
-                        document.getElementById('btn_spawn_carrier').style.background =
-                            m.spawnPoint === 'carrier' ? '#ffcc00' : 'var(--accent)';
-                    }
-                }
-
-                if (m.lighthouseX >= 0) {
-                    let lx = (m.lighthouseX + 0.5 - panX) * tSize,
-                        ly = (m.lighthouseY + 0.5 - panY) * tSize;
-                    ctx.fillStyle = '#d22';
-                    ctx.beginPath();
-                    ctx.arc(lx, ly, tSize * 0.8, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.beginPath();
-                    ctx.arc(lx, ly, tSize * 0.4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                // Wind Compass
-                let dirRad = (m.windDir * Math.PI) / 180;
-                if (selectedUI === 'wind') {
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = 'cyan';
-                }
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.beginPath();
-                ctx.arc(50, 50, 30, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = selectedUI === 'wind' ? 'cyan' : '#5f5';
-                ctx.stroke();
-                ctx.shadowBlur = 0;
-
-                if (m.windStr > 0) {
-                    ctx.beginPath();
-                    ctx.moveTo(50, 50);
-                    ctx.lineTo(50 + Math.cos(dirRad) * 25, 50 + Math.sin(dirRad) * 25);
-                    ctx.stroke();
-                }
-                if (selectedUI === 'wind') wUI.style.display = 'block';
-            }
-
-            // --- 3D PREVIEW ENGINE ---
-            function renderIso(tCtx, tW, tH, mode, offsetY, zScale, pX, pY, isFull = false) {
-                let m = campaign[curIdx];
-                if (!m) return;
-                let isoW = m.gridSize,
-                    isoH = m.gridSize / 2 + 5;
-                let fitW = (tW * 0.9) / isoW,
-                    fitH = (tH * 0.9) / isoH;
-                let sTW = Math.min(fitW, fitH) * (isFull ? 1 : zScale);
-                let sTH = sTW / 2,
-                    sH = sTW * 0.3;
-                let cX = tW / 2 + (isFull ? 0 : pX),
-                    cY = tH * 0.1 + offsetY + (isFull ? 0 : pY);
-                let step = mode === 'wireframe' ? Math.max(1, Math.round(m.gridSize / 25)) : 1;
-
-                function getIso(vx, vy, vz) {
-                    return { x: cX + (vx - vy) * (sTW / 2), y: cY + (vx + vy) * (sTH / 2) - vz * sH };
-                }
-
-                for (let x = 0; x < m.gridSize; x += step) {
-                    for (let y = 0; y < m.gridSize; y += step) {
-                        let nx = Math.min(x + step, m.gridSize);
-                        let ny = Math.min(y + step, m.gridSize);
-                        let h0 = m.terrain[x][y];
-                        let h1 = m.terrain[nx] ? m.terrain[nx][y] : h0;
-                        let h2 = m.terrain[nx] && m.terrain[nx][ny] ? m.terrain[nx][ny] : h0;
-                        let h3 = m.terrain[x] && m.terrain[x][ny] ? m.terrain[x][ny] : h0;
-
-                        let p0 = getIso(x, y, h0),
-                            p1 = getIso(nx, y, h1),
-                            p2 = getIso(nx, ny, h2),
-                            p3 = getIso(x, ny, h3);
-                        tCtx.beginPath();
-                        tCtx.moveTo(p0.x, p0.y);
-                        tCtx.lineTo(p1.x, p1.y);
-                        tCtx.lineTo(p2.x, p2.y);
-                        tCtx.lineTo(p3.x, p3.y);
-                        tCtx.closePath();
-
-                        if (mode === 'filled') {
-                            let r, g, b;
-                            // Rendering Anpassung: h <= 0 ist jetzt IMMER Wasser (Kein Orange mehr!)
-                            if (h0 <= 0) {
-                                r = 0;
-                                g = 60;
-                                b = 120;
-                            } else {
-                                r = 50 + h0 * 20;
-                                g = 150 + h0 * 10;
-                                b = 50;
-                            }
-                            if (m.night) {
-                                r *= 0.3;
-                                g *= 0.4;
-                                b *= 0.6;
-                            }
-                            tCtx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
-                            tCtx.fill();
-                            if (h0 > 0) {
-                                tCtx.strokeStyle = m.night ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.1)';
-                                tCtx.stroke();
-                            }
-                        } else {
-                            tCtx.strokeStyle = 'rgba(255,100,0,0.4)';
-                            tCtx.stroke();
-                        }
-                    }
-                }
-
-                if (m.padX >= 0) {
-                    let pp = getIso(
-                        m.padX + 4,
-                        m.padY + 4,
-                        m.terrain[m.padX + 4] ? m.terrain[m.padX + 4][m.padY + 4] : 0
-                    );
-                    if (mode === 'filled') {
-                        tCtx.fillStyle = m.night ? '#2a2' : '#5f5';
-                        tCtx.fillRect(pp.x - 10, pp.y - 5, 20, 10);
-                    } else {
-                        tCtx.strokeStyle = '#ffcc00';
-                        tCtx.strokeRect(pp.x - 10, pp.y - 5, 20, 10);
-                    }
-                }
-                if (m.carrierX >= 0) {
-                    let rad = (m.carrierAngle * Math.PI) / 180;
-                    let cCos = Math.cos(rad),
-                        cSin = Math.sin(rad);
-                    let p0 = getIso(m.carrierX + 6 * cCos - 1.5 * cSin, m.carrierY + 6 * cSin + 1.5 * cCos, 0.5);
-                    let p1 = getIso(m.carrierX - 6 * cCos - 1.5 * cSin, m.carrierY - 6 * cSin + 1.5 * cCos, 0.5);
-                    let p2 = getIso(m.carrierX - 6 * cCos + 1.5 * cSin, m.carrierY - 6 * cSin - 1.5 * cCos, 0.5);
-                    let p3 = getIso(m.carrierX + 6 * cCos + 1.5 * cSin, m.carrierY + 6 * cSin - 1.5 * cCos, 0.5);
-                    tCtx.beginPath();
-                    tCtx.moveTo(p0.x, p0.y);
-                    tCtx.lineTo(p1.x, p1.y);
-                    tCtx.lineTo(p2.x, p2.y);
-                    tCtx.lineTo(p3.x, p3.y);
-                    tCtx.closePath();
-                    if (mode === 'filled') {
-                        tCtx.fillStyle = m.night ? '#333' : '#888';
-                        tCtx.fill();
-                    } else {
-                        tCtx.strokeStyle = '#ffcc00';
-                        tCtx.stroke();
-                    }
-                }
-            }
-
-            function drawPreview() {
-                prevCtx.clearRect(0, 0, 500, 600);
-                let m = campaign[curIdx];
-                if (m && (m.night || m.rain)) {
-                    prevCtx.fillStyle = m.night ? '#000408' : '#001122';
-                    prevCtx.fillRect(0, 0, 500, 600);
-                }
-
-                prevCtx.save();
-                prevCtx.beginPath();
-                prevCtx.rect(0, 0, 500, 300);
-                prevCtx.clip();
-                renderIso(prevCtx, 500, 300, 'filled', 0, prevZoom, prevPanX, prevPanY);
-                prevCtx.restore();
-
-                prevCtx.strokeStyle = '#444';
-                prevCtx.beginPath();
-                prevCtx.moveTo(0, 300);
-                prevCtx.lineTo(500, 300);
-                prevCtx.stroke();
-
-                prevCtx.save();
-                prevCtx.beginPath();
-                prevCtx.rect(0, 300, 500, 300);
-                prevCtx.clip();
-                renderIso(prevCtx, 500, 300, 'wireframe', 300, 1, 0, 0, true);
-                prevCtx.restore();
-            }
-
-            // --- INTERACTION ---
-            canvas.addEventListener('wheel', e => {
-                e.preventDefault();
-                const rect = canvas.getBoundingClientRect();
-                let m = campaign[curIdx];
-                let tSize = (600 / m.gridSize) * zoom;
-                let mx = e.clientX - rect.left,
-                    my = e.clientY - rect.top;
-                let gx = mx / tSize + panX,
-                    gy = my / tSize + panY;
-
-                let oldZoom = zoom;
-                zoom = Math.max(1.0, Math.min(zoom + (e.deltaY < 0 ? 0.5 : -0.5), 15.0));
-                if (zoom !== oldZoom) {
-                    let nSize = (600 / m.gridSize) * zoom;
-                    panX = gx - mx / nSize;
-                    panY = gy - my / nSize;
-                    clampCamera();
-                    drawMap();
-                }
-            });
-
-            canvas.addEventListener('mousedown', e => {
-                const rect = canvas.getBoundingClientRect();
-                let m = campaign[curIdx];
-                let tSize = (600 / m.gridSize) * zoom;
-                let mx = e.clientX - rect.left,
-                    my = e.clientY - rect.top;
-                let gx = mx / tSize + panX,
-                    gy = my / tSize + panY;
-
-                if (Math.hypot(mx - 50, my - 50) < 30) {
-                    selectedUI = selectedUI === 'wind' ? null : 'wind';
-                    drawMap();
-                    return;
-                }
-                if (m.padX >= 0 && gx >= m.padX && gx <= m.padX + 8 && gy >= m.padY && gy <= m.padY + 8) {
-                    if (!(currentTool === 'pad' && e.shiftKey)) {
-                        selectedUI = selectedUI === 'pad' ? null : 'pad';
-                        drawMap();
-                        return;
-                    }
-                }
-                if (m.carrierX >= 0 && Math.hypot(gx - m.carrierX, gy - m.carrierY) < 6) {
-                    if (!(currentTool === 'carrier' && e.shiftKey)) {
-                        selectedUI = selectedUI === 'carrier' ? null : 'carrier';
-                        drawMap();
-                        return;
-                    }
-                }
-
-                selectedUI = null;
-                drawMap();
-
-                if (currentTool === 'move') {
-                    isEditorDragging = true;
-                    lastMX = e.clientX;
-                    lastMY = e.clientY;
-                    canvas.style.cursor = 'grabbing';
-                } else {
-                    isDrawing = true;
-                    paint(e);
-                }
-            });
-
-            window.addEventListener('mousemove', e => {
-                if (isEditorDragging) {
-                    let tSize = (600 / campaign[curIdx].gridSize) * zoom;
-                    panX -= (e.clientX - lastMX) / tSize;
-                    panY -= (e.clientY - lastMY) / tSize;
-                    lastMX = e.clientX;
-                    lastMY = e.clientY;
-                    clampCamera();
-                    drawMap();
-                } else if (isDrawing) paint(e);
-            });
-
-            function paint(e) {
-                let m = campaign[curIdx];
-                const rect = canvas.getBoundingClientRect();
-                let tSize = (600 / m.gridSize) * zoom;
-                let gx = Math.floor((e.clientX - rect.left) / tSize + panX),
-                    gy = Math.floor((e.clientY - rect.top) / tSize + panY);
-                if (gx < 0 || gx >= m.gridSize || gy < 0 || gy >= m.gridSize) return;
-
-                if (currentTool === 'terrain') {
-                    let amt = e.shiftKey ? -0.2 : 0.2;
-                    let rad = Math.ceil(brushRadius);
-                    for (let dx = -rad; dx <= rad; dx++)
-                        for (let dy = -rad; dy <= rad; dy++) {
-                            if (Math.hypot(dx, dy) <= brushRadius && m.terrain[gx + dx]) {
-                                m.terrain[gx + dx][gy + dy] = Math.max(
-                                    -1,
-                                    Math.min(15, m.terrain[gx + dx][gy + dy] + amt)
-                                );
-                            }
-                        }
-                } else if (currentTool === 'flatten') {
-                    let h = e.shiftKey ? -1 : 1;
-                    let rad = Math.ceil(brushRadius);
-                    for (let dx = -rad; dx <= rad; dx++)
-                        for (let dy = -rad; dy <= rad; dy++) {
-                            if (Math.hypot(dx, dy) <= brushRadius && m.terrain[gx + dx])
-                                m.terrain[gx + dx][gy + dy] = h;
-                        }
-                } else if (currentTool === 'pad') {
-                    if (e.shiftKey) {
-                        m.padX = -1;
-                        m.padY = -1;
-                        checkSpawnFallback();
-                    } else {
-                        m.padX = gx;
-                        m.padY = gy;
-                    }
-                } else if (currentTool === 'carrier') {
-                    if (e.shiftKey) {
-                        m.carrierX = -1;
-                        m.carrierY = -1;
-                        checkSpawnFallback();
-                    } else {
-                        m.carrierX = gx;
-                        m.carrierY = gy;
-                    }
-                } else if (currentTool === 'lighthouse') {
-                    if (e.shiftKey) {
-                        m.lighthouseX = -1;
-                        m.lighthouseY = -1;
-                    } else {
-                        m.lighthouseX = gx;
-                        m.lighthouseY = gy;
-                    }
-                }
-                drawMap();
-            }
-
-            window.addEventListener('mouseup', () => {
-                if (isDrawing) {
-                    isDrawing = false;
-                    drawPreview();
-                }
-                if (isEditorDragging) {
-                    isEditorDragging = false;
-                    if (currentTool === 'move') canvas.style.cursor = 'grab';
-                }
-            });
-
-            // 3D Preview pan/zoom
-            prevCanvas.addEventListener('mousedown', e => {
-                isPrevDragging = true;
-                lastPrevMouseX = e.clientX;
-                lastPrevMouseY = e.clientY;
-            });
-            window.addEventListener('mouseup', () => {
-                isPrevDragging = false;
-            });
-            prevCanvas.addEventListener('mousemove', e => {
-                if (isPrevDragging) {
-                    prevPanX += e.clientX - lastPrevMouseX;
-                    prevPanY += e.clientY - lastPrevMouseY;
-                    lastPrevMouseX = e.clientX;
-                    lastPrevMouseY = e.clientY;
-                    drawPreview();
-                }
-            });
-            prevCanvas.addEventListener('wheel', e => {
-                e.preventDefault();
-                const rect = prevCanvas.getBoundingClientRect();
-                let mx = e.clientX - rect.left,
-                    my = e.clientY - rect.top;
-                if (my > 300) return;
-                let oldZoom = prevZoom;
-                prevZoom = Math.max(1.0, Math.min(prevZoom * (e.deltaY < 0 ? 1.2 : 0.83), 20.0));
-                if (prevZoom === 1.0) {
-                    prevPanX = 0;
-                    prevPanY = 0;
-                } else {
-                    let scaleRatio = prevZoom / oldZoom;
-                    prevPanX = mx - 250 - (mx - (250 + prevPanX)) * scaleRatio;
-                    prevPanY = my - 30 - (my - (30 + prevPanY)) * scaleRatio;
-                }
-                drawPreview();
-            });
-            prevCanvas.addEventListener('dblclick', () => {
-                prevZoom = 1.0;
-                prevPanX = 0;
-                prevPanY = 0;
-                drawPreview();
-            });
-
-            // --- DATA ---
-            function compress(grid) {
-                let flat = [];
-                grid.forEach(col => col.forEach(v => flat.push(Math.round(v * 10))));
-                let res = [],
-                    count = 1,
-                    cur = flat[0];
-                for (let i = 1; i < flat.length; i++) {
-                    if (flat[i] === cur) count++;
-                    else {
-                        res.push(count > 1 ? `${cur}x${count}` : cur);
-                        cur = flat[i];
-                        count = 1;
-                    }
-                }
-                res.push(count > 1 ? `${cur}x${count}` : cur);
-                return res.join(',');
-            }
-
-            function decompress(str, gs) {
-                let flat = [];
-                str.split(',').forEach(t => {
-                    if (t.includes('x')) {
-                        let [v, c] = t.split('x');
-                        for (let i = 0; i < parseInt(c); i++) flat.push(parseInt(v) / 10);
-                    } else flat.push(parseInt(t) / 10);
-                });
-                let res = [],
-                    k = 0;
-                for (let x = 0; x <= gs; x++) {
-                    res[x] = [];
-                    for (let y = 0; y <= gs; y++) res[x][y] = flat[k++];
-                }
-                return res;
-            }
-
-            function exportCampaign() {
-                let data = campaign.map(m => {
-                    let c = { ...m };
-                    c.terrain = compress(m.terrain);
-                    return c;
-                });
-
-                let exportData = {
-                    type: 'ZEEWOLF_CAMPAIGN',
-                    campaignTitle: document.getElementById('c_title').value,
-                    campaignSublines: document
-                        .getElementById('c_sublines')
-                        .value.split('\n')
-                        .filter(l => l.trim() !== ''),
-                    levels: data,
-                };
-
-                document.getElementById('output').value = JSON.stringify(exportData);
-                alert('Kampagne exportiert!');
-            }
-
-            function importCampaign() {
-                let raw = document.getElementById('output').value;
-                if (!raw) return;
-                try {
-                    let parsed = JSON.parse(raw);
-                    if (parsed.type === 'ZEEWOLF_CAMPAIGN') {
-                        document.getElementById('c_title').value = parsed.campaignTitle || 'Imported Campaign';
-                        document.getElementById('c_sublines').value = (parsed.campaignSublines || []).join('\n');
-                        campaign = parsed.levels.map(m => {
-                            m.terrain = decompress(m.terrain, m.gridSize);
-                            return m;
-                        });
-                        loadMission(0);
-                    } else {
-                        alert('Ungültiges Format! Bitte verwende eine aktuelle Kampagnen-Datei (ZEEWOLF_CAMPAIGN).');
-                    }
-                } catch (e) {
-                    alert('Import Fehler!\n\n' + e);
-                }
-            }
-
-            addNewMission();
-        </script>
+        <script type="module" src="/src/editor/main.ts"></script>
     </body>
 </html>
