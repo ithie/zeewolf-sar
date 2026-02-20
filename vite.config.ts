@@ -38,12 +38,9 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [makeSingleFile()],
         build: {
-            // Trennung der Ausgabeverzeichnisse
-            outDir: isEditorBuild ? 'dist/editor' : 'dist',
+            outDir: isEditorBuild ? 'dist/editor' : 'dist/',
 
-            // Da wir jetzt in Unterordner bauen, können wir das Leeren
-            // wieder auf true setzen, damit alte Artefakte verschwinden.
-            emptyOutDir: true,
+            emptyOutDir: false,
 
             rollupOptions: {
                 input: isEditorBuild ? resolve(__dirname, 'editor.html') : resolve(__dirname, 'index.html'),
