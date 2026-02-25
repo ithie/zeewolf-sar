@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8" />
+        <title>ZEEWOLF ZSynth Composer v4.0</title>
+        <style>
+            :root {
+                --bg: #050505;
+                --panel: #1a1a1a;
+                --accent: #ff6600;
+                --text: #5f5;
+                --grid-off: #222;
+                --drum-on: #55f;
+                --synth-on: #ff6600;
+                --active-step: #ffff00;
+            }
+            body {
+                background: var(--bg);
+                color: var(--text);
+                font-family: monospace;
+                margin: 0;
+                padding-bottom: 50px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                user-select: none;
+            }
+            .btn-container {
+                position: sticky;
+                top: 0;
+                background: rgba(5, 5, 5, 0.95);
+                padding: 15px;
+                z-index: 1000;
+                border-bottom: 1px solid var(--accent);
+                width: 100%;
+                text-align: center;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 10px;
+            }
+            .sequencer-scroll {
+                width: 98%;
+                overflow-x: auto;
+                margin-top: 20px;
+                border: 1px solid #333;
+            }
+            .track-container {
+                background: var(--panel);
+                border-bottom: 1px solid #444;
+                padding: 10px;
+                min-width: 2550px;
+                display: flex;
+            }
+            .track-controls {
+                width: 280px;
+                position: sticky;
+                left: 0;
+                background: var(--panel);
+                z-index: 10;
+                padding-right: 10px;
+                border-right: 1px solid #444;
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                font-size: 11px;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: 80px repeat(64, 35px);
+                gap: 2px;
+                padding-left: 10px;
+            }
+            .cell {
+                height: 22px;
+                background: var(--grid-off);
+                border: 1px solid #111;
+                cursor: pointer;
+            }
+            .cell.active-drum {
+                background: var(--drum-on);
+                box-shadow: 0 0 8px var(--drum-on);
+            }
+            .cell.active-synth {
+                background: var(--synth-on);
+                box-shadow: 0 0 8px var(--synth-on);
+            }
+            .cell.playing {
+                border: 2px solid var(--active-step);
+                box-sizing: border-box;
+            }
+            .cell:nth-child(16n + 2) {
+                border-left: 3px solid #777;
+            }
+            .cell:nth-child(4n + 2) {
+                border-left: 2px solid #444;
+            }
+            .label {
+                font-size: 10px;
+                text-align: right;
+                padding-right: 8px;
+                line-height: 22px;
+                background: #000;
+                color: #aaa;
+            }
+            button,
+            input,
+            select {
+                background: #000;
+                color: var(--text);
+                border: 1px solid var(--text);
+                padding: 3px 8px;
+                cursor: pointer;
+                font-family: monospace;
+                font-size: 11px;
+            }
+            button:hover {
+                background: var(--text);
+                color: #000;
+            }
+            .vol-slider {
+                width: 60px;
+                vertical-align: middle;
+            }
+            textarea {
+                background: #000;
+                color: #8af;
+                border: 1px solid #333;
+                width: 95%;
+                height: 150px;
+                margin-top: 20px;
+                font-size: 10px;
+                padding: 10px;
+                box-sizing: border-box;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="btn-container">
+            <strong style="color: var(--accent)">ZEEWOLF COMPOSER v4.0</strong>
+            <button id="btn-play">PLAY</button>
+            <button id="btn-stop">STOP</button>
+            <button id="btn-export">EXPORT</button>
+            <button id="btn-import">IMPORT</button>
+            <span>BPM: <input type="number" id="bpm" value="110" style="width: 55px" /></span>
+            <span id="step-display" style="color: var(--active-step); min-width: 80px">STEP: 1</span>
+        </div>
+
+        <div id="sequencer-root" class="sequencer-scroll"></div>
+
+        <textarea id="io-field" placeholder="JSON hier einfügen..."></textarea>
+
+        <script type="module" src="/src/tracker/main.ts"></script>
+    </body>
+</html>

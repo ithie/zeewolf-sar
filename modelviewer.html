@@ -1,0 +1,1145 @@
+<!doctype html>
+<html>
+    <head>
+        <title>ZEEWOLF Model Viewer v2</title>
+        <style>
+            body {
+                background: #050505;
+                color: #5f5;
+                font-family: monospace;
+                margin: 0;
+                overflow: hidden;
+                user-select: none;
+            }
+            #viewerCanvas {
+                display: block;
+                cursor: grab;
+            }
+            #viewerCanvas:active {
+                cursor: grabbing;
+            }
+            #ui {
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                pointer-events: none;
+                background: rgba(0, 20, 10, 0.8);
+                padding: 15px;
+                border: 1px solid #3a3;
+                border-radius: 4px;
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            }
+            h2 {
+                margin-top: 0;
+                color: #ff6600;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="ui">
+            <h2>SAR MODEL VIEWER</h2>
+            <p>• Drag to pan camera</p>
+            <p>• Click MiniMap to teleport</p>
+        </div>
+        <canvas id="viewerCanvas"></canvas>
+
+        <script>
+            const canvas = document.getElementById('viewerCanvas');
+            const ctx = canvas.getContext('2d');
+            const tileW = 64,
+                tileH = 32,
+                stepH = 25;
+
+            // Camera & Input handling
+            let cam = { x: -600, y: -100 };
+            let isDragging = false;
+            let lastMouse = { x: 0, y: 0 };
+
+            // World setup for the minimap
+            const WORLD = { minX: -50, maxX: 50, minY: -30, maxY: 50 };
+            const MAP_SIZE = 180;
+            const MAP_MARGIN = 20;
+
+            // Models Configuration
+            const MODELS = [
+                { id: 'lighthouse', type: 'building', x: -35, y: 0, color: '#ff0', label: 'LIGHTHOUSE' },
+                { id: 'hangar', type: 'building', x: -15, y: 0, color: '#aaa', label: 'HANGAR' },
+                { id: 'dolphin', type: 'heli', x: 5, y: 0, color: '#f60', label: 'MH-65 DOLPHIN' },
+                { id: 'jayhawk', type: 'heli', x: 25, y: 0, color: '#d50', label: 'MH-60T JAYHAWK' },
+                { id: 'chinook', type: 'heli', x: 45, y: 0, color: '#c40', label: 'CH-47 CHINOOK' },
+                { id: 'carrier', type: 'ship', x: 5, y: 25, color: '#445', label: 'CARRIER' },
+                { id: 'sailboat', type: 'misc', x: 65, y: 0, color: '#fff', label: 'SAILBOAT' },
+                { id: 'person', type: 'misc', x: 85, y: 0, color: '#f60', label: 'SURVIVOR' },
+            ];
+
+            canvas.addEventListener('mousedown', e => {
+                let mx = e.clientX,
+                    my = e.clientY;
+                let mapX = canvas.width - MAP_SIZE - MAP_MARGIN;
+                let mapY = canvas.height - MAP_SIZE - MAP_MARGIN;
+
+                // Check if clicked inside MiniMap
+                if (mx >= mapX && mx <= mapX + MAP_SIZE && my >= mapY && my <= mapY + MAP_SIZE) {
+                    let normX = (mx - mapX) / MAP_SIZE;
+                    let normY = (my - mapY) / MAP_SIZE;
+
+                    let targetWorldX = WORLD.minX + normX * (WORLD.maxX - WORLD.minX);
+                    let targetWorldY = WORLD.minY + normY * (WORLD.maxY - WORLD.minY);
+
+                    // Center camera on world coordinates
+                    cam.x = (targetWorldX - targetWorldY) * (tileW / 2);
+                    cam.y = (targetWorldX + targetWorldY) * (tileH / 2);
+                } else {
+                    isDragging = true;
+                    lastMouse = { x: mx, y: my };
+                }
+            });
+
+            window.addEventListener('mouseup', () => (isDragging = false));
+            window.addEventListener('mousemove', e => {
+                let mapX = canvas.width - MAP_SIZE - MAP_MARGIN;
+                let mapY = canvas.height - MAP_SIZE - MAP_MARGIN;
+                if (e.clientX >= mapX && e.clientY >= mapY) {
+                    canvas.style.cursor = 'crosshair';
+                } else {
+                    canvas.style.cursor = isDragging ? 'grabbing' : 'grab';
+                }
+
+                if (isDragging) {
+                    cam.x -= e.clientX - lastMouse.x;
+                    cam.y -= e.clientY - lastMouse.y;
+                    lastMouse = { x: e.clientX, y: e.clientY };
+                }
+            });
+
+            window.onresize = () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            };
+            window.onresize();
+
+            function getGround(fx, fy) {
+                return 0;
+            }
+
+            function iso(vx, vy, h, cx, cy) {
+                return {
+                    x: canvas.width / 2 + (vx - vy) * (tileW / 2) - cx,
+                    y: canvas.height / 2 + (vx + vy) * (tileH / 2) - h * stepH - cy,
+                };
+            }
+
+            function drawFace(points, color, strokeColor, zOffset, cX, cY) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                let first = iso(points[0].x, points[0].y, points[0].z + zOffset, cX, cY);
+                ctx.moveTo(first.x, first.y);
+                for (let i = 1; i < points.length; i++) {
+                    let p = iso(points[i].x, points[i].y, points[i].z + zOffset, cX, cY);
+                    ctx.lineTo(p.x, p.y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                if (strokeColor) {
+                    ctx.strokeStyle = strokeColor;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+
+            // Draw a platform frame with text
+            function drawFrame(x, y, radius, label, angle, cX, cY) {
+                function rot(rx, ry) {
+                    return {
+                        x: x + rx * Math.cos(angle) - ry * Math.sin(angle),
+                        y: y + rx * Math.sin(angle) + ry * Math.cos(angle),
+                        z: 0,
+                    };
+                }
+                let p1 = rot(-radius, -radius),
+                    p2 = rot(radius, -radius),
+                    p3 = rot(radius, radius),
+                    p4 = rot(-radius, radius);
+
+                // Platform
+                drawFace([p1, p2, p3, p4], 'rgba(0, 40, 20, 0.4)', '#5f5', -0.05, cX, cY);
+
+                // Label
+                let centerIso = iso(x, y, 0, cX, cY);
+                ctx.fillStyle = '#5f5';
+                ctx.font = 'bold 16px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, centerIso.x, centerIso.y + radius * tileH + 10);
+            }
+
+            // Math helper for rotation
+            function rotate2D(cx, cy, x, y, angle) {
+                let s = Math.sin(angle),
+                    c = Math.cos(angle);
+                x -= cx;
+                y -= cy;
+                return { x: x * c - y * s + cx, y: x * s + y * c + cy };
+            }
+
+            // --- CARRIER ---
+            function drawVectorCarrier(objX, objY, angle, cx, cy) {
+                let cw = 3.0,
+                    cl = 7.5;
+                let deckZ = 0.6,
+                    hullZ = 0.2;
+
+                function r(rx, ry) {
+                    let nx = rx * Math.cos(angle) - ry * Math.sin(angle);
+                    let ny = rx * Math.sin(angle) + ry * Math.cos(angle);
+                    return { x: objX + nx, y: objY + ny };
+                }
+
+                let h1 = r(-cw, -cl),
+                    h2 = r(cw, -cl),
+                    h3 = r(cw, cl),
+                    h4 = r(-cw, cl);
+                // Boden
+                drawFace(
+                    [
+                        { x: h1.x, y: h1.y, z: 0 },
+                        { x: h2.x, y: h2.y, z: 0 },
+                        { x: h3.x, y: h3.y, z: 0 },
+                        { x: h4.x, y: h4.y, z: 0 },
+                    ],
+                    'rgba(0,0,0,0.5)',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                // Rumpf Wände (Jetzt alle 4 Seiten!)
+                drawFace(
+                    [
+                        { x: h1.x, y: h1.y, z: 0 },
+                        { x: h2.x, y: h2.y, z: 0 },
+                        { x: h2.x, y: h2.y, z: hullZ },
+                        { x: h1.x, y: h1.y, z: hullZ },
+                    ],
+                    '#334',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: h2.x, y: h2.y, z: 0 },
+                        { x: h3.x, y: h3.y, z: 0 },
+                        { x: h3.x, y: h3.y, z: hullZ },
+                        { x: h2.x, y: h2.y, z: hullZ },
+                    ],
+                    '#445',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: h3.x, y: h3.y, z: 0 },
+                        { x: h4.x, y: h4.y, z: 0 },
+                        { x: h4.x, y: h4.y, z: hullZ },
+                        { x: h3.x, y: h3.y, z: hullZ },
+                    ],
+                    '#334',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: h4.x, y: h4.y, z: 0 },
+                        { x: h1.x, y: h1.y, z: 0 },
+                        { x: h1.x, y: h1.y, z: hullZ },
+                        { x: h4.x, y: h4.y, z: hullZ },
+                    ],
+                    '#223',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                let dw = cw + 1.2,
+                    dl = cl + 1.2;
+                let d1 = r(-dw, -dl),
+                    d2 = r(dw, -dl),
+                    d3 = r(dw, dl),
+                    d4 = r(-dw, dl);
+                drawFace(
+                    [
+                        { x: d1.x, y: d1.y, z: hullZ },
+                        { x: d2.x, y: d2.y, z: hullZ },
+                        { x: d3.x, y: d3.y, z: hullZ },
+                        { x: d4.x, y: d4.y, z: hullZ },
+                    ],
+                    '#222',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: d2.x, y: d2.y, z: hullZ },
+                        { x: d3.x, y: d3.y, z: hullZ },
+                        { x: d3.x, y: d3.y, z: deckZ },
+                        { x: d2.x, y: d2.y, z: deckZ },
+                    ],
+                    '#333',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: d4.x, y: d4.y, z: hullZ },
+                        { x: d3.x, y: d3.y, z: hullZ },
+                        { x: d3.x, y: d3.y, z: deckZ },
+                        { x: d4.x, y: d4.y, z: deckZ },
+                    ],
+                    '#222',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: d4.x, y: d4.y, z: hullZ },
+                        { x: d1.x, y: d1.y, z: hullZ },
+                        { x: d1.x, y: d1.y, z: deckZ },
+                        { x: d4.x, y: d4.y, z: deckZ },
+                    ],
+                    '#333',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: d1.x, y: d1.y, z: deckZ },
+                        { x: d2.x, y: d2.y, z: deckZ },
+                        { x: d3.x, y: d3.y, z: deckZ },
+                        { x: d4.x, y: d4.y, z: deckZ },
+                    ],
+                    '#3a3a44',
+                    '#555',
+                    0,
+                    cx,
+                    cy
+                );
+
+                let ix = 2.6,
+                    iy = 1.0,
+                    iw = 1.5,
+                    il = 4.5,
+                    ih = 2.5;
+                let i1 = r(ix, iy),
+                    i2 = r(ix + iw, iy),
+                    i3 = r(ix + iw, iy + il),
+                    i4 = r(ix, iy + il);
+                drawFace(
+                    [
+                        { x: i1.x, y: i1.y, z: deckZ },
+                        { x: i2.x, y: i2.y, z: deckZ },
+                        { x: i2.x, y: i2.y, z: deckZ + ih },
+                        { x: i1.x, y: i1.y, z: deckZ + ih },
+                    ],
+                    '#555',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: i1.x, y: i1.y, z: deckZ },
+                        { x: i4.x, y: i4.y, z: deckZ },
+                        { x: i4.x, y: i4.y, z: deckZ + ih },
+                        { x: i1.x, y: i1.y, z: deckZ + ih },
+                    ],
+                    '#444',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: i2.x, y: i2.y, z: deckZ },
+                        { x: i3.x, y: i3.y, z: deckZ },
+                        { x: i3.x, y: i3.y, z: deckZ + ih },
+                        { x: i2.x, y: i2.y, z: deckZ + ih },
+                    ],
+                    '#444',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: i1.x, y: i1.y, z: deckZ + ih },
+                        { x: i2.x, y: i2.y, z: deckZ + ih },
+                        { x: i3.x, y: i3.y, z: deckZ + ih },
+                        { x: i4.x, y: i4.y, z: deckZ + ih },
+                    ],
+                    '#222',
+                    '#000',
+                    0,
+                    cx,
+                    cy
+                );
+            }
+
+            // --- LIGHTHOUSE ---
+            function drawLighthouse(lhX, lhY, time, cx, cy) {
+                function drawCyl(zB, zT, col, borderCol, radius) {
+                    let topPos = iso(lhX, lhY, zT, cx, cy),
+                        botPos = iso(lhX, lhY, zB, cx, cy);
+                    let steps = 6,
+                        r = radius || 1.0;
+                    ctx.fillStyle = col;
+                    ctx.beginPath();
+                    ctx.ellipse(botPos.x, botPos.y, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    for (let i = 0; i < steps * 4; i++) {
+                        let cz = zB + i * ((zT - zB) / (steps * 4));
+                        let p = iso(lhX, lhY, cz, cx, cy);
+                        ctx.beginPath();
+                        ctx.ellipse(p.x, p.y, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.fillStyle = borderCol;
+                    ctx.beginPath();
+                    ctx.ellipse(topPos.x, topPos.y, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = col;
+                    ctx.beginPath();
+                    ctx.ellipse(topPos.x, topPos.y, (r * 0.8 * tileW) / 2, (r * 0.8 * tileH) / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                drawCyl(0, 0.4, '#404040', '#606060', 4);
+                drawCyl(0.4, 3, '#d22', '#900');
+                drawCyl(3, 6, '#eee', '#ccc');
+                drawCyl(6, 7, '#d22', '#900');
+                drawCyl(7, 8, '#ff0', '#cc0');
+
+                // Rotating Beam
+                let beamAngle = time;
+                let beamEnd = { x: lhX + Math.cos(beamAngle) * 20, y: lhY + Math.sin(beamAngle) * 20 };
+                let tL = iso(lhX, lhY, 8.1, cx, cy);
+                let bE1 = iso(
+                    beamEnd.x + Math.cos(beamAngle + 1.5) * 5,
+                    beamEnd.y + Math.sin(beamAngle + 1.5) * 5,
+                    0,
+                    cx,
+                    cy
+                );
+                let bE2 = iso(
+                    beamEnd.x + Math.cos(beamAngle - 1.5) * 5,
+                    beamEnd.y + Math.sin(beamAngle - 1.5) * 5,
+                    0,
+                    cx,
+                    cy
+                );
+
+                ctx.fillStyle = 'rgba(255, 255, 100, 0.15)';
+                ctx.beginPath();
+                ctx.moveTo(tL.x, tL.y);
+                ctx.lineTo(bE1.x, bE1.y);
+                ctx.lineTo(bE2.x, bE2.y);
+                ctx.fill();
+            }
+
+            // --- HANGAR ---
+            function drawHangar(hX, hY, angle, cx, cy) {
+                const hZ = 0;
+                let cX = hX,
+                    cY = hY; // Center
+
+                let pFL = rotate2D(cX, cY, hX - 2, hY + 2, angle);
+                let pFR = rotate2D(cX, cY, hX + 2, hY + 2, angle);
+                let pBL = rotate2D(cX, cY, hX - 2, hY - 2, angle);
+                let pBR = rotate2D(cX, cY, hX + 2, hY - 2, angle);
+
+                const bFL = iso(pFL.x, pFL.y, hZ, cx, cy),
+                    bFR = iso(pFR.x, pFR.y, hZ, cx, cy);
+                const bBL = iso(pBL.x, pBL.y, hZ, cx, cy),
+                    bBR = iso(pBR.x, pBR.y, hZ, cx, cy);
+                const tFL = iso(pFL.x, pFL.y, hZ + 2.5, cx, cy),
+                    tFR = iso(pFR.x, pFR.y, hZ + 2.5, cx, cy);
+                const tBL = iso(pBL.x, pBL.y, hZ + 2.5, cx, cy),
+                    tBR = iso(pBR.x, pBR.y, hZ + 2.5, cx, cy);
+
+                ctx.fillStyle = '#bbbbbb';
+                ctx.beginPath();
+                ctx.moveTo(bFL.x, bFL.y);
+                ctx.lineTo(bBL.x, bBL.y);
+                ctx.lineTo(tBL.x, tBL.y);
+                ctx.lineTo(tFL.x, tFL.y);
+                ctx.fill();
+                ctx.strokeStyle = '#999';
+                ctx.stroke();
+                ctx.fillStyle = '#999999';
+                ctx.beginPath();
+                ctx.moveTo(bFR.x, bFR.y);
+                ctx.lineTo(bBR.x, bBR.y);
+                ctx.lineTo(tBR.x, tBR.y);
+                ctx.lineTo(tFR.x, tFR.y);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#dddddd';
+                ctx.beginPath();
+                ctx.moveTo(tFL.x, tFL.y);
+                ctx.lineTo(tFR.x, tFR.y);
+                ctx.lineTo(tBR.x, tBR.y);
+                ctx.lineTo(tBL.x, tBL.y);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+            }
+
+            // --- HELICOPTERS ---
+            function drawHeli(type, hX, hY, hZ, hAngle, hTilt, hRoll, hRotor, camX, camY, isShadow = false) {
+                const targetCtx = ctx;
+                const cosA = Math.cos(hAngle),
+                    sinA = Math.sin(hAngle);
+                let s = type === 'dolphin' ? 0.7 : 1.0;
+                let fillColor = '#ff6600',
+                    strokeColor = '#dd3300';
+
+                function p(lx, ly, lz) {
+                    lx *= s;
+                    ly *= s;
+                    lz *= s;
+                    lz += ly * hRoll * 0.5 + lx * hTilt * 0.5;
+                    let rx = lx * cosA - ly * sinA + hX;
+                    let ry = lx * sinA + ly * cosA + hY;
+                    let rz = hZ + lz;
+                    if (isShadow) {
+                        rz = 0;
+                    }
+                    return iso(rx, ry, rz, camX, camY);
+                }
+
+                targetCtx.lineJoin = 'round';
+                targetCtx.lineCap = 'round';
+
+                if (type === 'dolphin') {
+                    if (isShadow) {
+                        targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - hZ * 0.08)})`;
+                        let sN = p(1.2, 0, 0),
+                            sT = p(-1.8, 0, 0),
+                            sL = p(0, 0.4, 0),
+                            sR = p(0, -0.4, 0);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(sN.x, sN.y);
+                        targetCtx.lineTo(sR.x, sR.y);
+                        targetCtx.lineTo(sT.x, sT.y);
+                        targetCtx.lineTo(sL.x, sL.y);
+                        targetCtx.fill();
+                        return;
+                    }
+                    targetCtx.fillStyle = fillColor;
+                    targetCtx.strokeStyle = strokeColor;
+                    targetCtx.lineWidth = 1;
+                    let nose = p(1.4, 0, 0.2),
+                        tailBase = p(-0.8, 0, 0.5),
+                        lSide = p(0, 0.4, 0.4),
+                        rSide = p(0, -0.4, 0.4);
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(nose.x, nose.y);
+                    targetCtx.lineTo(rSide.x, rSide.y);
+                    targetCtx.lineTo(tailBase.x, tailBase.y);
+                    targetCtx.lineTo(lSide.x, lSide.y);
+                    targetCtx.closePath();
+                    targetCtx.fill();
+
+                    targetCtx.fillStyle = '#112';
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(1.2, 0, 0.25).x, p(1.2, 0, 0.25).y);
+                    targetCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y);
+                    targetCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y);
+                    targetCtx.fill();
+
+                    let tTop = p(-1.8, 0, 1.2),
+                        tBack = p(-2.0, 0, 0.4);
+                    targetCtx.fillStyle = fillColor;
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(tailBase.x, tailBase.y);
+                    targetCtx.lineTo(tTop.x, tTop.y);
+                    targetCtx.lineTo(tBack.x, tBack.y);
+                    targetCtx.fill();
+
+                    targetCtx.fillStyle = '#333';
+                    targetCtx.beginPath();
+                    targetCtx.arc(p(-1.7, 0, 0.8).x, p(-1.7, 0, 0.8).y, 3 * s, 0, 7);
+                    targetCtx.fill();
+
+                    targetCtx.strokeStyle = 'rgba(220, 245, 255, 0.5)';
+                    targetCtx.lineWidth = 2;
+                    let hub = p(0, 0, 0.7);
+                    for (let i = 0; i < 4; i++) {
+                        let a = hRotor + i * (Math.PI / 2);
+                        let end = p(Math.cos(a) * 1.8, Math.sin(a) * 1.8, 0.8);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(hub.x, hub.y);
+                        targetCtx.lineTo(end.x, end.y);
+                        targetCtx.stroke();
+                    }
+                } else if (type === 'jayhawk') {
+                    if (isShadow) {
+                        targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - hZ * 0.08)})`;
+                        let sN = p(1.3, 0, 0),
+                            sT = p(-2.8, 0, 0),
+                            sL = p(0, 0.5, 0),
+                            sR = p(0, -0.5, 0);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(sN.x, sN.y);
+                        targetCtx.lineTo(sR.x, sR.y);
+                        targetCtx.lineTo(sT.x, sT.y);
+                        targetCtx.lineTo(sL.x, sL.y);
+                        targetCtx.fill();
+                        return;
+                    }
+                    targetCtx.fillStyle = '#111';
+                    targetCtx.lineWidth = 4 * s;
+                    targetCtx.strokeStyle = '#222';
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(-2.4, 0.6, 0.3).x, p(-2.4, 0.6, 0.3).y);
+                    targetCtx.lineTo(p(-2.4, -0.6, 0.3).x, p(-2.4, -0.6, 0.3).y);
+                    targetCtx.stroke();
+
+                    targetCtx.fillStyle = fillColor;
+                    targetCtx.strokeStyle = strokeColor;
+                    targetCtx.lineWidth = 1;
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(1.3, 0, 0.3).x, p(1.3, 0, 0.3).y);
+                    targetCtx.lineTo(p(0.4, -0.45, 0.4).x, p(0.4, -0.45, 0.4).y);
+                    targetCtx.lineTo(p(-1.0, -0.45, 0.4).x, p(-1.0, -0.45, 0.4).y);
+                    targetCtx.lineTo(p(-1.1, 0, 0.6).x, p(-1.1, 0, 0.6).y);
+                    targetCtx.lineTo(p(-1.0, 0.45, 0.4).x, p(-1.0, 0.45, 0.4).y);
+                    targetCtx.lineTo(p(0.4, 0.45, 0.4).x, p(0.4, 0.45, 0.4).y);
+                    targetCtx.fill();
+                    targetCtx.stroke();
+
+                    targetCtx.fillStyle = '#111';
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(0.3, 0.47, 0.35).x, p(0.3, 0.47, 0.35).y);
+                    targetCtx.lineTo(p(-0.6, 0.47, 0.35).x, p(-0.6, 0.47, 0.35).y);
+                    targetCtx.lineTo(p(-0.6, 0.3, 0.6).x, p(-0.6, 0.3, 0.6).y);
+                    targetCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y);
+                    targetCtx.fill();
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(0.3, -0.47, 0.35).x, p(0.3, -0.47, 0.35).y);
+                    targetCtx.lineTo(p(-0.6, -0.47, 0.35).x, p(-0.6, -0.47, 0.35).y);
+                    targetCtx.lineTo(p(-0.6, -0.3, 0.6).x, p(-0.6, -0.3, 0.6).y);
+                    targetCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y);
+                    targetCtx.fill();
+
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(1.3, 0, 0.3).x, p(1.3, 0, 0.3).y);
+                    targetCtx.lineTo(p(0.6, 0.4, 0.6).x, p(0.6, 0.4, 0.6).y);
+                    targetCtx.lineTo(p(0.6, -0.4, 0.6).x, p(0.6, -0.4, 0.6).y);
+                    targetCtx.fill();
+
+                    targetCtx.fillStyle = fillColor;
+                    targetCtx.lineWidth = 6 * s;
+                    targetCtx.strokeStyle = fillColor;
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(-1.1, 0, 0.6).x, p(-1.1, 0, 0.6).y);
+                    targetCtx.lineTo(p(-2.4, 0, 0.6).x, p(-2.4, 0, 0.6).y);
+                    targetCtx.stroke();
+                    targetCtx.lineWidth = 1;
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p(-2.4, 0, 0.6).x, p(-2.4, 0, 0.6).y);
+                    targetCtx.lineTo(p(-2.9, 0, 1.3).x, p(-2.9, 0, 1.3).y);
+                    targetCtx.lineTo(p(-3.0, 0, 0.6).x, p(-3.0, 0, 0.6).y);
+                    targetCtx.fill();
+
+                    targetCtx.strokeStyle = 'rgba(220, 245, 255, 0.5)';
+                    targetCtx.lineWidth = 3 * s;
+                    let hub = p(0, 0, 0.8);
+                    for (let i = 0; i < 4; i++) {
+                        let a = hRotor + i * (Math.PI / 2);
+                        let end = p(Math.cos(a) * 2.6, Math.sin(a) * 2.6, 0.85);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(hub.x, hub.y);
+                        targetCtx.lineTo(end.x, end.y);
+                        targetCtx.stroke();
+                    }
+                } else if (type === 'chinook') {
+                    if (isShadow) {
+                        targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - hZ * 0.08)})`;
+                        let sN = p(2.5, 0, 0),
+                            sT = p(-2.8, 0, 0),
+                            sL = p(0, 0.8, 0),
+                            sR = p(0, -0.8, 0);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(sN.x, sN.y);
+                        targetCtx.lineTo(sR.x, sR.y);
+                        targetCtx.lineTo(sT.x, sT.y);
+                        targetCtx.lineTo(sL.x, sL.y);
+                        targetCtx.fill();
+                        return;
+                    }
+                    const wf = (lx, ly, lz) => ({
+                        x: lx * s * cosA - ly * s * sinA + hX,
+                        y: lx * s * sinA + ly * s * cosA + hY,
+                        z: hZ + (lz * s + ly * s * hRoll * 0.5 + lx * s * hTilt * 0.5),
+                    });
+
+                    let rB1 = wf(1.8, 0.3, 0.15),
+                        rB2 = wf(1.8, -0.3, 0.15),
+                        rB3 = wf(-2.0, -0.3, 0.15),
+                        rB4 = wf(-2.0, 0.3, 0.15);
+                    let rM1 = wf(1.8, 0.6, 0.5),
+                        rM2 = wf(1.8, -0.6, 0.5),
+                        rM3 = wf(-2.0, -0.6, 0.5),
+                        rM4 = wf(-2.0, 0.6, 0.5);
+                    let rT1 = wf(1.8, 0.3, 0.85),
+                        rT2 = wf(1.8, -0.3, 0.85),
+                        rT3 = wf(-2.0, -0.3, 0.85),
+                        rT4 = wf(-2.0, 0.3, 0.85);
+                    let tailTop = wf(-2.6, 0, 1.1),
+                        tailLow = wf(-2.6, 0, 0.4);
+
+                    drawFace([rB1, rB2, rB3, rB4], '#d50', null, 0, camX, camY);
+                    drawFace([rB1, rM1, rM4, rB4], '#f60', null, 0, camX, camY);
+                    drawFace([rM1, rT1, rT4, rM4], '#ff7711', null, 0, camX, camY);
+                    drawFace([rB2, rM2, rM3, rB3], '#c40', null, 0, camX, camY);
+                    drawFace([rM2, rT2, rT3, rM3], '#d50', null, 0, camX, camY);
+                    drawFace([rT1, rT2, rT3, rT4], '#f60', '#d50', 0, camX, camY);
+                    drawFace([rT4, rT3, tailTop], '#f60', '#d50', 0, camX, camY);
+                    drawFace([rM4, rT4, tailTop, tailLow], '#ff7711', null, 0, camX, camY);
+                    drawFace([rM3, rT3, tailTop, tailLow], '#d50', null, 0, camX, camY);
+
+                    let nTip = wf(2.8, 0, 0.45);
+                    drawFace([nTip, rM2, rT2, rT1, rM1], fillColor, strokeColor, 0, camX, camY);
+
+                    // FIX: Cockpit Fenster für den Chinook
+                    drawFace([wf(2.6, 0, 0.5), wf(2.2, -0.35, 0.6), wf(2.2, 0.35, 0.6)], '#111', null, 0, camX, camY);
+                    drawFace(
+                        [wf(1.5, 0.31, 0.6), wf(1.0, 0.31, 0.6), wf(1.0, 0.31, 0.75), wf(1.5, 0.31, 0.75)],
+                        '#111',
+                        null,
+                        0,
+                        camX,
+                        camY
+                    );
+                    drawFace(
+                        [wf(1.5, -0.31, 0.6), wf(1.0, -0.31, 0.6), wf(1.0, -0.31, 0.75), wf(1.5, -0.31, 0.75)],
+                        '#111',
+                        null,
+                        0,
+                        camX,
+                        camY
+                    );
+
+                    let vT = wf(1.5, 0, 1.15);
+                    drawFace([wf(1.8, 0.3, 0.85), wf(1.8, -0.3, 0.85), vT], '#f60', '#d50', 0, camX, camY);
+                    drawFace([wf(1.8, -0.3, 0.85), wf(1.2, -0.3, 0.85), vT], '#d50', '#d50', 0, camX, camY);
+                    drawFace([wf(1.2, -0.3, 0.85), wf(1.2, 0.3, 0.85), vT], '#f60', '#d50', 0, camX, camY);
+                    drawFace([wf(1.2, 0.3, 0.85), wf(1.8, 0.3, 0.85), vT], '#ff7711', '#d50', 0, camX, camY);
+
+                    let hTop = wf(-2.3, 0, 1.8);
+                    drawFace([wf(-1.9, 0.3, 1.0), wf(-1.9, -0.3, 1.0), hTop], '#f60', '#d50', 0, camX, camY);
+                    drawFace([wf(-1.9, -0.3, 1.0), wf(-2.5, -0.15, 1.1), hTop], '#d50', '#d50', 0, camX, camY);
+                    drawFace([wf(-2.5, -0.15, 1.1), wf(-2.5, 0.15, 1.1), hTop], '#c40', '#d50', 0, camX, camY);
+                    drawFace([wf(-2.5, 0.15, 1.1), wf(-1.9, 0.3, 1.0), hTop], '#ff7711', '#d50', 0, camX, camY);
+
+                    targetCtx.strokeStyle = 'rgba(220, 245, 255, 0.6)';
+                    targetCtx.lineWidth = 3 * s;
+                    let rF = p(1.5, 0, 1.15);
+                    for (let i = 0; i < 3; i++) {
+                        let a = hRotor + i * ((Math.PI * 2) / 3);
+                        let end = p(1.5 + Math.cos(a) * 3.4, Math.sin(a) * 3.4, 1.15);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(rF.x, rF.y);
+                        targetCtx.lineTo(end.x, end.y);
+                        targetCtx.stroke();
+                    }
+                    let rR = p(-2.3, 0, 1.8);
+                    for (let i = 0; i < 3; i++) {
+                        let a = -hRotor + i * ((Math.PI * 2) / 3);
+                        let end = p(-2.3 + Math.cos(a) * 3.4, Math.sin(a) * 3.4, 1.8);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(rR.x, rR.y);
+                        targetCtx.lineTo(end.x, end.y);
+                        targetCtx.stroke();
+                    }
+                }
+            }
+
+            // --- SAILBOAT ---
+            function drawSailboat(sX, sY, angle, cx, cy) {
+                let hullZ = 0.35; // Etwas höherer Freibord
+                function r(rx, ry) {
+                    let nx = rx * Math.cos(angle) - ry * Math.sin(angle);
+                    let ny = rx * Math.sin(angle) + ry * Math.cos(angle);
+                    return { x: sX + nx, y: sY + ny };
+                }
+
+                // Rumpf Punkte (Schmaler gemacht)
+                let bow = r(1.3, 0);
+                let sternL = r(-1.1, 0.35),
+                    sternR = r(-1.1, -0.35); // War 0.5
+                let midL = r(0.2, 0.45),
+                    midR = r(0.2, -0.45); // War 0.6
+
+                // Kiel/Schatten (Dunkelrot für Unterwasserbereich)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: 0 },
+                        { x: midR.x, y: midR.y, z: 0 },
+                        { x: sternR.x, y: sternR.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: 0 },
+                        { x: midL.x, y: midL.y, z: 0 },
+                    ],
+                    '#822',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Wände (Jetzt in klassischem Weiß statt Grau)
+                let waterlineZ = 0.1; // Kleiner roter Streifen an der Wasserlinie
+                // Unterer Rumpf (Rot)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: 0 },
+                        { x: midR.x, y: midR.y, z: 0 },
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                        { x: bow.x, y: bow.y, z: waterlineZ },
+                    ],
+                    '#a33',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: midR.x, y: midR.y, z: 0 },
+                        { x: sternR.x, y: sternR.y, z: 0 },
+                        { x: sternR.x, y: sternR.y, z: waterlineZ },
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                    ],
+                    '#922',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                // Oberer Rumpf (Weiß)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: waterlineZ },
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                        { x: midR.x, y: midR.y, z: hullZ },
+                        { x: bow.x, y: bow.y, z: hullZ },
+                    ],
+                    '#fff',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                        { x: sternR.x, y: sternR.y, z: waterlineZ },
+                        { x: sternR.x, y: sternR.y, z: hullZ },
+                        { x: midR.x, y: midR.y, z: hullZ },
+                    ],
+                    '#eee',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                // Backbordseite (Schattenseite)
+                drawFace(
+                    [
+                        { x: sternR.x, y: sternR.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: hullZ },
+                        { x: sternR.x, y: sternR.y, z: hullZ },
+                    ],
+                    '#ddd',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: 0 },
+                        { x: midL.x, y: midL.y, z: 0 },
+                        { x: midL.x, y: midL.y, z: hullZ },
+                        { x: bow.x, y: bow.y, z: hullZ },
+                    ],
+                    '#eee',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: midL.x, y: midL.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: hullZ },
+                        { x: midL.x, y: midL.y, z: hullZ },
+                    ],
+                    '#ddd',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Deck (Holzoptik)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: hullZ },
+                        { x: midR.x, y: midR.y, z: hullZ },
+                        { x: sternR.x, y: sternR.y, z: hullZ },
+                        { x: sternL.x, y: sternL.y, z: hullZ },
+                        { x: midL.x, y: midL.y, z: hullZ },
+                    ],
+                    '#b96',
+                    '#753',
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Mast
+                let mastBase = r(-0.3, 0);
+                drawFace(
+                    [
+                        { x: mastBase.x - 0.04, y: mastBase.y - 0.04, z: hullZ },
+                        { x: mastBase.x + 0.04, y: mastBase.y - 0.04, z: hullZ },
+                        { x: mastBase.x + 0.04, y: mastBase.y - 0.04, z: 3.2 },
+                        { x: mastBase.x - 0.04, y: mastBase.y - 0.04, z: 3.2 },
+                    ],
+                    '#ddd',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Segel
+                let sailWind = angle + 0.3;
+                let sailEnd = {
+                    x: mastBase.x + Math.cos(sailWind + Math.PI) * 1.6,
+                    y: mastBase.y + Math.sin(sailWind + Math.PI) * 1.6,
+                };
+                // Hauptsegel
+                drawFace(
+                    [
+                        { x: mastBase.x, y: mastBase.y, z: hullZ + 0.3 },
+                        { x: mastBase.x, y: mastBase.y, z: 3.0 },
+                        { x: sailEnd.x, y: sailEnd.y, z: hullZ + 0.3 },
+                    ],
+                    'rgba(255, 255, 250, 0.95)',
+                    '#eee',
+                    0,
+                    cx,
+                    cy
+                );
+                // Vorsegel
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: hullZ + 0.1 },
+                        { x: mastBase.x, y: mastBase.y, z: 2.7 },
+                        {
+                            x: mastBase.x + Math.cos(sailWind + Math.PI) * 0.4,
+                            y: mastBase.y + Math.sin(sailWind + Math.PI) * 0.4,
+                            z: hullZ + 0.2,
+                        },
+                    ],
+                    'rgba(245, 245, 245, 0.9)',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+            }
+
+            // --- PERSON (Flat Billboard, Zivile Farben) ---
+            function drawPerson(pX, pY, pZ, angle, isWaving, cx, cy) {
+                // 1. Berechne die 2D-Bildschirmkoordinate der Füße in der Isometrie
+                let base = iso(pX, pY, pZ, cx, cy);
+
+                const scale = 1.0;
+                const headR = 2.5 * scale;
+                const torsoW = 5 * scale;
+                const torsoH = 7 * scale;
+                const legW = 2 * scale;
+                const legH = 6 * scale;
+
+                const colorShirt = '#5a786e';
+                const colorPants = '#3b4a6b';
+                const colorSkin = '#f2d0a4';
+
+                let drawX = base.x;
+                let drawY = base.y; // Fußpunkt
+
+                ctx.fillStyle = colorPants;
+                ctx.fillRect(drawX - torsoW / 2, drawY - legH, legW, legH); // Linkes Bein
+                ctx.fillRect(drawX + torsoW / 2 - legW, drawY - legH, legW, legH); // Rechtes Bein
+
+                let torsoY = drawY - legH - torsoH;
+                ctx.fillStyle = colorShirt;
+                ctx.fillRect(drawX - torsoW / 2, torsoY, torsoW, torsoH);
+
+                let headY = torsoY - headR + 1;
+                ctx.fillStyle = colorSkin;
+                ctx.beginPath();
+                ctx.arc(drawX, headY, headR, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Winken (flacher 2D-Arm)
+                if (isWaving) {
+                    ctx.strokeStyle = colorSkin;
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+
+                    // Schulterpunkt
+                    let shoulderX = drawX + torsoW / 2;
+                    let shoulderY = torsoY + 2;
+
+                    // Simple Winke-Animation (Pendeln auf der X/Y Achse)
+                    let waveOffset = Math.sin(Date.now() * 0.015) * 3;
+                    let handX = shoulderX + 4 + waveOffset;
+                    let handY = shoulderY - 5;
+
+                    ctx.beginPath();
+                    ctx.moveTo(shoulderX, shoulderY);
+                    ctx.lineTo(handX, handY);
+                    ctx.stroke();
+                }
+            }
+
+            // Draw the MiniMap UI
+            function drawMiniMap() {
+                let mapX = canvas.width - MAP_SIZE - MAP_MARGIN;
+                let mapY = canvas.height - MAP_SIZE - MAP_MARGIN;
+
+                // Map Background
+                ctx.fillStyle = 'rgba(0, 20, 10, 0.8)';
+                ctx.fillRect(mapX, mapY, MAP_SIZE, MAP_SIZE);
+                ctx.strokeStyle = '#3a3';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(mapX, mapY, MAP_SIZE, MAP_SIZE);
+
+                // Helper to map world to screen
+                const worldToMap = (wx, wy) => {
+                    let normX = (wx - WORLD.minX) / (WORLD.maxX - WORLD.minX);
+                    let normY = (wy - WORLD.minY) / (WORLD.maxY - WORLD.minY);
+                    return { x: mapX + normX * MAP_SIZE, y: mapY + normY * MAP_SIZE };
+                };
+
+                // Draw Models on Map
+                MODELS.forEach(m => {
+                    let mp = worldToMap(m.x, m.y);
+                    ctx.fillStyle = m.color;
+                    ctx.beginPath();
+                    ctx.arc(mp.x, mp.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Draw Camera Viewport indicator
+                // Cam looks at inverse iso formula: wx = cam.x/tileW + cam.y/tileH, wy = cam.y/tileH - cam.x/tileW
+                let wcx = cam.x / tileW + cam.y / tileH;
+                let wcy = cam.y / tileH - cam.x / tileW;
+
+                let cmp = worldToMap(wcx, wcy);
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(cmp.x - 10, cmp.y - 10, 20, 20);
+
+                // Map Header
+                ctx.fillStyle = '#5f5';
+                ctx.font = '12px monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText('MINIMAP', mapX + 5, mapY - 5);
+            }
+
+            // Render loop
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const time = Date.now() * 0.002;
+                const spin = time * 0.2; // Slow rotation speed
+
+                MODELS.forEach(m => {
+                    let angle = m.type === 'building' && m.id === 'lighthouse' ? 0 : spin;
+                    let radius = m.type === 'ship' ? 9 : m.type === 'heli' && m.id === 'chinook' ? 4.5 : 3.5;
+
+                    // Platform Frame
+                    drawFrame(m.x, m.y, radius, m.label, angle, cam.x, cam.y);
+
+                    // Shadows
+                    if (m.type === 'heli') {
+                        drawHeli(m.id, m.x, m.y, 2, angle, 0, 0, time * 6, cam.x, cam.y, true);
+                    }
+                });
+
+                // Static / Rotating Objects
+                drawLighthouse(-35, 0, time, cam.x, cam.y);
+                drawHangar(-15, 0, spin, cam.x, cam.y);
+                drawVectorCarrier(5, 25, spin, cam.x, cam.y);
+
+                // Helicopters
+                drawHeli('dolphin', 5, 0, 2, spin, Math.sin(time) * 0.1, Math.cos(time) * 0.1, time * 6, cam.x, cam.y);
+                drawHeli(
+                    'jayhawk',
+                    25,
+                    0,
+                    2,
+                    spin,
+                    Math.sin(time * 0.8) * 0.1,
+                    Math.cos(time * 0.8) * 0.1,
+                    time * 6,
+                    cam.x,
+                    cam.y
+                );
+                drawHeli(
+                    'chinook',
+                    45,
+                    0,
+                    2,
+                    spin,
+                    Math.sin(time * 0.5) * 0.05,
+                    Math.cos(time * 0.5) * 0.05,
+                    time * 6,
+                    cam.x,
+                    cam.y
+                );
+                drawSailboat(65, 0, spin, cam.x, cam.y);
+                drawPerson(85, 0, 0, spin, true, cam.x, cam.y);
+
+                drawMiniMap();
+
+                requestAnimationFrame(render);
+            }
+
+            render();
+        </script>
+    </body>
+</html>

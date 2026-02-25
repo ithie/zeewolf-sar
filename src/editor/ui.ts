@@ -138,17 +138,37 @@ const paint = (e: MouseEvent) => {
     if (gx < 0 || gx >= m.gridSize || gy < 0 || gy >= m.gridSize) return;
 
     if (state.currentTool === 'terrain') {
-        const amt = e.shiftKey ? -0.2 : 0.2;
         const rad = Math.ceil(state.brushRadius);
+
+        // Ziel-Höhe festlegen. Beim Linksklick bauen wir einen Berg (z.B. Höhe 15),
+        // mit Shift (Senken) graben wir ein Loch (z.B. Höhe -1).
+        const targetHeight = e.shiftKey ? -1.0 : 10.0;
+
+        const strength = 0.05;
+
         for (let dx = -rad; dx <= rad; dx++) {
             for (let dy = -rad; dy <= rad; dy++) {
-                if (Math.hypot(dx, dy) <= state.brushRadius && m.terrain[gx + dx]) {
-                    m.terrain[gx + dx][gy + dy] = Math.max(-1, Math.min(15, m.terrain[gx + dx][gy + dy] + amt));
+                const dist = Math.hypot(dx, dy);
+                const nx = gx + dx;
+                const ny = gy + dy;
+
+                if (dist <= state.brushRadius && m.terrain[nx] && m.terrain[nx][ny] !== undefined) {
+                    // Cosinus-Falloff: Innen = 1.0 (volle Kraft), Rand = 0.0 (keine Kraft)
+                    const falloff = (Math.cos((dist / state.brushRadius) * Math.PI) + 1) / 2;
+
+                    const currentH = m.terrain[nx][ny];
+
+                    // Lerp-Formel: Aktuelle Höhe + (Zielhöhe - Aktuelle Höhe) * Stärke * Pinsel-Weichheit
+                    let newH = currentH + (targetHeight - currentH) * strength * falloff;
+
+                    // Grenzen einhalten (-1 bis 15) und auf 2 Nachkommastellen runden
+                    newH = Math.max(-1, Math.min(15, newH));
+                    m.terrain[nx][ny] = Math.round(newH * 100) / 100;
                 }
             }
         }
     } else if (state.currentTool === 'flatten') {
-        const h = e.shiftKey ? -1 : 1;
+        const h = e.shiftKey ? -1 : 0.25;
         const rad = Math.ceil(state.brushRadius);
         for (let dx = -rad; dx <= rad; dx++) {
             for (let dy = -rad; dy <= rad; dy++) {
@@ -414,7 +434,7 @@ export const initUI = () => {
     getEl('btn-export-campaign').onclick = () => {
         const data = state.campaign.map(m => ({ ...m, terrain: compressTerrain(m.terrain) }));
         const exportData = {
-            type: 'ZEEWOLF_CAMPAIGN',
+            type: state.type || 'ZEEWOLF_CAMPAIGN',
             campaignTitle: getInput('c_title').value,
             campaignSublines: getEl<HTMLTextAreaElement>('c_sublines')
                 .value.split('\n')
@@ -430,17 +450,14 @@ export const initUI = () => {
         if (!raw) return;
         try {
             const parsed = JSON.parse(raw);
-            if (parsed.type === 'ZEEWOLF_CAMPAIGN') {
-                getInput('c_title').value = parsed.campaignTitle || 'Imported Campaign';
-                getEl<HTMLTextAreaElement>('c_sublines').value = (parsed.campaignSublines || []).join('\n');
-                state.campaign = parsed.levels.map((m: any) => ({
-                    ...m,
-                    terrain: decompressTerrain(m.terrain, m.gridSize),
-                }));
-                loadMission(0);
-            } else {
-                alert('Ungültiges Format! Bitte verwende eine aktuelle Kampagnen-Datei.');
-            }
+            getInput('c_title').value = parsed.campaignTitle || 'Imported Campaign';
+            getEl<HTMLTextAreaElement>('c_sublines').value = (parsed.campaignSublines || []).join('\n');
+            state.type = parsed.type;
+            state.campaign = parsed.levels.map((m: any) => ({
+                ...m,
+                terrain: decompressTerrain(m.terrain, m.gridSize),
+            }));
+            loadMission(0);
         } catch (e) {
             alert('Import Fehler!\n\n' + e);
         }

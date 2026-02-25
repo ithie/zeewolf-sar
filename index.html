@@ -13,9 +13,10 @@
             }
 
             #splash,
-            #mission-select,
+            #campaign-select,
             #heli-select,
             #crash-screen,
+            #mission-success-screen,
             #win-screen {
                 position: absolute;
                 top: 0;
@@ -34,6 +35,7 @@
                 background: rgba(60, 0, 0, 0.9);
                 display: none;
             }
+            #mission-success-screen,
             #win-screen {
                 background: rgba(0, 60, 30, 0.9);
                 display: none;
@@ -53,9 +55,23 @@
                 transition: opacity 0.1s;
             }
 
-            #mission-select,
+            #campaign-select,
             #heli-select {
                 display: none;
+            }
+
+            #audio-mute {
+                position: absolute;
+                top: 0;
+                left: 0;
+                color: #ff6600;
+                font-size: 16px;
+                display: block;
+                border: 3px solid blue;
+                background-color: white;
+                padding: 2px;
+                margin: 5px;
+                z-index: 1000;
             }
 
             .title {
@@ -73,7 +89,7 @@
             }
 
             .grid-container,
-            .mission-grid {
+            .campaign-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr 1fr;
                 gap: 20px;
@@ -165,23 +181,26 @@
                 pointer-events: none;
             }
         </style>
+        <script type="module" src="/src/game/main.ts"></script>
+        <script type="module" src="/src/game/state.ts"></script>
     </head>
     <body>
+        <div id="audio-mute"></div>
         <div id="flash-overlay"></div>
         <div id="tut-msg" class="tut-overlay"></div>
         <div id="msg"></div>
 
-        <div id="splash" onclick="toMissionSelect()">
+        <div id="splash" onclick="toCampaignSelect()">
             <div class="title">ZEEWOLF: SAR</div>
             <div class="subtitle">v20</div>
             <canvas id="menu-heli-big"></canvas>
             <p class="start-hint">CLICK TO START SYSTEM</p>
         </div>
 
-        <div id="mission-select">
+        <div id="campaign-select">
             <div class="title">SELECT MISSION</div>
             <div class="subtitle">OPERATION THEATER</div>
-            <div class="mission-grid" id="mission-grid"></div>
+            <div class="campaign-grid" id="campaign-grid"></div>
         </div>
 
         <div id="heli-select">
@@ -229,9 +248,14 @@
             <p id="crash-reason" style="color: #f00; font-size: 24px; font-weight: bold"></p>
             <p class="start-hint">RETRY</p>
         </div>
-        <div id="win-screen" onclick="location.reload()">
+        <div id="mission-success-screen" onclick="location.reload()">
             <div class="title" style="color: #fff">MISSION COMPLETE</div>
-            <p style="color: #5f5; font-size: 24px">ALL OBJECTIVES CLEARED</p>
+            <p style="color: rgb(50, 74, 50); font-size: 24px">ALL OBJECTIVES CLEARED</p>
+            <p class="start-hint">RETURN TO BASE</p>
+        </div>
+        <div id="win-screen" onclick="location.reload()">
+            <div class="title" style="color: #fff">CAMPAIGN COMPLETE</div>
+            <p style="color: #5f5; font-size: 24px">ALL MISSIONS CLEARED</p>
             <p class="start-hint">RETURN TO BASE</p>
         </div>
         <canvas id="gameCanvas"></canvas>
@@ -248,279 +272,18 @@
             const tileW = 64,
                 tileH = 32,
                 stepH = 25;
-            let gridSize = 200;
 
             // STATE
-            let gameStarted = false,
-                crashed = false;
-            let introActive = false,
-                introProgress = 0;
             let missionType = 'coastal';
             let goalCount = 10,
                 totalRescued = 0,
                 totalSpawned = 0;
-            let stormActive = false;
 
             let menuHover = { dolphin: false, jayhawk: false, chinook: false };
             let menuAngles = { dolphin: -0.5, jayhawk: -0.5, chinook: -0.5 };
 
             let points = [],
                 particles = [];
-            let cam = { x: 0, y: 0 };
-
-            const Missions = {
-                tut_fly: {
-                    conditions: {
-                        grid: 200,
-                        goalCount: 1,
-                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
-                        START_POS: { x: 21.5, y: 21.5 },
-                    },
-                    color: 'ff9900',
-                    headline: {
-                        label: 'ACADEMY 1',
-                        color: 'ff9900',
-                    },
-                    sublines: ['FLIGHT SCHOOL', 'Engine & Movement'],
-                },
-                tut_winch: {
-                    conditions: {
-                        grid: 200,
-                        goalCount: 1,
-                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
-                        START_POS: { x: 21.5, y: 21.5 },
-                    },
-                    color: 'ff9900',
-                    headline: {
-                        label: 'ACADEMY 2',
-                        color: 'ff9900',
-                    },
-                    sublines: ['CARGO & WINCH', 'Hooks & Drops'],
-                },
-                coastal: {
-                    conditions: {
-                        grid: 200,
-                        goalCount: 10,
-                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
-                        START_POS: { x: 21.5, y: 21.5 },
-                    },
-                    color: 'ff9900',
-                    headline: {
-                        label: 'COASTAL TRAINIG',
-                        color: 'ff9900',
-                    },
-                    sublines: ['Sunny / Landbase', 'Goal: 10 Survivors'],
-                },
-                recovery: {
-                    conditions: {
-                        grid: 200,
-                        goalCount: 3,
-                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
-                        START_POS: { x: 21.5, y: 21.5 },
-                    },
-                    headline: 'RECOVERY OP',
-                    sublines: [{ label: 'Hilly / Heavy Crates', color: 'fb0' }, 'Goal: 3 Crates'],
-                },
-                storm: {
-                    conditions: {
-                        goalCount: 8,
-                        grid: 200,
-                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
-                        START_POS: { x: 21.5, y: 21.5 },
-                        storm: true,
-                    },
-                    headline: 'THE STORM',
-                    sublines: [{ label: 'Rain / Islands', color: '0cf' }, 'Goal: 8 Survivors'],
-                },
-                sea: {
-                    conditions: {
-                        goalCount: 15,
-                        storm: true,
-                        grid: 400,
-                        init: () => {
-                            CARRIER.centerX = 200;
-                            CARRIER.centerY = 200;
-                            seaTime = 0;
-
-                            updateCarrierPos(true);
-
-                            let rot = rotatePoint(0, 4.0, CARRIER.angle);
-                            return { START_POS: { x: CARRIER.x + rot.x, y: CARRIER.y + rot.y } };
-                        },
-                    },
-                    headline: {
-                        label: 'CARRIER OPS',
-                        color: 'fff',
-                    },
-                    sublines: [{ label: 'MOVING SHIP / DECK OPS', color: 'fff' }, 'Goal: 15 Survivors'],
-                },
-                night: {
-                    conditions: {
-                        goalCount: 6,
-                        grid: 200,
-                        PAD: { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 },
-                        START_POS: { x: 21.5, y: 21.5 },
-                        night: true,
-                    },
-                    headline: {
-                        label: 'NIGHT OPS',
-                        color: 'aaf',
-                    },
-                    sublines: ['Darkness / Spotlight', 'Goal: 6 Lost Souls'],
-                },
-                canyon: {
-                    conditions: {
-                        grid: 200,
-                        goalCount: 5,
-                        START_POS: { x: 100, y: 10 },
-                        PAD: { xMin: 95, xMax: 105, yMin: 5, yMax: 15, z: 0.5 },
-                    },
-                    color: 'd84',
-                    headline: {
-                        label: 'CANYON RUN',
-                        color: 'd84',
-                    },
-                    sublines: ['Windy High / Calm low', 'Goal: 5 Climbers'],
-                },
-                rig: {
-                    conditions: {
-                        storm: true,
-                        grid: 200,
-                        goalCount: 12,
-                        START_POS: { x: 100, y: 100 },
-                        PAD: { xMin: 96, xMax: 104, yMin: 96, yMax: 104, z: 2.0 },
-                    },
-                    color: 'f33',
-                    headline: {
-                        label: 'BURNING RIG',
-                        color: 'f33',
-                    },
-                    sublines: ['Fire / Obstacles', 'Goal: 12 Workers'],
-                },
-            };
-
-            // --- Z-SYNTH AUDIO ENGINE (INSERTED) ---
-            const ZSynth = {
-                ctx: null,
-                isPlaying: false,
-                tempo: 110,
-                nextNoteTime: 0.0,
-                step: 0,
-                timerID: null,
-                freqs: { A1: 55.0, C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.0, A2: 110.0 },
-                freqs2: { A1: 55.0, C2: null, D2: 73.42, E2: null, F2: 87.31, G2: null, A2: null },
-                pattern: [
-                    'A1',
-                    null,
-                    'A1',
-                    null,
-                    'C2',
-                    null,
-                    'A1',
-                    null,
-                    'F2',
-                    null,
-                    'F2',
-                    null,
-                    'G2',
-                    null,
-                    'E2',
-                    null,
-                ],
-                init: function () {
-                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
-                    this.ctx = new AudioContext();
-                },
-                playTone: function (freq, time) {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.value = freq;
-                    const filter = this.ctx.createBiquadFilter();
-                    filter.type = 'lowpass';
-                    filter.frequency.value = 600;
-                    gain.gain.setValueAtTime(0.3, time);
-                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-                    osc.connect(filter);
-                    filter.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start(time);
-                    osc.stop(time + 0.25);
-                },
-                playAnotherTone: function (freq, time) {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.value = freq;
-                    const filter = this.ctx.createBiquadFilter();
-                    filter.type = 'notch';
-                    filter.frequency.value = 200;
-                    gain.gain.setValueAtTime(0.3, time);
-                    gain.gain.exponentialRampToValueAtTime(0.04, time + 0.4);
-                    osc.connect(filter);
-                    filter.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start(time);
-                    osc.stop(time + 0.25);
-                },
-                playDrum: function (time, type) {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    if (type === 'kick') {
-                        osc.frequency.setValueAtTime(150, time);
-                        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-                        gain.gain.setValueAtTime(0.8, time);
-                        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-                        osc.connect(gain);
-                    } else {
-                        osc.type = 'square';
-                        osc.frequency.value = 800;
-                        osc.frequency.exponentialRampToValueAtTime(100, time + 0.1);
-                        gain.gain.setValueAtTime(0.2, time);
-                        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
-                        const filter = this.ctx.createBiquadFilter();
-                        filter.type = 'highpass';
-                        filter.frequency.value = 1000;
-                        osc.connect(filter);
-                        filter.connect(gain);
-                    }
-                    gain.connect(this.ctx.destination);
-                    osc.start(time);
-                    osc.stop(time + 0.5);
-                },
-                scheduler: function () {
-                    while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
-                        this.playStep(this.nextNoteTime);
-                        const secondsPerBeat = 60.0 / this.tempo;
-                        this.nextNoteTime += 0.25 * secondsPerBeat;
-                    }
-                    this.timerID = requestAnimationFrame(this.scheduler.bind(this));
-                },
-                playStep: function (time) {
-                    const currentNote = this.pattern[this.step % 16];
-                    if (currentNote && this.freqs[currentNote]) this.playTone(this.freqs[currentNote], time);
-                    if (currentNote && this.freqs2[currentNote]) this.playAnotherTone(this.freqs[currentNote], time);
-                    const beat = this.step % 16;
-                    if (beat % 4 === 0) this.playDrum(time, 'kick');
-                    if (beat % 8 === 4) this.playDrum(time, 'snare');
-                    if (beat % 2 === 0) this.playDrum(time, 'hat');
-                    this.step++;
-                },
-                start: function () {
-                    if (this.isPlaying) return;
-                    if (!this.ctx) this.init();
-                    if (this.ctx.state === 'suspended') this.ctx.resume();
-                    this.isPlaying = true;
-                    this.step = 0;
-                    this.nextNoteTime = this.ctx.currentTime + 0.1;
-                    this.scheduler();
-                },
-                stop: function () {
-                    this.isPlaying = false;
-                    cancelAnimationFrame(this.timerID);
-                },
-            };
-            // ------------------------------------------
 
             let CARRIER = {
                 x: 100,
@@ -579,94 +342,98 @@
             let keys = {};
 
             function initGrid(size) {
-                gridSize = size;
                 points = [];
-                for (let x = 0; x <= gridSize; x++) {
+                for (let x = 0; x <= size; x++) {
                     points[x] = [];
-                    for (let y = 0; y <= gridSize; y++) {
+                    for (let y = 0; y <= size; y++) {
                         points[x][y] = 0;
                     }
                 }
             }
-            initGrid(200);
 
-            function toMissionSelect() {
-                // --- MUSIC START INJECTION ---
-                ZSynth.start();
+            function toCampaignSelect() {
+                window.soundHandler.play('main');
+
                 // -----------------------------
                 document.getElementById('splash').style.display = 'none';
 
-                const missions = [];
+                const campaignHandler = window.campaignHandler();
 
-                for (const [missionKey, missionValues] of Object.entries(Missions)) {
+                const campaigns = [];
+
+                campaignHandler.getCampaigns().forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
                     let sublines = '';
 
-                    missionValues.sublines.forEach(subline => {
-                        sublines += `<div class="box-sub"${subline.color ? `style="${subline.color}"` : ''}>
-                        ${subline.label ? subline.label : subline}
-                            </div>`;
+                    campaignSublines.forEach(subline => {
+                        sublines += `<div class="box-sub">${subline}</div>`;
                     });
-                    missions.push(
-                        `<div class="grid-box" onclick="selectMission('${missionKey}')"${missionValues.color ? ` style="border-color: #${missionValues.color}"` : ''}>
-                    <div class="box-label"${missionValues.headline && missionValues.headline.color ? ` style="color: #${missionValues.headline.color}"` : ''}>
-                        ${missionValues.headline.label ? missionValues.headline.label : missionValues.headline}
+                    sublines += `<div class="box-sub">Missions: ${levels.length}</div>`;
+
+                    campaigns.push(
+                        `<div class="grid-box" onclick="selectCampaign('${index}')"${type === 'tutorial' ? ` style="border-color: #ff9900"` : ''}>
+                    <div class="box-label"${type === 'tutorial' ? ` style="color: #ff9900"` : ''}>
+                        ${campaignTitle}
                     </div>
                     ${sublines}
                 </div>`
                     );
-                }
+                });
 
-                document.getElementById('mission-select').style.display = 'flex';
-                document.getElementById('mission-grid').innerHTML = missions.join('');
+                document.getElementById('campaign-select').style.display = 'flex';
+                document.getElementById('campaign-grid').innerHTML = campaigns.join('');
             }
 
             function setHover(type, state) {
                 menuHover[type] = state;
             }
 
-            function selectMission(type) {
-                missionType = type;
-                stormActive = false;
-                PAD = { xMin: 18, xMax: 25, yMin: 17, yMax: 25, z: 0.5 };
-                START_POS = { x: 21.5, y: 21.5 };
+            function selectCampaign(index) {
+                const campaignHandler = window.campaignHandler();
 
-                const currentMission = Missions[type].conditions;
+                campaignHandler.campaign.setActiveCampaign(index);
 
-                goalCount = currentMission.goalCount;
+                const {
+                    gridSize,
+                    goalPersons,
+                    goalCrates,
+                    rain = stormActive,
+                    padX,
+                    padY,
+                    night: isNight,
+                } = campaignHandler.getCurrentMissionData();
 
-                initGrid(currentMission.grid);
+                /**
+                 * @todo: adapt z according to placement
+                 */
+                PAD = { xMin: padX, xMax: padX + 7, yMin: padY, yMax: padY + 7, z: 0.5 };
 
-                if (currentMission.storm) {
-                    stormActive = true;
-                }
-                if (currentMission.night) {
-                    night = true;
-                }
-                if (currentMission.START_POS) {
-                    START_POS = currentMission.START_POS;
-                }
-                if (currentMission.PAD) {
-                    PAD = currentMission.PAD;
-                }
-                if (currentMission.init) {
-                    const initValues = currentMission.init();
+                START_POS = { x: padX + 4, y: padY + 4 };
 
-                    if (initValues.START_POS) {
-                        START_POS = initValues.START_POS;
-                    }
-                }
+                goalCount = goalPersons + goalCrates;
 
-                document.getElementById('mission-grid').innerHTML = '';
-                document.getElementById('mission-select').style.display = 'none';
+                initGrid(gridSize);
+
+                night = isNight;
+
+                document.getElementById('campaign-grid').innerHTML = '';
+                document.getElementById('campaign-select').style.display = 'none';
                 document.getElementById('heli-select').style.display = 'flex';
                 animateHeliPreviews();
             }
 
-            // forceUpdate: Calculate Angle strictly from Math, not from delta position
+            /**
+             * @todo implement both angle, path and radius
+             */
             function updateCarrierPos(forceUpdate = false) {
-                if (missionType !== 'sea') return;
+                const { carrierX, carrierY, carrierSpeed, carrierRadius } = window
+                    .campaignHandler()
+                    .getCurrentMissionData();
 
-                if (!forceUpdate) seaTime += CARRIER.turnSpeed;
+                if (carrierX === -1 && carrierY === -1) {
+                    return;
+                }
+
+                if (!forceUpdate) seaTime += carrierSpeed;
 
                 // Elliptical Path Position
                 let nx = CARRIER.centerX + Math.cos(seaTime) * CARRIER.radiusX;
@@ -697,53 +464,16 @@
             }
 
             function generateTerrain() {
+                const campaignHandler = window.campaignHandler();
+
+                const { terrain, gridSize } = campaignHandler.getTerrain();
+
                 for (let x = 0; x <= gridSize; x++) {
                     for (let y = 0; y <= gridSize; y++) {
-                        if (missionType === 'sea') {
-                            points[x][y] = -1.0 + Math.sin(x * 0.1) * Math.cos(y * 0.1) * 0.2;
+                        if (x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1) {
+                            points[x][y] = PAD.z;
                         } else {
-                            if (x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1) {
-                                points[x][y] = PAD.z;
-                            } else {
-                                if (missionType.startsWith('tut_')) {
-                                    points[x][y] = 0;
-                                } else if (missionType === 'storm') {
-                                    let island = Math.sin(x * 0.05) * Math.cos(y * 0.05) * 4 - 3.5;
-                                    points[x][y] = Math.max(-0.5, island);
-                                } else if (missionType === 'recovery') {
-                                    let h = Math.sin(x * 0.15) * Math.cos(y * 0.15) * 4;
-                                    points[x][y] = Math.max(-0.2, h);
-                                } else if (missionType === 'night') {
-                                    let h = Math.sin(x * 0.08) * Math.cos(y * 0.08) * 2.5;
-                                    points[x][y] = Math.max(-0.2, h);
-                                } else if (missionType === 'canyon') {
-                                    // Ein tiefer Graben in der Mitte (y-Achse)
-                                    // Wir nutzen eine Cosinus-Welle, um den Canyon zu formen
-                                    let canyonCenter = gridSize / 2;
-                                    let width = 20;
-                                    let dist = Math.abs(x - canyonCenter);
-
-                                    // Boden ist wellig, Wände gehen steil hoch
-                                    let floor = Math.sin(y * 0.1) * 0.5;
-                                    let walls = 0;
-
-                                    if (dist > width) {
-                                        // Außerhalb des Canyons geht es hoch
-                                        walls = (dist - width) * 0.5;
-                                        if (walls > 8) walls = 8 + Math.random(); // Zickzack oben
-                                    }
-                                    points[x][y] = Math.max(-0.5, floor + walls);
-                                } else if (missionType === 'rig') {
-                                    points[x][y] = -1.0;
-
-                                    if (x >= 85 && x <= 115 && y >= 85 && y <= 115) {
-                                        points[x][y] = 2.5;
-                                    }
-                                } else {
-                                    let h = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 3 + Math.cos(x * 0.05) * 2;
-                                    points[x][y] = Math.max(-0.2, h);
-                                }
-                            }
+                            points[x][y] = terrain[x][y];
                         }
                     }
                 }
@@ -760,10 +490,15 @@
             }
 
             function getGround(fx, fy) {
+                const { gridSize } = window.campaignHandler().getTerrain();
                 let x1 = Math.floor(fx),
                     y1 = Math.floor(fy);
                 if (x1 < 0 || y1 < 0 || x1 >= gridSize - 1 || y1 >= gridSize - 1) return -1.0;
+                if (!points[x1] || !points[x1 + 1]) return -1.0;
 
+                /**
+                 * @todo adapt carrier positioning
+                 */
                 if (missionType === 'sea') {
                     let local = getCarrierLocal(fx, fy);
                     if (
@@ -780,65 +515,47 @@
 
                 let tX = fx - x1,
                     tY = fy - y1;
-                return (
-                    points[x1][y1] * (1 - tX) * (1 - tY) +
-                    points[x1 + 1][y1] * tX * (1 - tY) +
-                    points[x1 + 1][y1 + 1] * (1 - tX) * tY +
-                    points[x1 + 1][y1 + 1] * tX * tY
-                );
+
+                if (x1 + 1 < gridSize && y1 + 1 < gridSize) {
+                    return (
+                        points[x1][y1] * (1 - tX) * (1 - tY) +
+                        points[x1 + 1][y1] * tX * (1 - tY) +
+                        points[x1 + 1][y1 + 1] * (1 - tX) * tY +
+                        points[x1 + 1][y1 + 1] * tX * tY
+                    );
+                }
             }
 
             function spawnPayload() {
-                if (missionType === 'tut_fly') {
-                    payload.x = 15;
-                    payload.y = 15;
-                    payload.vx = 0;
-                    payload.vy = 0;
-                    payload.type = 'person';
-                    payload.rescued = false;
-                    payload.hanging = false;
-                    valid = true;
-                    totalSpawned++;
-                } else if (missionType === 'tut_winch') {
-                    payload.x = 30;
-                    payload.y = 30;
-                    payload.vx = 0;
-                    payload.vy = 0;
-                    payload.rescued = false;
-                    payload.hanging = false;
-                    payload.type = 'crate';
-                    valid = true;
-                    totalSpawned++;
-                } else {
-                    if (totalRescued + heli.onboard < goalCount && !payload.hanging && payload.rescued) {
-                        let valid = false,
-                            attempts = 0;
-                        while (!valid && attempts < 200) {
-                            attempts++;
-                            payload.x = 5 + Math.random() * (gridSize - 10);
-                            payload.y = 5 + Math.random() * (gridSize - 10);
-                            let g = getGround(payload.x, payload.y);
-                            if (missionType === 'sea') {
-                                let d = Math.hypot(payload.x - CARRIER.x, payload.y - CARRIER.y);
-                                if (g < 0 && d > 30) valid = true;
-                            } else if (missionType === 'storm') {
-                                if (g < 0) valid = true;
-                            } else {
-                                if (g > 0 && (payload.x < PAD.xMin || payload.x > PAD.xMax)) valid = true;
-                            }
+                const { gridSize } = window.campaignHandler().getTerrain();
+                if (totalRescued + heli.onboard < goalCount && !payload.hanging && payload.rescued) {
+                    let valid = false,
+                        attempts = 0;
+                    while (!valid && attempts < 200) {
+                        attempts++;
+                        payload.x = 5 + Math.random() * (gridSize - 10);
+                        payload.y = 5 + Math.random() * (gridSize - 10);
+                        let g = getGround(payload.x, payload.y);
+                        if (missionType === 'sea') {
+                            let d = Math.hypot(payload.x - CARRIER.x, payload.y - CARRIER.y);
+                            if (g < 0 && d > 30) valid = true;
+                        } else if (missionType === 'storm') {
+                            if (g < 0) valid = true;
+                        } else {
+                            if (g > 0 && (payload.x < PAD.xMin || payload.x > PAD.xMax)) valid = true;
                         }
-                        if (!valid) {
-                            payload.x = 30;
-                            payload.y = 30;
-                        }
-                        payload.z = getGround(payload.x, payload.y);
-                        payload.vx = 0;
-                        payload.vy = 0;
-                        payload.rescued = false;
-                        payload.hanging = false;
-                        payload.type = missionType === 'recovery' ? 'crate' : 'person';
-                        totalSpawned++;
                     }
+                    if (!valid) {
+                        payload.x = 30;
+                        payload.y = 30;
+                    }
+                    payload.z = getGround(payload.x, payload.y);
+                    payload.vx = 0;
+                    payload.vy = 0;
+                    payload.rescued = false;
+                    payload.hanging = false;
+                    payload.type = missionType === 'recovery' ? 'crate' : 'person';
+                    totalSpawned++;
                 }
             }
 
@@ -852,23 +569,6 @@
             }
 
             function handleParticles() {
-                if (missionType === 'rig') {
-                    if (Math.random() < 0.3) {
-                        let rx = 100 + (Math.random() - 0.5) * 30;
-                        let ry = 100 + (Math.random() - 0.5) * 30;
-                        if (getGround(rx, ry) > 3.0) {
-                            particles.push({
-                                x: rx,
-                                y: ry,
-                                z: getGround(rx, ry),
-                                vx: 0.1 + Math.random() * 0.1,
-                                vy: 0.1,
-                                life: 1.0,
-                                color: '50, 50, 50',
-                            });
-                        }
-                    }
-                }
                 let gH = getGround(heli.x, heli.y);
                 if (heli.z < 2.5 && heli.rotorRPM > 0.8 && gH > 0.1) {
                     for (let i = 0; i < 1; i++) {
@@ -906,6 +606,10 @@
             }
 
             function updatePhysics() {
+                const zstate = window.zstate;
+                const { crashed } = zstate;
+                const { gridSize } = window.campaignHandler().getTerrain();
+                const { rain: stormActive } = window.campaignHandler().getCurrentMissionData();
                 let baseWind = stormActive ? 0.002 : 0.00015;
                 wind.phase += 0.01;
                 let gust = 1 + Math.sin(wind.phase) * (stormActive ? 0.8 : 0.2);
@@ -961,6 +665,9 @@
                 let groundH = getGround(heli.x, heli.y);
                 let onPad = false;
                 if (missionType === 'sea') {
+                    /**
+                     * @todo: carrier landing anpassen
+                     */
                     let local = getCarrierLocal(heli.x, heli.y);
                     if (local.x >= -CARRIER.w && local.x <= CARRIER.w && local.y >= -CARRIER.l && local.y <= CARRIER.l)
                         onPad = true;
@@ -975,7 +682,8 @@
                 }
 
                 // --- MOTOR START BLOCK DURING INTRO ---
-                if (keys['KeyW'] && !heli.engineOn && heli.fuel > 0 && onPad && !introActive) heli.engineOn = true;
+                if (keys['KeyW'] && !heli.engineOn && heli.fuel > 0 && onPad && !zstate.introActive)
+                    heli.engineOn = true;
 
                 if (keys['KeyS'] && !heli.inAir && heli.engineOn && heli.rotorRPM < 0.1) heli.engineOn = false;
                 heli.rotorRPM =
@@ -1156,7 +864,7 @@
                         totalRescued += heli.onboard;
                         heli.onboard = 0;
                         if (totalRescued >= goalCount) {
-                            ZSynth.stop();
+                            window.soundHandler.play('final');
                             document.getElementById('win-screen').style.display = 'flex';
                         } else {
                             showMsg(`SECURED: ${totalRescued}/${goalCount}`);
@@ -1165,7 +873,7 @@
                     }
                 }
 
-                if (!introActive) {
+                if (!zstate.introActive) {
                     let safeToLand = onPad;
                     if (!safeToLand && heli.z < 0.1 && getGround(heli.x, heli.y) < -0.2) triggerCrash('WATER IMPACT');
 
@@ -1176,6 +884,10 @@
                     }
 
                     // --- LIGHTHOUSE COLLISION CHECK ---
+                    /**
+                     *  @todo: insert always if required by campaign!
+                     * Correct positioning
+                     */
                     if (missionType === 'sea') {
                         let distToLH = Math.hypot(heli.x - 200, heli.y - 200);
                         // Check if within horizontal radius (approx 2.0) and below max height (8.5)
@@ -1187,12 +899,18 @@
             }
 
             function triggerCrash(reason) {
-                ZSynth.stop(); // --- STOP MUSIC (CRASH) ---
-                crashed = true;
+                const zstate = window.zstate;
+
+                window.soundHandler.play('final');
+
+                zstate.crashed = true;
                 document.getElementById('crash-reason').innerHTML = reason;
                 document.getElementById('crash-screen').style.display = 'flex';
             }
 
+            /**
+             * @todo: adapt rendering of carrier
+             */
             function drawVectorCarrier(cx, cy) {
                 let cw = CARRIER.w;
                 let cl = CARRIER.l;
@@ -1469,116 +1187,61 @@
                     );
                 });
             }
-            function drawRig(cx, cy) {
-                let rX = 100; // Position X (Mitte der Map)
-                let rY = 100; // Position Y
-                let size = 15; // Größe der Plattform (halbe Breite)
-                let dZ = 2.5; // Höhe des Decks über Wasser
-                let wZ = -1.0; // Wasserhöhe
+            // --- PERSON (Flat Billboard, Zivile Farben) ---
+            function drawPerson(pX, pY, pZ, angle, isWaving, cx, cy) {
+                // 1. Berechne die 2D-Bildschirmkoordinate der Füße in der Isometrie
+                let base = iso(pX, pY, pZ, cx, cy);
 
-                // Hilfsfunktion für Punkte relativ zur Rig-Mitte
-                function r(ox, oy, z) {
-                    return iso(rX + ox, rY + oy, z, cx, cy);
-                }
+                const scale = 1.0;
+                const headR = 2.5 * scale;
+                const torsoW = 5 * scale;
+                const torsoH = 7 * scale;
+                const legW = 2 * scale;
+                const legH = 6 * scale;
 
-                // 1. Die Stelzen (4 Beine im Wasser)
-                ctx.strokeStyle = '#444';
-                ctx.lineWidth = 4;
-                let legs = [
-                    [-size, -size],
-                    [size, -size],
-                    [size, size],
-                    [-size, size],
-                ];
-                legs.forEach(l => {
-                    let top = r(l[0], l[1], dZ);
-                    let bot = r(l[0], l[1], wZ);
+                const colorShirt = '#5a786e';
+                const colorPants = '#3b4a6b';
+                const colorSkin = '#f2d0a4';
+
+                let drawX = base.x;
+                let drawY = base.y; // Fußpunkt
+
+                ctx.fillStyle = colorPants;
+                ctx.fillRect(drawX - torsoW / 2, drawY - legH, legW, legH); // Linkes Bein
+                ctx.fillRect(drawX + torsoW / 2 - legW, drawY - legH, legW, legH); // Rechtes Bein
+
+                let torsoY = drawY - legH - torsoH;
+                ctx.fillStyle = colorShirt;
+                ctx.fillRect(drawX - torsoW / 2, torsoY, torsoW, torsoH);
+
+                let headY = torsoY - headR + 1;
+                ctx.fillStyle = colorSkin;
+                ctx.beginPath();
+                ctx.arc(drawX, headY, headR, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Winken (flacher 2D-Arm)
+                if (isWaving) {
+                    ctx.strokeStyle = colorSkin;
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+
+                    // Schulterpunkt
+                    let shoulderX = drawX + torsoW / 2;
+                    let shoulderY = torsoY + 2;
+
+                    // Simple Winke-Animation (Pendeln auf der X/Y Achse)
+                    let waveOffset = Math.sin(Date.now() * 0.015) * 3;
+                    let handX = shoulderX + 4 + waveOffset;
+                    let handY = shoulderY - 5;
+
                     ctx.beginPath();
-                    ctx.moveTo(bot.x, bot.y);
-                    ctx.lineTo(top.x, top.y);
+                    ctx.moveTo(shoulderX, shoulderY);
+                    ctx.lineTo(handX, handY);
                     ctx.stroke();
-                });
-
-                // 2. Das Hauptdeck (Unterseite dunkel, Seite mittel, Oben hell)
-                let p1 = r(-size, -size, dZ);
-                let p2 = r(size, -size, dZ);
-                let p3 = r(size, size, dZ);
-                let p4 = r(-size, size, dZ);
-
-                // Dicke des Decks (0.5 Einheiten nach unten)
-                let p1b = r(-size, -size, dZ - 0.5);
-                let p2b = r(size, -size, dZ - 0.5);
-                let p3b = r(size, size, dZ - 0.5);
-
-                // Seitenwände des Decks (Rostig)
-                ctx.fillStyle = '#632'; // Rost-Rot
-                ctx.beginPath();
-                ctx.moveTo(p2.x, p2.y);
-                ctx.lineTo(p3.x, p3.y);
-                ctx.lineTo(p3b.x, p3b.y);
-                ctx.lineTo(p2b.x, p2b.y);
-                ctx.fill();
-                ctx.fillStyle = '#521'; // Schattenseite
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.lineTo(p2b.x, p2b.y);
-                ctx.lineTo(p1b.x, p1b.y);
-                ctx.fill();
-
-                ctx.fillStyle = '#222';
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.lineTo(p3.x, p3.y);
-                ctx.lineTo(p4.x, p4.y);
-                ctx.fill();
-
-                ctx.strokeStyle = '#aa0';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(p1.x + 10, p1.y + 5);
-                ctx.lineTo(p3.x - 10, p3.y - 5); // X
-                ctx.moveTo(p2.x - 10, p2.y + 5);
-                ctx.lineTo(p4.x + 10, p4.y - 5);
-                ctx.stroke();
-
-                let tBaseX = rX - 8;
-                let tBaseY = rY - 8;
-                let tW = 4;
-                let tH = 8.0;
-
-                let t1 = iso(tBaseX - tW, tBaseY - tW, dZ, cx, cy);
-                let t2 = iso(tBaseX + tW, tBaseY - tW, dZ, cx, cy);
-                let t3 = iso(tBaseX + tW, tBaseY + tW, dZ, cx, cy);
-                let t4 = iso(tBaseX - tW, tBaseY + tW, dZ, cx, cy);
-                let tTop = iso(tBaseX, tBaseY, dZ + tH, cx, cy); // Spitze
-
-                ctx.fillStyle = 'rgba(40, 40, 50, 0.8)';
-                ctx.strokeStyle = '#889';
-                ctx.lineWidth = 1;
-
-                ctx.beginPath();
-                ctx.moveTo(t1.x, t1.y);
-                ctx.lineTo(t2.x, t2.y);
-                ctx.lineTo(tTop.x, tTop.y);
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.moveTo(t2.x, t2.y);
-                ctx.lineTo(t3.x, t3.y);
-                ctx.lineTo(tTop.x, tTop.y);
-                ctx.fill();
-                ctx.stroke();
-
-                if (Math.random() > 0.5) {
-                    ctx.fillStyle = '#fa0';
-                    ctx.beginPath();
-                    ctx.arc(tTop.x, tTop.y - 5, 4 + Math.random() * 4, 0, 7);
-                    ctx.fill();
                 }
             }
+
             // --- ROUND LIGHTHOUSE (CYLINDER) ---
             function drawLighthouse(cx, cy) {
                 if (missionType !== 'sea') return;
@@ -1747,6 +1410,9 @@
 
             function drawPayloadObject() {
                 if (payload.rescued && !payload.hanging) return;
+
+                const { cam } = window.zstate;
+
                 let p = iso(payload.x, payload.y, payload.z, cam.x, cam.y);
                 if (payload.type === 'crate') {
                     ctx.fillStyle = '#d84';
@@ -1756,10 +1422,8 @@
                     ctx.fillRect(p.x - s / 2, p.y - s, s, s);
                     ctx.strokeRect(p.x - s / 2, p.y - s, s, s);
                 } else {
-                    ctx.fillStyle = 'red';
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 4, 0, 7);
-                    ctx.fill();
+                    drawPerson(payload.x, payload.y, payload.z, 0, !payload.hanging, cam.x, cam.y);
+
                     if (payload.z < 0) {
                         ctx.strokeStyle = '#aaf';
                         ctx.beginPath();
@@ -1773,13 +1437,12 @@
                     ctx.lineWidth = 1.5;
                     ctx.beginPath();
                     ctx.moveTo(hPos.x, hPos.y);
-                    ctx.lineTo(p.x, p.y);
+                    ctx.lineTo(p.x, p.y - (payload.type === 'person' ? 5 : 0));
                     ctx.stroke();
                 }
             }
 
             function renderRain() {
-                if (!stormActive) return;
                 ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -1800,27 +1463,31 @@
             }
 
             function drawScene() {
-                if (!gameStarted || crashed) return;
+                const zstate = window.zstate;
+
+                const { rain: stormActive } = window.campaignHandler().getCurrentMissionData();
+                const { gridSize } = window.campaignHandler().getTerrain();
+                if (!zstate.gameStarted || zstate.crashed) return;
                 updatePhysics();
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                if (!introActive) {
+                if (!zstate.introActive) {
                     let tx = (heli.x - heli.y) * (tileW / 2);
                     let ty = (heli.x + heli.y) * (tileH / 2);
-                    cam.x += (tx - cam.x) * 0.1;
-                    cam.y += (ty - cam.y) * 0.1;
+                    zstate.cam.x += (tx - zstate.cam.x) * 0.1;
+                    zstate.cam.y += (ty - zstate.cam.y) * 0.1;
                 } else {
-                    introProgress += 0.005;
+                    zstate.introProgress += 0.005;
                     let hX = PAD.xMin + 3;
                     let hY = PAD.yMin + 3;
-                    heli.x = hX + (START_POS.x - hX) * introProgress;
-                    heli.y = hY + (START_POS.y - hY) * introProgress;
+                    heli.x = hX + (START_POS.x - hX) * zstate.introProgress;
+                    heli.y = hY + (START_POS.y - hY) * zstate.introProgress;
 
                     heli.z = PAD.z;
                     heli.angle = -Math.PI / 4;
                     heli.rotorRPM = 0;
-                    if (introProgress >= 1) {
-                        introActive = false;
+                    if (zstate.introProgress >= 1) {
+                        zstate.introActive = false;
                         heli.engineOn = false;
                         heli.rotorRPM = 0;
                         heli.x = START_POS.x;
@@ -1828,18 +1495,18 @@
                         showMsg('SYSTEM READY - START ENGINE [W]');
                     }
                 }
-                let rx = introActive ? START_POS.x : heli.x;
-                let ry = introActive ? START_POS.y : heli.y;
+                let rx = zstate.introActive ? START_POS.x : heli.x;
+                let ry = zstate.introActive ? START_POS.y : heli.y;
 
                 for (let x = Math.floor(rx - 14); x < rx + 14; x++) {
                     for (let y = Math.floor(ry - 14); y < ry + 14; y++) {
                         if (x < 0 || y < 0 || x >= gridSize - 1 || y >= gridSize - 1) continue;
                         let h = [points[x][y], points[x + 1][y], points[x + 1][y + 1], points[x][y + 1]];
                         let p = [
-                            iso(x, y, h[0], cam.x, cam.y),
-                            iso(x + 1, y, h[1], cam.x, cam.y),
-                            iso(x + 1, y + 1, h[2], cam.x, cam.y),
-                            iso(x, y + 1, h[3], cam.x, cam.y),
+                            iso(x, y, h[0], zstate.cam.x, zstate.cam.y),
+                            iso(x + 1, y, h[1], zstate.cam.x, zstate.cam.y),
+                            iso(x + 1, y + 1, h[2], zstate.cam.x, zstate.cam.y),
+                            iso(x, y + 1, h[3], zstate.cam.x, zstate.cam.y),
                         ];
 
                         let isPad =
@@ -1912,19 +1579,16 @@
                     }
                 }
 
-                drawLighthouse(cam.x, cam.y);
+                drawLighthouse(zstate.cam.x, zstate.cam.y);
 
                 if (missionType === 'sea') {
-                    drawVectorCarrier(cam.x, cam.y);
+                    // @todo: always render if required!
+                    drawVectorCarrier(zstate.cam.x, zstate.cam.y);
                 }
 
-                if (missionType === 'rig') {
-                    drawRig(cam.x, cam.y);
-                }
-
-                drawPadLights(cam.x, cam.y);
-                drawWindsock(cam.x, cam.y);
-                drawHangar(cam.x, cam.y);
+                drawPadLights(zstate.cam.x, zstate.cam.y);
+                drawWindsock(zstate.cam.x, zstate.cam.y);
+                drawHangar(zstate.cam.x, zstate.cam.y);
 
                 drawHeli(
                     heli.type,
@@ -1935,15 +1599,15 @@
                     heli.tilt,
                     heli.roll,
                     heli.rotationPos,
-                    cam.x,
-                    cam.y,
+                    zstate.cam.x,
+                    zstate.cam.y,
                     ctx,
                     canvas,
                     true
                 );
 
                 particles.forEach(p => {
-                    let pos = iso(p.x, p.y, p.z, cam.x, cam.y);
+                    let pos = iso(p.x, p.y, p.z, zstate.cam.x, zstate.cam.y);
                     ctx.fillStyle = `rgba(${p.color}, ${p.life})`;
                     ctx.fillRect(pos.x, pos.y, 3, 3);
                 });
@@ -1951,13 +1615,13 @@
                 drawPayloadObject();
 
                 if (!payload.hanging) {
-                    let hP = iso(heli.x, heli.y, heli.z, cam.x, cam.y);
+                    let hP = iso(heli.x, heli.y, heli.z, zstate.cam.x, zstate.cam.y);
                     let wP = iso(
                         heli.x,
                         heli.y,
                         Math.max(getGround(heli.x, heli.y), heli.z - heli.winch),
-                        cam.x,
-                        cam.y
+                        zstate.cam.x,
+                        zstate.cam.y
                     );
                     ctx.strokeStyle = '#bbb';
                     ctx.lineWidth = 1;
@@ -1976,19 +1640,20 @@
                     heli.tilt,
                     heli.roll,
                     heli.rotationPos,
-                    cam.x,
-                    cam.y,
+                    zstate.cam.x,
+                    zstate.cam.y,
                     ctx,
                     canvas,
                     false
                 );
+
                 renderRain();
 
-                if (!introActive) {
+                if (!zstate.introActive) {
                     ctx.font = 'bold 13px monospace';
                     ctx.fillStyle = '#5f5';
-                    let hX = iso(heli.x, heli.y, heli.z, cam.x, cam.y).x + 45,
-                        hY = iso(heli.x, heli.y, heli.z, cam.x, cam.y).y - 35;
+                    let hX = iso(heli.x, heli.y, heli.z, zstate.cam.x, zstate.cam.y).x + 45,
+                        hY = iso(heli.x, heli.y, heli.z, zstate.cam.x, zstate.cam.y).y - 35;
                     ctx.fillText(`ALT: ${Math.round((heli.z - getGround(heli.x, heli.y)) * 10)}m`, hX, hY);
                     ctx.fillText(
                         `SPD: ${Math.round(Math.sqrt(heli.vx * heli.vx + heli.vy * heli.vy) * 2000)}km/h`,
@@ -2090,7 +1755,12 @@
             }
 
             function startGame(type) {
-                if (gameStarted) return;
+                const zstate = window.zstate;
+
+                if (zstate.gameStarted) return;
+
+                window.soundHandler.play('tutorial');
+
                 heli.type = type;
                 if (type === 'dolphin') {
                     heli.maxLoad = 3;
@@ -2121,11 +1791,13 @@
                 generateTerrain();
 
                 document.getElementById('heli-select').style.display = 'none';
-                gameStarted = true;
+
+                zstate.crashed = false;
+                zstate.gameStarted = true;
 
                 if (missionType === 'sea') {
-                    introActive = false;
-                    introProgress = 1;
+                    zstate.introActive = false;
+                    zstate.introProgress = 1;
                     heli.x = START_POS.x;
                     heli.y = START_POS.y;
                     heli.z = CARRIER.zDeck + 0.1;
@@ -2135,14 +1807,14 @@
                     heli.angle = CARRIER.angle;
                     heli.engineOn = false;
                     heli.rotorRPM = 0;
-                    cam.x = (START_POS.x - START_POS.y) * (tileW / 2);
-                    cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+                    zstate.cam.x = (START_POS.x - START_POS.y) * (tileW / 2);
+                    zstate.cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
                     showMsg('SYSTEM READY - START ENGINE [W]');
                 } else {
-                    introActive = true;
-                    introProgress = 0;
-                    cam.x = (START_POS.x - START_POS.y) * (tileW / 2);
-                    cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+                    zstate.introActive = true;
+                    zstate.introProgress = 0;
+                    zstate.cam.x = (START_POS.x - START_POS.y) * (tileW / 2);
+                    zstate.cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
                 }
 
                 totalRescued = 0;
@@ -2481,7 +2153,10 @@
             }
 
             function drawMenuHeli() {
-                if (gameStarted) return;
+                const zstate = window.zstate;
+
+                if (zstate.gameStarted) return;
+
                 const c = document.getElementById('menu-heli-big');
                 if (!c) return;
                 const cx = c.getContext('2d');
@@ -2507,7 +2182,6 @@
                 );
                 if (document.getElementById('splash').style.display !== 'none') requestAnimationFrame(drawMenuHeli);
             }
-            drawMenuHeli();
 
             function animateHeliPreviews() {
                 if (document.getElementById('heli-select').style.display === 'none') return;
@@ -2557,6 +2231,12 @@
                 canvas.height = window.innerHeight;
             };
             window.onresize();
+
+            window.onload = () => {
+                drawMenuHeli();
+
+                window.zinit();
+            };
         </script>
     </body>
 </html>

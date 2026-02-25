@@ -28,8 +28,14 @@ export interface Mission {
 }
 
 export interface CampaignExport {
-    type: 'ZEEWOLF_CAMPAIGN';
+    type: string;
     campaignTitle: string;
     campaignSublines: string[];
-    levels: Omit<Mission, 'terrain'> & { terrain: string }[];
+    levels: Omit<Mission, 'terrain'> & { terrain: string; gridSize: number }[];
+}
+
+export interface Vector3 {
+    x: number;
+    y: number;
+    z: number;
 }

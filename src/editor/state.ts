@@ -34,6 +34,7 @@ export const createEmptyMission = (name = 'Mission Alpha'): Mission => {
 };
 
 export const state = {
+    type: '',
     campaign: [createEmptyMission()] as Mission[],
     curIdx: 0,
 
