@@ -66,6 +66,7 @@ const ZsynthPlayer = {
             isPlaying: true,
             currentStep: 0,
             gainNode: ZsynthPlayer.ctx.createGain(),
+            nextNoteTime: 0,
         };
 
         track.gainNode.gain.setValueAtTime(0.0001, startTime);
