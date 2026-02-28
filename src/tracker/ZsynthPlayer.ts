@@ -5,6 +5,7 @@ interface ActiveTrack {
     isPlaying: boolean;
     currentStep: number;
     gainNode: GainNode;
+    nextNoteTime: number; // neu
 }
 
 const ZsynthPlayer = {
@@ -76,39 +77,46 @@ const ZsynthPlayer = {
     },
 
     scheduler: (track: ActiveTrack): void => {
-        if (!ZsynthPlayer.ctx || !track.isPlaying || ZsynthPlayer.currentTrack !== track) return;
+        if (!ZsynthPlayer.ctx) return;
+
+        const LOOKAHEAD = 0.1;
+        const INTERVAL_MS = 25;
 
         const bpm = parseInt(track.data.bpm);
         const stepTime = 60 / bpm / 4;
-        const sIdx = track.currentStep % 64;
 
-        if (ZsynthPlayer.onStep) {
-            ZsynthPlayer.onStep(sIdx);
+        if (track.nextNoteTime === undefined) {
+            track.nextNoteTime = ZsynthPlayer.ctx.currentTime + 0.05;
         }
 
-        ['kick', 'snare', 'hat', 'synth1', 'synth2', 'synth3'].forEach(tId => {
-            const config = track.data.config[tId] || { vol: 80 };
+        while (track.nextNoteTime < ZsynthPlayer.ctx.currentTime + LOOKAHEAD) {
+            if (!track.isPlaying || ZsynthPlayer.currentTrack !== track) return;
 
-            for (const noteKey in track.data.activeData) {
-                if (noteKey.startsWith(`${tId}-`) && noteKey.endsWith(`-${sIdx}`)) {
-                    const rowName = noteKey.split('-')[1];
+            const sIdx = track.currentStep % 64;
 
-                    if (tId.startsWith('synth')) {
-                        ZsynthPlayer.playSynth(rowName, ZsynthPlayer.ctx!.currentTime + 0.05, config, track.gainNode);
-                    } else {
-                        ZsynthPlayer.playDrum(
-                            rowName,
-                            ZsynthPlayer.ctx!.currentTime + 0.05,
-                            config.vol / 100,
-                            track.gainNode
-                        );
+            if (ZsynthPlayer.onStep) {
+                ZsynthPlayer.onStep(sIdx);
+            }
+
+            ['kick', 'snare', 'hat', 'synth1', 'synth2', 'synth3'].forEach(tId => {
+                const config = track.data.config[tId] || { vol: 80 };
+                for (const noteKey in track.data.activeData) {
+                    if (noteKey.startsWith(`${tId}-`) && noteKey.endsWith(`-${sIdx}`)) {
+                        const rowName = noteKey.split('-')[1];
+                        if (tId.startsWith('synth')) {
+                            ZsynthPlayer.playSynth(rowName, track.nextNoteTime, config, track.gainNode);
+                        } else {
+                            ZsynthPlayer.playDrum(rowName, track.nextNoteTime, config.vol / 100, track.gainNode);
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        track.currentStep++;
-        setTimeout(() => ZsynthPlayer.scheduler(track), stepTime * 1000);
+            track.currentStep++;
+            track.nextNoteTime += stepTime;
+        }
+
+        setTimeout(() => ZsynthPlayer.scheduler(track), INTERVAL_MS);
     },
 
     playDrum: (type: string, time: number, vol: number, target: AudioNode): void => {
