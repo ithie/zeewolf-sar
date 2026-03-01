@@ -285,20 +285,7 @@
             let points = [],
                 particles = [];
 
-            let CARRIER = {
-                x: 100,
-                y: 100,
-                w: 3.0,
-                l: 7.5, // Reduced from 3.5 and 11
-                zDeck: 0.6,
-                zHull: 0.2,
-                angle: 0,
-                turnSpeed: 0.00015,
-                radiusX: 150,
-                radiusY: 120,
-                centerX: 150,
-                centerY: 200,
-            };
+            let CARRIER = {};
             let seaTime = 0;
 
             const parkedHelis = [
@@ -354,7 +341,6 @@
             function toCampaignSelect() {
                 window.soundHandler.play('main');
 
-                // -----------------------------
                 document.getElementById('splash').style.display = 'none';
 
                 const campaignHandler = window.campaignHandler();
@@ -396,7 +382,7 @@
                     gridSize,
                     goalPersons,
                     goalCrates,
-                    rain = stormActive,
+                    rain,
                     padX,
                     padY,
                     night: isNight,
@@ -413,47 +399,56 @@
 
                 initGrid(gridSize);
 
-                night = isNight;
-
                 document.getElementById('campaign-grid').innerHTML = '';
                 document.getElementById('campaign-select').style.display = 'none';
                 document.getElementById('heli-select').style.display = 'flex';
                 animateHeliPreviews();
             }
 
-            /**
-             * @todo implement both angle, path and radius
-             */
             function updateCarrierPos(forceUpdate = false) {
-                const { carrierX, carrierY, carrierSpeed, carrierRadius } = window
-                    .campaignHandler()
-                    .getCurrentMissionData();
+                const { carrierX, carrierY } = window.campaignHandler().getCurrentMissionData();
+                if (carrierX === -1 && carrierY === -1) return;
 
-                if (carrierX === -1 && carrierY === -1) {
-                    return;
-                }
+                if (CARRIER.path === 'line') {
+                    if (!forceUpdate) {
+                        CARRIER.lineProgress += CARRIER.speed;
 
-                if (!forceUpdate) seaTime += carrierSpeed;
+                        const nx = CARRIER.lineStartX + CARRIER.lineDirX * CARRIER.lineProgress;
+                        const ny = CARRIER.lineStartY + CARRIER.lineDirY * CARRIER.lineProgress;
 
-                // Elliptical Path Position
-                let nx = CARRIER.centerX + Math.cos(seaTime) * CARRIER.radiusX;
-                let ny = CARRIER.centerY + Math.sin(seaTime) * CARRIER.radiusY;
+                        const dx = nx - CARRIER.x;
+                        const dy = ny - CARRIER.y;
+                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) {
+                            CARRIER.angle = Math.atan2(dy, dx) + Math.PI / 2;
+                        }
+                        CARRIER.x = nx;
+                        CARRIER.y = ny;
 
-                // Angle Calculation
-                if (forceUpdate) {
-                    let dx = -CARRIER.radiusX * Math.sin(seaTime);
-                    let dy = CARRIER.radiusY * Math.cos(seaTime);
-                    CARRIER.angle = Math.atan2(dy, dx) + Math.PI / 2;
-                } else {
-                    let dx = nx - CARRIER.x;
-                    let dy = ny - CARRIER.y;
-                    if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) {
-                        CARRIER.angle = Math.atan2(dy, dx) + Math.PI / 2;
+                        const { gridSize } = window.campaignHandler().getTerrain();
+                        if (nx < -20 || nx > gridSize + 20 || ny < -20 || ny > gridSize + 20) {
+                            triggerCrash('CARRIER DEPARTED');
+                        }
                     }
-                }
+                } else {
+                    if (!forceUpdate) seaTime += CARRIER.speed;
 
-                CARRIER.x = nx;
-                CARRIER.y = ny;
+                    const nx = CARRIER.centerX + Math.cos(seaTime) * CARRIER.radiusX;
+                    const ny = CARRIER.centerY + Math.sin(seaTime) * CARRIER.radiusY;
+
+                    if (forceUpdate) {
+                        CARRIER.angle =
+                            Math.atan2(CARRIER.radiusY * Math.cos(seaTime), -CARRIER.radiusX * Math.sin(seaTime)) +
+                            Math.PI / 2;
+                    } else {
+                        const dx = nx - CARRIER.x;
+                        const dy = ny - CARRIER.y;
+                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) {
+                            CARRIER.angle = Math.atan2(dy, dx) + Math.PI / 2;
+                        }
+                    }
+                    CARRIER.x = nx;
+                    CARRIER.y = ny;
+                }
             }
 
             function rotatePoint(x, y, rad) {
@@ -536,14 +531,8 @@
                         payload.x = 5 + Math.random() * (gridSize - 10);
                         payload.y = 5 + Math.random() * (gridSize - 10);
                         let g = getGround(payload.x, payload.y);
-                        if (missionType === 'sea') {
-                            let d = Math.hypot(payload.x - CARRIER.x, payload.y - CARRIER.y);
-                            if (g < 0 && d > 30) valid = true;
-                        } else if (missionType === 'storm') {
-                            if (g < 0) valid = true;
-                        } else {
-                            if (g > 0 && (payload.x < PAD.xMin || payload.x > PAD.xMax)) valid = true;
-                        }
+
+                        if (g > 0 && (payload.x < PAD.xMin || payload.x > PAD.xMax)) valid = true;
                     }
                     if (!valid) {
                         payload.x = 30;
@@ -604,30 +593,88 @@
                 });
                 particles = particles.filter(p => p.life > 0);
             }
+            function handleParticles() {
+                const gH = getGround(heli.x, heli.y);
+                const rotors = getRotorPositions();
+
+                if (heli.rotorRPM > 0.8) {
+                    if (heli.z < 2.5 && gH > 0.1) {
+                        // Staub über Land
+                        rotors.forEach(rotor => {
+                            const a = Math.random() * Math.PI * 2;
+                            particles.push({
+                                x: rotor.x + Math.cos(a) * 0.6,
+                                y: rotor.y + Math.sin(a) * 0.6,
+                                z: gH + 0.1,
+                                vx: Math.cos(a) * 0.06,
+                                vy: Math.sin(a) * 0.06,
+                                life: 0.5,
+                                color: '150, 140, 120',
+                            });
+                        });
+                    } else if (heli.z < 2.0 && gH < 0.1) {
+                        rotors.forEach(rotor => {
+                            for (let i = 0; i < 2; i++) {
+                                const a = Math.random() * Math.PI * 2;
+                                particles.push({
+                                    x: rotor.x + Math.cos(a) * 0.6,
+                                    y: rotor.y + Math.sin(a) * 0.6,
+                                    z: 0,
+                                    vx: Math.cos(a) * 0.08,
+                                    vy: Math.sin(a) * 0.08,
+                                    life: 0.4,
+                                    color: '200, 230, 255',
+                                });
+                            }
+                        });
+                    }
+                }
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.02;
+                });
+                particles = particles.filter(p => p.life > 0);
+            }
+
+            function updateWind() {
+                const { windStr, windDir, windVar, rain } = window.campaignHandler().getCurrentMissionData();
+
+                const baseAngle = (windDir ?? 0) * (Math.PI / 180);
+
+                const baseStrength = ((windStr ?? 1) / 10) * 0.0002;
+
+                wind.phase += 0.01;
+
+                const gustAmplitude = 0.8;
+                const gust = 1 + Math.sin(wind.phase) * gustAmplitude;
+
+                let currentAngle = baseAngle;
+                if (windVar) {
+                    wind.varOffset = (wind.varOffset ?? 0) + (Math.random() - 0.5) * 0.008;
+                    wind.varOffset = Math.max(-0.5, Math.min(0.5, wind.varOffset));
+                    currentAngle = baseAngle + wind.varOffset;
+                }
+
+                wind.x = Math.cos(currentAngle) * baseStrength * gust;
+                wind.y = Math.sin(currentAngle) * baseStrength * gust;
+            }
+
+            function isVisible(objX, objY, margin = 16) {
+                const rx = zstate.introActive ? START_POS.x : heli.x;
+                const ry = zstate.introActive ? START_POS.y : heli.y;
+                return Math.abs(objX - rx) < margin && Math.abs(objY - ry) < margin;
+            }
 
             function updatePhysics() {
                 const zstate = window.zstate;
                 const { crashed } = zstate;
                 const { gridSize } = window.campaignHandler().getTerrain();
-                const { rain: stormActive } = window.campaignHandler().getCurrentMissionData();
-                let baseWind = stormActive ? 0.002 : 0.00015;
-                wind.phase += 0.01;
-                let gust = 1 + Math.sin(wind.phase) * (stormActive ? 0.8 : 0.2);
-                wind.x = Math.cos(windAngle) * baseWind * gust;
-                wind.y = Math.sin(windAngle) * baseWind * gust;
+                const { rain } = window.campaignHandler().getCurrentMissionData();
 
-                let carrierVX = 0,
-                    carrierVY = 0,
-                    carrierRot = 0;
+                updateWind();
 
-                if (missionType === 'canyon') {
-                    if (heli.z < 4.0) {
-                        wind.x = 0.0002;
-                        wind.y = 0.0005;
-                    } else {
-                        showMsg('HIGH WIND WARNING!');
-                    }
-                }
                 if (missionType === 'sea' && !crashed) {
                     let oldX = CARRIER.x;
                     let oldY = CARRIER.y;
@@ -775,10 +822,6 @@
                         heli.tilt *= 0.98;
                         heli.roll = Math.sin(Date.now() * 0.01) * 0.1;
                     }
-                    if (stormActive) {
-                        heli.vx += wind.x * 0.1;
-                        heli.vy += wind.y * 0.1;
-                    }
                 }
 
                 if (heli.fuel <= 0 && inAir) {
@@ -883,17 +926,10 @@
                         else if (heli.vz < -0.15) triggerCrash('HARD IMPACT');
                     }
 
-                    // --- LIGHTHOUSE COLLISION CHECK ---
-                    /**
-                     *  @todo: insert always if required by campaign!
-                     * Correct positioning
-                     */
-                    if (missionType === 'sea') {
-                        let distToLH = Math.hypot(heli.x - 200, heli.y - 200);
-                        // Check if within horizontal radius (approx 2.0) and below max height (8.5)
-                        if (distToLH < 2.0 && heli.z < 8.5) {
-                            triggerCrash('TOWER COLLISION');
-                        }
+                    const { lighthouseX, lighthouseY } = window.campaignHandler().getCurrentMissionData();
+                    if (lighthouseX >= 0 && lighthouseY >= 0) {
+                        const distToLH = Math.hypot(heli.x - lighthouseX, heli.y - lighthouseY);
+                        if (distToLH < 2.0 && heli.z < 8.5) triggerCrash('TOWER COLLISION');
                     }
                 }
             }
@@ -906,6 +942,37 @@
                 zstate.crashed = true;
                 document.getElementById('crash-reason').innerHTML = reason;
                 document.getElementById('crash-screen').style.display = 'flex';
+            }
+            function initCarrierFromMission() {
+                const { carrierX, carrierY, carrierAngle, carrierPath, carrierSpeed, carrierRadius, gridSize } = window
+                    .campaignHandler()
+                    .getCurrentMissionData();
+
+                if (carrierX === -1 && carrierY === -1) return;
+
+                const angleRad = (carrierAngle ?? 0) * (Math.PI / 180);
+
+                CARRIER.angle = angleRad;
+                CARRIER.path = carrierPath ?? 'circle';
+                CARRIER.speed = carrierSpeed ?? 0.0003;
+
+                if (carrierPath === 'circle') {
+                    const r = carrierRadius ?? 120;
+                    CARRIER.radiusX = r;
+                    CARRIER.radiusY = r * 0.8;
+                    CARRIER.centerX = gridSize / 2;
+                    CARRIER.centerY = gridSize / 2;
+                    CARRIER.x = CARRIER.centerX + Math.cos(0) * CARRIER.radiusX;
+                    CARRIER.y = CARRIER.centerY + Math.sin(0) * CARRIER.radiusY;
+                } else if (carrierPath === 'line') {
+                    CARRIER.x = carrierX;
+                    CARRIER.y = carrierY;
+                    CARRIER.lineStartX = carrierX;
+                    CARRIER.lineStartY = carrierY;
+                    CARRIER.lineDirX = Math.cos(angleRad);
+                    CARRIER.lineDirY = Math.sin(angleRad);
+                    CARRIER.lineProgress = 0;
+                }
             }
 
             /**
@@ -1187,9 +1254,7 @@
                     );
                 });
             }
-            // --- PERSON (Flat Billboard, Zivile Farben) ---
             function drawPerson(pX, pY, pZ, angle, isWaving, cx, cy) {
-                // 1. Berechne die 2D-Bildschirmkoordinate der Füße in der Isometrie
                 let base = iso(pX, pY, pZ, cx, cy);
 
                 const scale = 1.0;
@@ -1204,11 +1269,11 @@
                 const colorSkin = '#f2d0a4';
 
                 let drawX = base.x;
-                let drawY = base.y; // Fußpunkt
+                let drawY = base.y;
 
                 ctx.fillStyle = colorPants;
-                ctx.fillRect(drawX - torsoW / 2, drawY - legH, legW, legH); // Linkes Bein
-                ctx.fillRect(drawX + torsoW / 2 - legW, drawY - legH, legW, legH); // Rechtes Bein
+                ctx.fillRect(drawX - torsoW / 2, drawY - legH, legW, legH);
+                ctx.fillRect(drawX + torsoW / 2 - legW, drawY - legH, legW, legH);
 
                 let torsoY = drawY - legH - torsoH;
                 ctx.fillStyle = colorShirt;
@@ -1242,11 +1307,13 @@
                 }
             }
 
-            // --- ROUND LIGHTHOUSE (CYLINDER) ---
             function drawLighthouse(cx, cy) {
-                if (missionType !== 'sea') return;
-                let lhX = 200,
-                    lhY = 200;
+                const { lighthouseX, lighthouseY } = window.campaignHandler().getCurrentMissionData();
+
+                if (!lighthouseX || !lighthouseY || lighthouseX < 0 || lighthouseY < 0) return;
+
+                const lhX = lighthouseX;
+                const lhY = lighthouseY;
 
                 function drawCyl(zB, zT, col, borderCol, radius) {
                     let topPos = iso(lhX, lhY, zT, cx, cy);
@@ -1410,6 +1477,27 @@
 
             function drawPayloadObject() {
                 if (payload.rescued && !payload.hanging) return;
+                if (!payload.hanging && !isVisible(payload.x, payload.y, 20)) return;
+
+                const { night: isNight } = window.campaignHandler().getCurrentMissionData();
+
+                if (isNight && !payload.hanging) {
+                    const dx = payload.x - heli.x;
+                    const dy = payload.y - heli.y;
+                    const dist = Math.hypot(dx, dy);
+                    const alt = heli.z - getGround(heli.x, heli.y);
+                    const range = 10 + alt * 2.0;
+
+                    if (dist > range) return;
+
+                    const ang = Math.atan2(dy, dx);
+                    let diff = ang - heli.angle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+
+                    const coneWidth = 0.3 + alt * 0.05;
+                    if (Math.abs(diff) > coneWidth) return;
+                }
 
                 const { cam } = window.zstate;
 
@@ -1443,6 +1531,10 @@
             }
 
             function renderRain() {
+                const { rain } = window.campaignHandler().getCurrentMissionData();
+
+                if (!rain) return;
+
                 ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -1462,10 +1554,31 @@
                 }
             }
 
+            function getRotorPositions() {
+                const cosA = Math.cos(heli.angle);
+                const sinA = Math.sin(heli.angle);
+
+                if (heli.type === 'chinook') {
+                    return [
+                        { x: heli.x + cosA * 1.5, y: heli.y + sinA * 1.5 },
+                        { x: heli.x + cosA * -2.3, y: heli.y + sinA * -2.3 },
+                    ];
+                }
+                return [{ x: heli.x, y: heli.y }];
+            }
+
             function drawScene() {
                 const zstate = window.zstate;
 
-                const { rain: stormActive } = window.campaignHandler().getCurrentMissionData();
+                const {
+                    rain,
+                    lighthouseX,
+                    lighthouseY,
+                    night: isNight,
+                } = window.campaignHandler().getCurrentMissionData();
+                const camX = zstate.cam.x;
+                const camY = zstate.cam.y;
+
                 const { gridSize } = window.campaignHandler().getTerrain();
                 if (!zstate.gameStarted || zstate.crashed) return;
                 updatePhysics();
@@ -1498,6 +1611,17 @@
                 let rx = zstate.introActive ? START_POS.x : heli.x;
                 let ry = zstate.introActive ? START_POS.y : heli.y;
 
+                let alt = heli.z - getGround(heli.x, heli.y);
+                let coneWidth = 0.3 + alt * 0.05;
+                let range = 10 + alt * 2.0;
+                let brightness = Math.max(0.1, 1.0 - alt / 15);
+                let intensity = Math.floor(255 * brightness);
+                const litColor = `rgb(${intensity}, ${intensity}, ${intensity - 50})`;
+
+                const lhAngle = Date.now() * 0.002 * 0.2;
+                const lhDx = lighthouseX >= 0 ? 1 : 0;
+                const hasLighthouse = lighthouseX >= 0 && lighthouseY >= 0;
+
                 for (let x = Math.floor(rx - 14); x < rx + 14; x++) {
                     for (let y = Math.floor(ry - 14); y < ry + 14; y++) {
                         if (x < 0 || y < 0 || x >= gridSize - 1 || y >= gridSize - 1) continue;
@@ -1509,64 +1633,31 @@
                             iso(x, y + 1, h[3], zstate.cam.x, zstate.cam.y),
                         ];
 
-                        let isPad =
-                            missionType !== 'sea' && x >= PAD.xMin && x <= PAD.xMax && y >= PAD.yMin && y <= PAD.yMax;
+                        let ang = Math.atan2(y - heli.y, x - heli.x);
+                        let diff = ang - heli.angle;
+                        let isPad = x >= PAD.xMin && x <= PAD.xMax && y >= PAD.yMin && y <= PAD.yMax;
                         let c = 35 + Math.floor(h[0] * 15);
                         let baseColor = c;
                         let fill;
 
-                        if (missionType === 'sea') {
-                            fill = '#002244';
-                        } else if (missionType === 'night') {
-                            // Höhe über Boden
-                            let alt = heli.z - getGround(heli.x, heli.y);
-
-                            // Kegel-Berechnung
-                            // Winkel zum aktuellen Tile
-                            let ang = Math.atan2(y - heli.y, x - heli.x);
-                            // Differenz zur Heli-Ausrichtung
-                            let diff = ang - heli.angle;
-                            // Normalisieren auf -PI bis +PI
+                        if (isNight) {
                             while (diff < -Math.PI) diff += Math.PI * 2;
                             while (diff > Math.PI) diff -= Math.PI * 2;
 
-                            // Kegelbreite: Je höher, desto breiter der Streuwinkel (tan-artig)
-                            // Bei Boden (0m) = schmal (0.3), bei 10m Höhe = breiter (0.8)
-                            let coneWidth = 0.3 + alt * 0.05;
+                            const dx = x - heli.x,
+                                dy = y - heli.y;
+                            const inRange = dx * dx + dy * dy < range * range;
 
-                            // Reichweite: Je höher, desto größer der Lichtfleck am Boden
-                            let range = 10 + alt * 2.0;
-
-                            // Helligkeit: Nimmt mit Höhe rapide ab (Inverse Square Law fake)
-                            // Bei 15m Höhe ist es fast schwarz
-                            let brightness = Math.max(0.1, 1.0 - alt / 15);
-
-                            // Distanz zum Heli
-                            let d = Math.hypot(x - heli.x, y - heli.y);
-
-                            // Ist Tile im Lichtkegel (Vorne) ODER sehr nah (Positionslicht)?
-                            let inLight = Math.abs(diff) < coneWidth && d < range;
+                            let inLight = Math.abs(diff) < coneWidth && inRange;
 
                             if (inLight) {
-                                // Helles, kaltes Licht (angepasst an Helligkeit)
-                                let intensity = Math.floor(255 * brightness);
-                                fill = h[0] > 0 ? `rgb(${intensity}, ${intensity}, ${intensity - 50})` : '#004488';
+                                fill = h[0] > 0 ? litColor : '#004488';
                             } else {
-                                // Zappenduster
                                 fill = '#020205';
                             }
-                        } else if (missionType === 'rig') {
-                            if (h[0] > 1.5)
-                                fill = '#222'; // Plattform Boden (Dunkelgrau)
-                            else if (h[0] > 3.0)
-                                fill = '#522'; // Gebäude (Rötlich)
-                            else fill = '#112233'; // Dunkles Wasser
-                        } else if (missionType === 'canyon') {
-                            // Rötlicher Fels
-                            fill = h[0] > 0.5 ? `rgb(${c + 60},${c + 20},${c - 10})` : `rgb(${c + 20},${c + 10},${c})`;
                         } else {
                             fill = isPad ? '#444' : h[0] > 0 ? `rgb(${c - 10},${c + 30},${c - 10})` : '#003d7a';
-                            if (stormActive && h[0] < 0) fill = '#002244';
+                            if (rain && h[0] < 0) fill = '#002244';
                         }
 
                         ctx.fillStyle = fill;
@@ -1579,32 +1670,29 @@
                     }
                 }
 
-                drawLighthouse(zstate.cam.x, zstate.cam.y);
+                if (isVisible(lighthouseX, lighthouseY)) drawLighthouse(camX, camY);
+                if (isVisible(CARRIER.x, CARRIER.y, 25)) drawVectorCarrier(camX, camY);
+                if (isVisible(PAD.xMin + 3, PAD.yMin + 3)) drawHangar(camX, camY);
+                if (isVisible(PAD.xMin, PAD.yMin)) drawPadLights(camX, camY);
+                if (isVisible(PAD.xMin, PAD.yMin)) drawWindsock(camX, camY);
 
-                if (missionType === 'sea') {
-                    // @todo: always render if required!
-                    drawVectorCarrier(zstate.cam.x, zstate.cam.y);
+                if (!isNight) {
+                    drawHeli(
+                        heli.type,
+                        heli.x,
+                        heli.y,
+                        heli.z,
+                        heli.angle,
+                        heli.tilt,
+                        heli.roll,
+                        heli.rotationPos,
+                        zstate.cam.x,
+                        zstate.cam.y,
+                        ctx,
+                        canvas,
+                        true
+                    );
                 }
-
-                drawPadLights(zstate.cam.x, zstate.cam.y);
-                drawWindsock(zstate.cam.x, zstate.cam.y);
-                drawHangar(zstate.cam.x, zstate.cam.y);
-
-                drawHeli(
-                    heli.type,
-                    heli.x,
-                    heli.y,
-                    heli.z,
-                    heli.angle,
-                    heli.tilt,
-                    heli.roll,
-                    heli.rotationPos,
-                    zstate.cam.x,
-                    zstate.cam.y,
-                    ctx,
-                    canvas,
-                    true
-                );
 
                 particles.forEach(p => {
                     let pos = iso(p.x, p.y, p.z, zstate.cam.x, zstate.cam.y);
@@ -1789,17 +1877,21 @@
                 }
 
                 generateTerrain();
+                initCarrierFromMission();
 
                 document.getElementById('heli-select').style.display = 'none';
 
                 zstate.crashed = false;
                 zstate.gameStarted = true;
 
-                if (missionType === 'sea') {
+                const { spawnPoint } = window.campaignHandler().getCurrentMissionData();
+                const startsOnCarrier = spawnPoint === 'carrier';
+
+                if (startsOnCarrier) {
                     zstate.introActive = false;
                     zstate.introProgress = 1;
-                    heli.x = START_POS.x;
-                    heli.y = START_POS.y;
+                    heli.x = CARRIER.x;
+                    heli.y = CARRIER.y;
                     heli.z = CARRIER.zDeck + 0.1;
                     heli.vx = 0;
                     heli.vy = 0;
@@ -1807,10 +1899,11 @@
                     heli.angle = CARRIER.angle;
                     heli.engineOn = false;
                     heli.rotorRPM = 0;
-                    zstate.cam.x = (START_POS.x - START_POS.y) * (tileW / 2);
-                    zstate.cam.y = (START_POS.x + START_POS.y) * (tileH / 2);
+                    zstate.cam.x = (heli.x - heli.y) * (tileW / 2);
+                    zstate.cam.y = (heli.x + heli.y) * (tileH / 2);
                     showMsg('SYSTEM READY - START ENGINE [W]');
                 } else {
+                    // Startet auf PAD – Intro-Flug wie bisher
                     zstate.introActive = true;
                     zstate.introProgress = 0;
                     zstate.cam.x = (START_POS.x - START_POS.y) * (tileW / 2);

@@ -11,7 +11,7 @@
             "goalCrates": 0,
             "spawnPoint": "pad",
             "rain": false,
-            "night": false,
+            "night": true,
             "windStr": 1,
             "windDir": 45,
             "windVar": false,
