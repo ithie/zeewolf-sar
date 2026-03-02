@@ -5,7 +5,8 @@ interface ActiveTrack {
     isPlaying: boolean;
     currentStep: number;
     gainNode: GainNode;
-    nextNoteTime: number; // neu
+    nextNoteTime: number;
+    stepMap: Record<number, Array<{ trackId: string; note: string }>>;
 }
 
 const ZsynthPlayer = {
@@ -16,21 +17,44 @@ const ZsynthPlayer = {
     onStep: null as ((step: number) => void) | null,
 
     freqs: {
+        B4: 493.88,
+        Bb4: 466.16,
+        A4: 440.0,
+        Ab4: 415.3,
+        G4: 392.0,
+        Gb4: 369.99,
+        F4: 349.23,
+        E4: 329.63,
+        Eb4: 311.13,
+        D4: 293.66,
+        Db4: 277.18,
         C4: 261.63,
         B3: 246.94,
+        Bb3: 233.08,
         A3: 220.0,
+        Ab3: 207.65,
         G3: 196.0,
+        Gb3: 185.0,
         F3: 174.61,
         E3: 164.81,
+        Eb3: 155.56,
         D3: 146.83,
+        Db3: 138.59,
         C3: 130.81,
         B2: 123.47,
+        Bb2: 116.54,
         A2: 110.0,
+        Ab2: 103.83,
         G2: 98.0,
+        Gb2: 92.5,
         F2: 87.31,
         E2: 82.41,
+        Eb2: 77.78,
         D2: 73.42,
+        Db2: 69.3,
         C2: 65.41,
+        B1: 61.74,
+        Bb1: 58.27,
         A1: 55.0,
     } as Record<string, number>,
 
@@ -61,12 +85,23 @@ const ZsynthPlayer = {
             }, crossfade * 1000);
         }
 
+        const stepMap: Record<number, Array<{ trackId: string; note: string }>> = {};
+        for (const noteKey in songData.activeData) {
+            const parts = noteKey.split('-');
+            const step = parseInt(parts[parts.length - 1]);
+            const trackId = parts[0];
+            const note = parts.slice(1, -1).join('-');
+            if (!stepMap[step]) stepMap[step] = [];
+            stepMap[step].push({ trackId, note });
+        }
+
         const track: ActiveTrack = {
             data: songData,
             isPlaying: true,
             currentStep: 0,
             gainNode: ZsynthPlayer.ctx.createGain(),
             nextNoteTime: 0,
+            stepMap,
         };
 
         track.gainNode.gain.setValueAtTime(0.0001, startTime);
@@ -99,17 +134,13 @@ const ZsynthPlayer = {
                 ZsynthPlayer.onStep(sIdx);
             }
 
-            ['kick', 'snare', 'hat', 'synth1', 'synth2', 'synth3'].forEach(tId => {
-                const config = track.data.config[tId] || { vol: 80 };
-                for (const noteKey in track.data.activeData) {
-                    if (noteKey.startsWith(`${tId}-`) && noteKey.endsWith(`-${sIdx}`)) {
-                        const rowName = noteKey.split('-')[1];
-                        if (tId.startsWith('synth')) {
-                            ZsynthPlayer.playSynth(rowName, track.nextNoteTime, config, track.gainNode);
-                        } else {
-                            ZsynthPlayer.playDrum(rowName, track.nextNoteTime, config.vol / 100, track.gainNode);
-                        }
-                    }
+            const notes = track.stepMap[sIdx] || [];
+            notes.forEach(({ trackId, note }) => {
+                const config = track.data.config[trackId] || { vol: 80 };
+                if (trackId.startsWith('synth')) {
+                    ZsynthPlayer.playSynth(note, track.nextNoteTime, config, track.gainNode);
+                } else {
+                    ZsynthPlayer.playDrum(note, track.nextNoteTime, config.vol / 100, track.gainNode);
                 }
             });
 
@@ -143,16 +174,38 @@ const ZsynthPlayer = {
 
     playSynth: (note: string, time: number, cfg: SynthConfig, target: AudioNode): void => {
         if (!ZsynthPlayer.ctx) return;
-        const osc = ZsynthPlayer.ctx.createOscillator();
-        const g = ZsynthPlayer.ctx.createGain();
-        const f = ZsynthPlayer.ctx.createBiquadFilter();
 
-        osc.type = cfg.wave || 'square';
-        osc.frequency.setValueAtTime(ZsynthPlayer.freqs[note] || 220, time);
+        const freq = ZsynthPlayer.freqs[note] || 220;
+
+        const f = ZsynthPlayer.ctx.createBiquadFilter();
         f.type = 'lowpass';
         f.frequency.setValueAtTime(cfg.filter || 2000, time);
 
+        const attack = cfg.attack ?? 0.02;
+        const release = cfg.release ?? 0.3;
+        const detune = cfg.detune ?? 0;
         const v = (cfg.vol / 100) * 0.2;
+
+        const g = ZsynthPlayer.ctx.createGain();
+        g.gain.setValueAtTime(0.0001, time);
+        g.gain.linearRampToValueAtTime(v, time + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, time + attack + release);
+
+        const osc = ZsynthPlayer.ctx.createOscillator();
+        osc.type = cfg.wave || 'square';
+        osc.frequency.setValueAtTime(freq || 220, time);
+        f.type = 'lowpass';
+        f.frequency.setValueAtTime(cfg.filter || 2000, time);
+
+        if (detune !== 0) {
+            const osc2 = ZsynthPlayer.ctx.createOscillator();
+            osc2.type = cfg.wave || 'square';
+            osc2.frequency.setValueAtTime(freq * Math.pow(2, detune / 1200), time);
+            osc2.connect(f);
+            osc2.start(time);
+            osc2.stop(time + attack + release + 0.05);
+        }
+
         g.gain.setValueAtTime(0.0001, time);
         g.gain.linearRampToValueAtTime(v, time + 0.02);
         g.gain.exponentialRampToValueAtTime(0.0001, time + 0.3);
