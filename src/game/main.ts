@@ -137,13 +137,16 @@ window.zinit = () => {
         evt.preventDefault();
         if (!soundHandler.state.isMuted) {
             soundHandler.mute();
+            document.getElementById('audio-mute-active').style.display = 'flex';
+            document.getElementById('audio-mute-inactive').style.display = 'none';
         } else {
             soundHandler.unmute();
+            document.getElementById('audio-mute-active').style.display = 'none';
+            document.getElementById('audio-mute-inactive').style.display = 'flex';
         }
-
-        muteUnmute.innerHTML = `<span>${!soundHandler.state.isMuted ? 'MUTE' : 'UNMUTE'}</span>`;
     };
+    document.getElementById('audio-mute-active').style.display = 'none';
+    document.getElementById('audio-mute-inactive').style.display = 'flex';
 
-    muteUnmute.innerHTML = `<span>${!soundHandler.state.isMuted ? 'MUTE' : 'UNMUTE'}</span>`;
     muteUnmute.onclick = onClick;
 };

@@ -143,14 +143,19 @@
                 position: absolute;
                 top: 0;
                 left: 0;
-                color: #ff6600;
                 font-size: 16px;
                 display: block;
-                border: 3px solid blue;
-                background-color: white;
+                border: none;
+                background-color: none;
                 padding: 2px;
                 margin: 5px;
                 z-index: 1000;
+            }
+            #audio-mute-inactive {
+                display: none;
+            }
+            #audio-mute-active {
+                display: none;
             }
             .title {
                 font-size: 64px;
@@ -249,7 +254,73 @@
         <script type="module" src="/src/game/state.ts"></script>
     </head>
     <body>
-        <div id="audio-mute"></div>
+        <div id="audio-mute">
+            <svg xmlns="http://www.w3.org/2000/svg" id="audio-mute-inactive" viewBox="0 0 32 32" width="32" height="32">
+                <defs>
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <g filter="url(#glow)">
+                    <polygon
+                        points="4,11 4,21 9,21 16,27 16,5 9,11"
+                        fill="#ff6600"
+                        stroke="#ff8800"
+                        stroke-width="0.5"
+                    />
+                    <path
+                        d="M19,11 Q23,16 19,21"
+                        fill="none"
+                        stroke="#ff6600"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                    />
+                    <path
+                        d="M22,8 Q28,16 22,24"
+                        fill="none"
+                        stroke="#ff6600"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        opacity="0.7"
+                    />
+                </g>
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" id="audio-mute-active" viewBox="0 0 32 32" width="32" height="32">
+                <defs>
+                    <filter id="glow-red">
+                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <filter id="glow-grey">
+                        <feGaussianBlur stdDeviation="0.8" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <polygon
+                    points="4,11 4,21 9,21 16,27 16,5 9,11"
+                    fill="#444"
+                    stroke="#555"
+                    stroke-width="0.5"
+                    filter="url(#glow-grey)"
+                />
+                <g filter="url(#glow-red)">
+                    <line x1="20" y1="11" x2="28" y2="21" stroke="#ff2200" stroke-width="2.5" stroke-linecap="round" />
+                    <line x1="28" y1="11" x2="20" y2="21" stroke="#ff2200" stroke-width="2.5" stroke-linecap="round" />
+                </g>
+            </svg>
+        </div>
         <div id="flash-overlay"></div>
         <div id="msg"></div>
 
