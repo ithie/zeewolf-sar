@@ -1232,12 +1232,17 @@
                             while (diff > Math.PI) diff -= Math.PI * 2;
                             const dx = x - heli.x,
                                 dy = y - heli.y;
-                            fill =
-                                Math.abs(diff) < coneWidth && dx * dx + dy * dy < range * range
-                                    ? h[0] > 0
-                                        ? litColor
-                                        : '#004488'
-                                    : '#020205';
+                            let inLight = Math.abs(diff) < coneWidth && dx * dx + dy * dy < range * range;
+
+                            if (inLight) {
+                                if (isPad)
+                                    fill = `rgb(${intensity - 30},${intensity - 30},${intensity - 30})`; // Pad bleibt grau
+                                else if (h[0] > 0)
+                                    fill = `rgb(${intensity - 20},${intensity + 10},${intensity - 20})`; // Land grünlich
+                                else fill = `rgb(0,${Math.floor(intensity * 0.3)},${Math.floor(intensity * 0.6)})`; // Wasser bleibt blau
+                            } else {
+                                fill = '#020205';
+                            }
                         } else {
                             fill = isPad ? '#444' : h[0] > 0 ? `rgb(${c - 10},${c + 30},${c - 10})` : '#003d7a';
                             if (rain && h[0] < 0) fill = '#002244';
