@@ -7,8 +7,10 @@
             "gridSize": 100,
             "headline": "Erste Flugversuche",
             "sublines": ["Editor Map", "Sichere die Ziele!"],
-            "goalPersons": 1,
-            "goalCrates": 0,
+            "payloads": [
+                { "type": "person", "x": 45, "y": 32 },
+                { "type": "crate", "x": 67, "y": 55 }
+            ],
             "spawnPoint": "pad",
             "rain": false,
             "night": true,

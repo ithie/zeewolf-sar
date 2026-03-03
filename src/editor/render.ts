@@ -73,11 +73,12 @@ export const drawMap = () => {
         if (m.carrierPath === 'straight') {
             ctx.beginPath();
             ctx.moveTo(cx, cy);
-            ctx.lineTo(cx + Math.cos(rad) * 1000, cy + Math.sin(rad) * 1000);
+            ctx.lineTo(cx + Math.cos(rad - Math.PI / 2) * 1000, cy + Math.sin(rad - Math.PI / 2) * 1000);
             ctx.stroke();
+            ctx.beginPath();
         } else if (m.carrierPath === 'circle') {
             const pathRad = m.carrierRadius * tSize;
-            const cRad = rad + Math.PI / 2;
+            const cRad = rad;
             const c_px = cx + Math.cos(cRad) * pathRad,
                 c_py = cy + Math.sin(cRad) * pathRad;
             ctx.beginPath();
@@ -90,7 +91,7 @@ export const drawMap = () => {
 
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(rad);
+        ctx.rotate(rad - Math.PI / 2);
         if (state.selectedUI === 'carrier') {
             ctx.shadowBlur = 10;
             ctx.shadowColor = COLORS.textLight;

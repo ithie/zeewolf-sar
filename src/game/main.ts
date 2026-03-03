@@ -2,6 +2,7 @@ import { CampaignExport } from '@/shared/types';
 import Campaign from './campaigns/campaign.json';
 import Tutorial from './campaigns/tutorial.json';
 import LevelTest from './campaigns/leveltest.json';
+import AddCamp from './campaigns/addCamp.json';
 import { decompressTerrain } from '../shared/utils';
 import ZsynthPlayer from '../tracker/ZsynthPlayer';
 import SoundTutorial from './music/clike.json';
@@ -45,8 +46,11 @@ const soundHandler = (() => {
 })();
 
 const campaignHandler = () => {
+    let cachedTerrain: { terrain: number[][]; gridSize: number } | null = null;
+
     const campaigns: CampaignExport[] = [
         Tutorial as unknown as CampaignExport,
+        AddCamp as unknown as CampaignExport,
         LevelTest as unknown as CampaignExport,
         Campaign as unknown as CampaignExport,
     ];
@@ -62,18 +66,27 @@ const campaignHandler = () => {
     };
 
     const getNextMission = () => {
+        cachedTerrain = null;
         if (campaignState.activeMission + 1 >= campaignState.maximumMissions) {
             return 'DONE';
         }
 
         campaignState.activeMission = campaignState.activeMission + 1;
 
-        return campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
+        const missionData = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
+        console.log('FULL MISSION DATA gnM:', missionData);
+        return {
+            ...missionData,
+            carrierX: Number(missionData.carrierX),
+            carrierY: Number(missionData.carrierY),
+        };
     };
 
     const setActiveCampaign = (index: number) => {
         campaignState.activeCampaign = index;
         campaignState.activeMission = 0;
+        campaignState.maximumMissions = campaigns[index].levels.length;
+        cachedTerrain = null;
     };
 
     const setActiveMission = (index: number) => {
@@ -81,16 +94,24 @@ const campaignHandler = () => {
     };
 
     const getCurrentMissionData = () => {
-        return campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
+        const missionData = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
+        return {
+            ...missionData,
+            carrierX: Number(missionData.carrierX),
+            carrierY: Number(missionData.carrierY),
+        };
     };
 
     const getTerrain = () => {
-        const { terrain, gridSize } = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
+        if (!cachedTerrain) {
+            const { terrain, gridSize } = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
+            cachedTerrain = {
+                terrain: decompressTerrain(terrain, gridSize),
+                gridSize,
+            };
+        }
 
-        return {
-            terrain: decompressTerrain(terrain, gridSize),
-            gridSize,
-        };
+        return cachedTerrain;
     };
 
     return {
@@ -105,7 +126,7 @@ const campaignHandler = () => {
     };
 };
 
-window.campaignHandler = campaignHandler;
+window.campaignHandler = campaignHandler();
 window.soundHandler = soundHandler;
 window.zinit = () => {
     const muteUnmute = document.getElementById('audio-mute');
