@@ -23,8 +23,7 @@ export const createEmptyMission = (name = 'Mission Alpha'): Mission => {
         lighthouseX: -1,
         lighthouseY: -1,
         spawnPoint: 'pad',
-        goalPersons: 5,
-        goalCrates: 0,
+        payloads: [],
         rain: false,
         night: false,
         windDir: 45,
@@ -50,6 +49,9 @@ export const state = {
     brushRadius: 1.5,
     isCustomBrush: false,
     selectedUI: null as string | null,
+
+    // Welcher Payload-Typ gerade per Klick platziert wird ('person' | 'crate' | null)
+    payloadBrushType: null as 'person' | 'crate' | null,
 
     isDrawing: false,
     isEditorDragging: false,

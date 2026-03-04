@@ -399,7 +399,7 @@
                 <div id="briefing-headline"></div>
                 <div id="briefing-sublines"></div>
                 <div id="briefing-body"></div>
-                <div id="briefing-hint">▶ CLICK TO DEPLOY</div>
+                <div id="briefing-hint">CLICK TO DEPLOY</div>
             </div>
         </div>
 
@@ -613,12 +613,13 @@
 
                 if (carrierPath === 'circle') {
                     const r = carrierRadius ?? 45;
-                    const centerRad = angleRad + Math.PI / 2;
                     CARRIER.radiusX = r;
                     CARRIER.radiusY = r * 0.8;
-                    CARRIER.centerX = carrierX - Math.cos(centerRad) * r;
-                    CARRIER.centerY = carrierY - Math.sin(centerRad) * r;
-                    seaTime = angleRad;
+                    // t0 so dass Startposition = (carrierX,carrierY) UND Winkel = angleRad
+                    const t0 = Math.atan2(-Math.sin(angleRad) / CARRIER.radiusX, -Math.cos(angleRad) / CARRIER.radiusY);
+                    CARRIER.centerX = carrierX - Math.cos(t0) * CARRIER.radiusX;
+                    CARRIER.centerY = carrierY - Math.sin(t0) * CARRIER.radiusY;
+                    seaTime = t0;
                     updateCarrierPos(true);
                 } else {
                     CARRIER.x = carrierX;
@@ -1110,9 +1111,9 @@
                         sublines += `<div class="box-sub">Missions: ${levels.length}</div>`;
                         campaigns.push(
                             `<div class="grid-box" onclick="selectCampaign('${index}')"${type === 'tutorial' ? ` style="border-color: #ff9900"` : ''}>
-                            <div class="box-label"${type === 'tutorial' ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>
-                            ${sublines}
-                        </div>`
+                                        <div class="box-label"${type === 'tutorial' ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>
+                                        ${sublines}
+                                    </div>`
                         );
                     });
                 document.getElementById('campaign-grid').innerHTML = campaigns.join('');
@@ -1134,9 +1135,9 @@
                         sublines += `<div class="box-sub">Missions: ${levels.length}</div>`;
                         campaigns.push(
                             `<div class="grid-box" onclick="selectCampaign('${index}')"${type === 'tutorial' ? ` style="border-color: #ff9900"` : ''}>
-                            <div class="box-label"${type === 'tutorial' ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>
-                            ${sublines}
-                        </div>`
+                                        <div class="box-label"${type === 'tutorial' ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>
+                                        ${sublines}
+                                    </div>`
                         );
                     });
                 document.getElementById('campaign-select').style.display = 'flex';
@@ -1453,7 +1454,7 @@
 
                 payloads.forEach(payload => {
                     if (payload.rescued && !payload.hanging) return;
-                    if (!payload.hanging && !isVisible(payload.x, payload.y, 20)) return;
+                    if (!payload.hanging && !isVisible(payload.x, payload.y, 15)) return;
 
                     if (isNight && !payload.hanging) {
                         const dx = payload.x - heli.x,

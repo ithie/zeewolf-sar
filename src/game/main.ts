@@ -1,8 +1,7 @@
 import { CampaignExport } from '@/shared/types';
-import Campaign from './campaigns/campaign.json';
 import Tutorial from './campaigns/tutorial.json';
-import LevelTest from './campaigns/leveltest.json';
 import AddCamp from './campaigns/addCamp.json';
+import ArchipelDemo from './campaigns/archipeldemo.json';
 import { decompressTerrain } from '../shared/utils';
 import ZsynthPlayer from '../tracker/ZsynthPlayer';
 import SoundTutorial from './music/clike.json';
@@ -50,9 +49,8 @@ const campaignHandler = () => {
 
     const campaigns: CampaignExport[] = [
         Tutorial as unknown as CampaignExport,
+        ArchipelDemo as unknown as CampaignExport,
         AddCamp as unknown as CampaignExport,
-        LevelTest as unknown as CampaignExport,
-        Campaign as unknown as CampaignExport,
     ];
 
     const campaignState = {
@@ -74,7 +72,7 @@ const campaignHandler = () => {
         campaignState.activeMission = campaignState.activeMission + 1;
 
         const missionData = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
-        console.log('FULL MISSION DATA gnM:', missionData);
+
         return {
             ...missionData,
             carrierX: Number(missionData.carrierX),

@@ -17,8 +17,7 @@ export interface Mission {
     carrierRadius: number;
 
     spawnPoint: 'pad' | 'carrier';
-    goalPersons: number;
-    goalCrates: number;
+    payloads: { type: 'person' | 'crate'; x: number; y: number }[];
 
     rain: boolean;
     night: boolean;

@@ -143,6 +143,12 @@ h2 {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
+/* Nativer Cursor auf dem Editor-Canvas ausblenden –
+   wird durch den JS Custom Cursor (#brush-cursor) ersetzt */
+#editorCanvas {
+    cursor: none;
+}
+
 canvas {
     display: block;
     image-rendering: pixelated;

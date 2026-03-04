@@ -21,6 +21,7 @@ export const drawMap = () => {
     if (cUI) cUI.style.display = 'none';
     if (wUI) wUI.style.display = 'none';
 
+    // Terrain
     for (let x = Math.floor(state.panX); x < Math.min(m.gridSize, state.panX + 600 / tSize + 1); x++) {
         for (let y = Math.floor(state.panY); y < Math.min(m.gridSize, state.panY + 600 / tSize + 1); y++) {
             const h = m.terrain[x][y];
@@ -29,6 +30,7 @@ export const drawMap = () => {
         }
     }
 
+    // Pad
     if (m.padX >= 0) {
         const px = (m.padX - state.panX) * tSize;
         const py = (m.padY - state.panY) * tSize;
@@ -62,6 +64,7 @@ export const drawMap = () => {
         }
     }
 
+    // Carrier
     if (m.carrierX >= 0) {
         const cx = (m.carrierX - state.panX) * tSize;
         const cy = (m.carrierY - state.panY) * tSize;
@@ -75,14 +78,17 @@ export const drawMap = () => {
             ctx.moveTo(cx, cy);
             ctx.lineTo(cx + Math.cos(rad - Math.PI / 2) * 1000, cy + Math.sin(rad - Math.PI / 2) * 1000);
             ctx.stroke();
-            ctx.beginPath();
         } else if (m.carrierPath === 'circle') {
-            const pathRad = m.carrierRadius * tSize;
-            const cRad = rad;
-            const c_px = cx + Math.cos(cRad) * pathRad,
-                c_py = cy + Math.sin(cRad) * pathRad;
+            const rX = m.carrierRadius * tSize;
+            const rY = rX * 0.8;
+            const t0 = Math.atan2(-Math.sin(rad) / rX, -Math.cos(rad) / rY);
+            // Mittelpunkt in Grid-Koordinaten berechnen, dann in Pixel
+            const centerGridX = m.carrierX - Math.cos(t0) * m.carrierRadius;
+            const centerGridY = m.carrierY - Math.sin(t0) * m.carrierRadius * 0.8;
+            const c_px = (centerGridX - state.panX) * tSize;
+            const c_py = (centerGridY - state.panY) * tSize;
             ctx.beginPath();
-            ctx.arc(c_px, c_py, pathRad, 0, Math.PI * 2);
+            ctx.ellipse(c_px, c_py, rX, rY, 0, 0, Math.PI * 2);
             ctx.stroke();
             ctx.fillStyle = COLORS.carrierPath;
             ctx.fillRect(c_px - 3, c_py - 3, 6, 6);
@@ -97,12 +103,12 @@ export const drawMap = () => {
             ctx.shadowColor = COLORS.textLight;
         }
         ctx.fillStyle = COLORS.carrierBase;
-        ctx.fillRect(-6 * tSize, -1.5 * tSize, 12 * tSize, 3 * tSize);
+        ctx.fillRect(-8 * tSize, -3.5 * tSize, 16 * tSize, 7 * tSize);
         ctx.fillStyle = COLORS.carrierAccent;
         ctx.beginPath();
-        ctx.moveTo(6 * tSize, 0);
-        ctx.lineTo(3 * tSize, -1.5 * tSize);
-        ctx.lineTo(3 * tSize, 1.5 * tSize);
+        ctx.moveTo(8 * tSize, 0);
+        ctx.lineTo(5 * tSize, -3.5 * tSize);
+        ctx.lineTo(5 * tSize, 3.5 * tSize);
         ctx.fill();
         ctx.shadowBlur = 0;
 
@@ -126,6 +132,7 @@ export const drawMap = () => {
         }
     }
 
+    // Lighthouse
     if (m.lighthouseX >= 0) {
         const lx = (m.lighthouseX + 0.5 - state.panX) * tSize;
         const ly = (m.lighthouseY + 0.5 - state.panY) * tSize;
@@ -139,6 +146,60 @@ export const drawMap = () => {
         ctx.fill();
     }
 
+    // ── PAYLOADS ──────────────────────────────────────────────────────────────
+    // Personen = gelbes Männchen-Symbol, Crates = orangene Kiste
+    const payloads = m.payloads || [];
+    payloads.forEach((p, idx) => {
+        const px = (p.x + 0.5 - state.panX) * tSize;
+        const py = (p.y + 0.5 - state.panY) * tSize;
+        const r = Math.max(5, tSize * 0.7);
+
+        if (p.type === 'person') {
+            // Körper
+            ctx.fillStyle = '#ffe033';
+            ctx.beginPath();
+            ctx.arc(px, py, r * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+            // Kopf (kleiner Kreis oben)
+            ctx.fillStyle = '#ffe033';
+            ctx.beginPath();
+            ctx.arc(px, py - r * 0.65, r * 0.28, 0, Math.PI * 2);
+            ctx.fill();
+            // Kontur
+            ctx.strokeStyle = '#cc9900';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(px, py, r * 0.45, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (p.type === 'crate') {
+            // Kiste
+            const s = r * 0.85;
+            ctx.fillStyle = '#ff8800';
+            ctx.fillRect(px - s / 2, py - s / 2, s, s);
+            ctx.strokeStyle = '#cc5500';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(px - s / 2, py - s / 2, s, s);
+            // Kreuz
+            ctx.beginPath();
+            ctx.moveTo(px - s / 2, py - s / 2);
+            ctx.lineTo(px + s / 2, py + s / 2);
+            ctx.moveTo(px + s / 2, py - s / 2);
+            ctx.lineTo(px - s / 2, py + s / 2);
+            ctx.strokeStyle = '#cc5500';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // Index-Label (zum Identifizieren)
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(8, tSize * 0.55)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(String(idx + 1), px, py + r * 1.5);
+        ctx.textAlign = 'left';
+    });
+    // ── END PAYLOADS ──────────────────────────────────────────────────────────
+
+    // Wind-Kompass
     const dirRad = (m.windDir * Math.PI) / 180;
     if (state.selectedUI === 'wind') {
         ctx.shadowBlur = 10;
@@ -191,8 +252,12 @@ const renderIso = (
         y: cY + (vx + vy) * (sTH / 2) - vz * sH,
     });
 
-    for (let x = 0; x < m.gridSize; x += step) {
-        for (let y = 0; y < m.gridSize; y += step) {
+    // Painter's Algorithm: von hinten nach vorne (x+y aufsteigend)
+    for (let d = 0; d < m.gridSize * 2; d += step) {
+        for (let x = 0; x <= d; x += step) {
+            const y = d - x;
+            if (x >= m.gridSize || y >= m.gridSize) continue;
+
             const nx = Math.min(x + step, m.gridSize);
             const ny = Math.min(y + step, m.gridSize);
             const h0 = m.terrain[x][y];
@@ -242,7 +307,7 @@ const renderIso = (
     }
 
     if (m.carrierX >= 0) {
-        const rad = (m.carrierAngle * Math.PI) / 180;
+        const rad = (m.carrierAngle * Math.PI) / 180 - Math.PI / 2;
         const cCos = Math.cos(rad);
         const cSin = Math.sin(rad);
         const p0 = getIso(m.carrierX + 6 * cCos - 1.5 * cSin, m.carrierY + 6 * cSin + 1.5 * cCos, 0.5);
@@ -263,6 +328,31 @@ const renderIso = (
             tCtx.stroke();
         }
     }
+
+    // ── PAYLOADS im ISO-Preview ───────────────────────────────────────────────
+    if (mode === 'filled') {
+        const payloads = m.payloads || [];
+        payloads.forEach(p => {
+            const h = m.terrain[p.x] ? (m.terrain[p.x][p.y] ?? 0) : 0;
+            const iso = getIso(p.x + 0.5, p.y + 0.5, Math.max(h, 0) + 0.5);
+            if (p.type === 'person') {
+                tCtx.fillStyle = '#ffe033';
+                tCtx.beginPath();
+                tCtx.arc(iso.x, iso.y, 4, 0, Math.PI * 2);
+                tCtx.fill();
+                tCtx.strokeStyle = '#cc9900';
+                tCtx.lineWidth = 1;
+                tCtx.stroke();
+            } else if (p.type === 'crate') {
+                tCtx.fillStyle = '#ff8800';
+                tCtx.fillRect(iso.x - 4, iso.y - 3, 8, 6);
+                tCtx.strokeStyle = '#cc5500';
+                tCtx.lineWidth = 1;
+                tCtx.strokeRect(iso.x - 4, iso.y - 3, 8, 6);
+            }
+        });
+    }
+    // ── END PAYLOADS ──────────────────────────────────────────────────────────
 };
 
 export const drawPreview = () => {
@@ -293,4 +383,27 @@ export const drawPreview = () => {
     prevCtx.clip();
     renderIso(prevCtx, 500, 300, 'wireframe', 300, 1, 0, 0, true);
     prevCtx.restore();
+};
+
+/**
+ * Rendert die Mission im Tron-Wireframe-Stil in einen Offscreen-Canvas
+ * und gibt das Ergebnis als data:image/jpeg;base64 zurück.
+ */
+export const generatePreviewBase64 = (): string => {
+    const offscreen = document.createElement('canvas');
+    offscreen.width = 400;
+    offscreen.height = 300;
+    const offCtx = offscreen.getContext('2d')!;
+
+    // Schwarzer Hintergrund – Tron-Look
+    offCtx.fillStyle = '#001122';
+    offCtx.fillRect(0, 0, 400, 300);
+
+    const m = getCurrentMission();
+    if (!m) return offscreen.toDataURL('image/jpeg', 0.8);
+
+    // renderIso im wireframe-Modus, isFull=true (kein Pan/Zoom-Offset)
+    renderIso(offCtx, 400, 300, 'wireframe', 0, 1, 0, 0, true);
+
+    return offscreen.toDataURL('image/jpeg', 0.8);
 };

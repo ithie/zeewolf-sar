@@ -93,7 +93,15 @@ Viel Glück, Pilot.</textarea
                         <strong>OBJECTS:</strong><br />
                         <label><input type="radio" name="tool" value="pad" /> 🚁 Landepad</label><br />
                         <label><input type="radio" name="tool" value="lighthouse" /> 🗼 Turm</label><br />
-                        <label><input type="radio" name="tool" value="carrier" /> 🚢 Träger (Shift: Lösch)</label>
+                        <label><input type="radio" name="tool" value="carrier" /> 🚢 Träger (Shift: Lösch)</label><br />
+                        <strong>PAYLOADS:</strong><br />
+                        <label
+                            ><input type="radio" name="tool" value="person" /> 🟡 Person platzieren (Shift:
+                            Lösch)</label
+                        ><br />
+                        <label
+                            ><input type="radio" name="tool" value="crate" /> 🟠 Crate platzieren (Shift: Lösch)</label
+                        >
                     </div>
                     <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
                         <strong>BRUSH RADIUS:</strong><br />
@@ -220,15 +228,27 @@ Viel Glück, Pilot.</textarea
                         ></textarea>
                     </div>
                     <div class="flex-col">
-                        <strong>OBJECTIVES:</strong><br />
-                        Personnel: <input type="number" id="m_persons" value="5" min="0" style="width: 60px" /><br />
-                        Cargo: &nbsp;&nbsp;&nbsp;&nbsp;<input
-                            type="number"
-                            id="m_crates"
-                            value="0"
-                            min="0"
-                            style="width: 60px"
-                        />
+                        <!-- ── OBJECTIVES: Payloads ─────────────────────────── -->
+                        <strong>OBJECTIVES (Payloads):</strong><br />
+                        <div
+                            id="payload-list"
+                            style="
+                                min-height: 40px;
+                                background: #0a0a0a;
+                                border: 1px solid #333;
+                                padding: 6px;
+                                margin: 6px 0;
+                                max-height: 120px;
+                                overflow-y: auto;
+                            "
+                        >
+                            <span style="color: #555; font-size: 11px">Keine Payloads platziert</span>
+                        </div>
+                        <span style="font-size: 10px; color: #888">
+                            🟡 Person / 🟠 Crate Tool wählen, dann auf die Karte klicken.<br />
+                            Shift+Klick entfernt nächsten Payload dieses Typs.
+                        </span>
+                        <!-- ────────────────────────────────────────────────── -->
                         <hr style="border-color: #222" />
                         <strong>ENVIRONMENT:</strong><br />
                         <label><input type="checkbox" id="m_rain" /> 🌧️ Rain / Storm</label><br />
