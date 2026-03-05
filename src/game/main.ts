@@ -14,7 +14,7 @@ const soundHandler = (() => {
 
     const state: { activeTheme: string; isMuted: boolean } = {
         activeTheme: '',
-        isMuted: false,
+        isMuted: true,
     };
 
     ZsynthPlayer.init(songList);
@@ -72,12 +72,7 @@ const campaignHandler = () => {
         campaignState.activeMission = campaignState.activeMission + 1;
 
         const missionData = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
-
-        return {
-            ...missionData,
-            carrierX: Number(missionData.carrierX),
-            carrierY: Number(missionData.carrierY),
-        };
+        return { ...missionData };
     };
 
     const setActiveCampaign = (index: number) => {
@@ -93,11 +88,7 @@ const campaignHandler = () => {
 
     const getCurrentMissionData = () => {
         const missionData = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
-        return {
-            ...missionData,
-            carrierX: Number(missionData.carrierX),
-            carrierY: Number(missionData.carrierY),
-        };
+        return { ...missionData };
     };
 
     const getTerrain = () => {
@@ -127,6 +118,9 @@ const campaignHandler = () => {
 window.campaignHandler = campaignHandler();
 window.soundHandler = soundHandler;
 window.zinit = () => {
+    const handle = (key: string, visibility: 'flex' | 'none') => {
+        document.getElementById(key).style.display = visibility;
+    };
     const muteUnmute = document.getElementById('audio-mute');
     if (!muteUnmute) {
         return;
@@ -135,16 +129,22 @@ window.zinit = () => {
         evt.preventDefault();
         if (!soundHandler.state.isMuted) {
             soundHandler.mute();
-            document.getElementById('audio-mute-active').style.display = 'flex';
-            document.getElementById('audio-mute-inactive').style.display = 'none';
+            handle('audio-mute-active', 'flex');
+            handle('audio-mute-inactive', 'none');
         } else {
             soundHandler.unmute();
-            document.getElementById('audio-mute-active').style.display = 'none';
-            document.getElementById('audio-mute-inactive').style.display = 'flex';
+            handle('audio-mute-active', 'none');
+            handle('audio-mute-inactive', 'flex');
         }
     };
-    document.getElementById('audio-mute-active').style.display = 'none';
-    document.getElementById('audio-mute-inactive').style.display = 'flex';
+
+    if (soundHandler.state.isMuted) {
+        handle('audio-mute-active', 'flex');
+        handle('audio-mute-inactive', 'none');
+    } else {
+        handle('audio-mute-active', 'none');
+        handle('audio-mute-inactive', 'flex');
+    }
 
     muteUnmute.onclick = onClick;
 };

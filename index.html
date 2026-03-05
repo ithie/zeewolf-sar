@@ -435,6 +435,7 @@
             let points = [],
                 particles = [];
             let CARRIER = {};
+            let BOATS = [];
             let seaTime = 0;
 
             // payloads[] replaces the old single `payload` object
@@ -481,21 +482,30 @@
             let keys = {};
 
             // ─── helper flags ────────────────────────────────────────────────────────────
+            // ─── object helpers ──────────────────────────────────────────────────────────
+            function getObjects() {
+                return window.campaignHandler.getCurrentMissionData().objects || [];
+            }
+            function getObjectByType(type) {
+                return getObjects().find(o => o.type === type) || null;
+            }
+            function getObjectsByType(type) {
+                return getObjects().filter(o => o.type === type);
+            }
             function hasCarrier() {
-                const { carrierX, carrierY } = window.campaignHandler.getCurrentMissionData();
-                return carrierX >= 0 && carrierY >= 0;
+                return !!getObjectByType('carrier');
             }
             function hasLighthouse() {
-                const { lighthouseX, lighthouseY } = window.campaignHandler.getCurrentMissionData();
-                return lighthouseX >= 0 && lighthouseY >= 0;
+                return !!getObjectByType('lighthouse');
             }
             function hasPad() {
-                const { padX, padY } = window.campaignHandler.getCurrentMissionData();
-                return padX >= 0 && padY >= 0;
+                return !!getObjectByType('pad');
+            }
+            function hasBoats() {
+                return getObjectsByType('boat').length > 0;
             }
             function isStartsOnCarrier() {
-                const { spawnPoint } = window.campaignHandler.getCurrentMissionData();
-                return spawnPoint === 'carrier';
+                return window.campaignHandler.getCurrentMissionData().spawnObject === 'carrier';
             }
 
             // ─── grid / terrain ──────────────────────────────────────────────────────────
@@ -561,8 +571,7 @@
             }
 
             function updateCarrierPos(forceUpdate = false) {
-                const { carrierX, carrierY } = window.campaignHandler.getCurrentMissionData();
-                if (carrierX === -1 && carrierY === -1) return;
+                if (!hasCarrier()) return;
 
                 if (CARRIER.path === 'straight') {
                     if (!forceUpdate) {
@@ -571,66 +580,157 @@
                         const ny = CARRIER.lineStartY + CARRIER.lineDirY * CARRIER.lineProgress;
                         const dx = nx - CARRIER.x,
                             dy = ny - CARRIER.y;
-                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001)
-                            CARRIER.angle = Math.atan2(dy, dx) + Math.PI / 2;
+                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dx, -dy);
                         CARRIER.x = nx;
                         CARRIER.y = ny;
-                        const { gridSize } = window.campaignHandler.getTerrain();
-                        if (nx < -20 || nx > gridSize + 20 || ny < -20 || ny > gridSize + 20)
-                            triggerCrash('CARRIER DEPARTED');
                     }
                 } else {
                     if (!forceUpdate) seaTime += CARRIER.speed;
                     const nx = CARRIER.centerX + Math.cos(seaTime) * CARRIER.radiusX;
                     const ny = CARRIER.centerY + Math.sin(seaTime) * CARRIER.radiusY;
                     if (forceUpdate) {
-                        CARRIER.angle =
-                            Math.atan2(CARRIER.radiusY * Math.cos(seaTime), -CARRIER.radiusX * Math.sin(seaTime)) +
-                            Math.PI / 2;
+                        CARRIER.angle = Math.atan2(
+                            -CARRIER.radiusX * Math.sin(seaTime),
+                            -CARRIER.radiusY * Math.cos(seaTime)
+                        );
                     } else {
                         const dx = nx - CARRIER.x,
                             dy = ny - CARRIER.y;
-                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001)
-                            CARRIER.angle = Math.atan2(dy, dx) + Math.PI / 2;
+                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dx, -dy);
                     }
                     CARRIER.x = nx;
                     CARRIER.y = ny;
                 }
             }
 
-            function initCarrierFromMission() {
-                const { carrierX, carrierY, carrierAngle, carrierPath, carrierSpeed, carrierRadius } =
-                    window.campaignHandler.getCurrentMissionData();
-                if (carrierX === -1 && carrierY === -1) return;
-
-                const angleRad = (carrierAngle ?? 0) * (Math.PI / 180);
-                CARRIER.w = 3.5;
-                CARRIER.l = 8.0;
-                CARRIER.zDeck = 0.8;
-                CARRIER.zHull = 0.4;
-                CARRIER.path = carrierPath ?? 'circle';
-                CARRIER.speed = (carrierSpeed ?? 0) * 0.0001;
-
-                if (carrierPath === 'circle') {
-                    const r = carrierRadius ?? 45;
-                    CARRIER.radiusX = r;
-                    CARRIER.radiusY = r * 0.8;
-                    // t0 so dass Startposition = (carrierX,carrierY) UND Winkel = angleRad
-                    const t0 = Math.atan2(-Math.sin(angleRad) / CARRIER.radiusX, -Math.cos(angleRad) / CARRIER.radiusY);
-                    CARRIER.centerX = carrierX - Math.cos(t0) * CARRIER.radiusX;
-                    CARRIER.centerY = carrierY - Math.sin(t0) * CARRIER.radiusY;
-                    seaTime = t0;
-                    updateCarrierPos(true);
+            function initVessel(obj, vessel, seaTimeRef) {
+                const angleRad = (obj.angle ?? 0) * (Math.PI / 180);
+                vessel.w = obj.type === 'carrier' ? 3.5 : 1.5;
+                vessel.l = obj.type === 'carrier' ? 8.0 : 3.0;
+                vessel.zDeck = obj.type === 'carrier' ? 0.8 : 0.35;
+                vessel.zHull = obj.type === 'carrier' ? 0.4 : 0.15;
+                vessel.path = obj.path ?? 'static';
+                // Einheitliche Skalierung: beide ~gleich schnell bei gleichem speed-Wert
+                // circle: rad/frame * radius ≈ grid/frame; straight: grid/frame direkt
+                vessel.speed = obj.path === 'straight' ? (obj.speed ?? 0) * 0.006 : (obj.speed ?? 0) * 0.0001;
+                if (obj.path === 'circle') {
+                    const r = obj.radius ?? 45;
+                    vessel.radiusX = r;
+                    vessel.radiusY = r * 0.8;
+                    const t0 =
+                        Math.atan2(-Math.sin(angleRad) / vessel.radiusX, -Math.cos(angleRad) / vessel.radiusY) +
+                        Math.PI / 2;
+                    vessel.centerX = obj.x - Math.cos(t0) * vessel.radiusX;
+                    vessel.centerY = obj.y - Math.sin(t0) * vessel.radiusY;
+                    seaTimeRef.t = t0;
+                    vessel.x = vessel.centerX + Math.cos(t0) * vessel.radiusX;
+                    vessel.y = vessel.centerY + Math.sin(t0) * vessel.radiusY;
+                    vessel.angle = Math.atan2(-vessel.radiusX * Math.sin(t0), -vessel.radiusY * Math.cos(t0));
+                } else if (obj.path === 'straight') {
+                    vessel.x = obj.x;
+                    vessel.y = obj.y;
+                    vessel.angle = Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
+                    vessel.lineStartX = obj.x;
+                    vessel.lineStartY = obj.y;
+                    vessel.lineDirX = Math.cos(angleRad);
+                    vessel.lineDirY = Math.sin(angleRad);
+                    vessel.lineProgress = 0;
+                    console.log(
+                        'initVessel straight:',
+                        obj.type,
+                        'angle:',
+                        obj.angle,
+                        'angleRad:',
+                        angleRad,
+                        'lineDirX:',
+                        vessel.lineDirX,
+                        'lineDirY:',
+                        vessel.lineDirY
+                    );
                 } else {
-                    CARRIER.x = carrierX;
-                    CARRIER.y = carrierY;
-                    CARRIER.angle = angleRad;
-                    CARRIER.lineStartX = carrierX;
-                    CARRIER.lineStartY = carrierY;
-                    CARRIER.lineDirX = Math.cos(angleRad);
-                    CARRIER.lineDirY = Math.sin(angleRad);
-                    CARRIER.lineProgress = 0;
+                    vessel.x = obj.x;
+                    vessel.y = obj.y;
+                    vessel.angle = Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
                 }
+            }
+
+            function initCarrierFromMission() {
+                const carrierObj = getObjectByType('carrier');
+                if (!carrierObj) return;
+                initVessel(carrierObj, CARRIER, {
+                    get t() {
+                        return seaTime;
+                    },
+                    set t(v) {
+                        seaTime = v;
+                    },
+                });
+                updateCarrierPos(true);
+            }
+
+            function initBoatsFromMission() {
+                const allObjects = getObjects();
+                BOATS = getObjectsByType('boat').map(obj => {
+                    const objIdx = allObjects.indexOf(obj);
+                    const b = {
+                        x: obj.x,
+                        y: obj.y,
+                        angle: 0,
+                        path: 'static',
+                        speed: 0,
+                        w: 1.5,
+                        l: 3.0,
+                        zDeck: 0.35,
+                        zHull: 0.15,
+                        radiusX: 0,
+                        radiusY: 0,
+                        centerX: 0,
+                        centerY: 0,
+                        lineStartX: 0,
+                        lineStartY: 0,
+                        lineDirX: 0,
+                        lineDirY: 0,
+                        lineProgress: 0,
+                        _seaTime: 0,
+                        _objIdx: objIdx,
+                    };
+                    // seaTimeRef als direktes Proxy auf b._seaTime
+                    const st = {
+                        get t() {
+                            return b._seaTime;
+                        },
+                        set t(v) {
+                            b._seaTime = v;
+                        },
+                    };
+                    initVessel(obj, b, st);
+                    return b;
+                });
+            }
+
+            function updateBoats() {
+                const { gridSize } = window.campaignHandler.getTerrain();
+                BOATS.forEach(b => {
+                    if (b.path === 'straight') {
+                        b.lineProgress += b.speed;
+                        const nx = b.lineStartX + b.lineDirX * b.lineProgress;
+                        const ny = b.lineStartY + b.lineDirY * b.lineProgress;
+                        const dx = nx - b.x,
+                            dy = ny - b.y;
+                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dx, -dy);
+                        b.x = nx;
+                        b.y = ny;
+                    } else if (b.path === 'circle') {
+                        b._seaTime += b.speed;
+                        const nx = b.centerX + Math.cos(b._seaTime) * b.radiusX;
+                        const ny = b.centerY + Math.sin(b._seaTime) * b.radiusY;
+                        const dx = nx - b.x,
+                            dy = ny - b.y;
+                        if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dx, -dy);
+                        b.x = nx;
+                        b.y = ny;
+                    }
+                });
             }
 
             // ─── payloads ────────────────────────────────────────────────────────────────
@@ -641,16 +741,34 @@
                     goalCount = 0;
                     return;
                 }
-                payloads = missionPayloads.map(p => ({
-                    x: p.x,
-                    y: p.y,
-                    z: getGround(p.x, p.y),
-                    vx: 0,
-                    vy: 0,
-                    type: p.type, // 'person' | 'crate'
-                    rescued: false,
-                    hanging: false,
-                }));
+                payloads = missionPayloads.map(p => {
+                    // attachTo: payload starts on carrier or boat
+                    let px = p.x,
+                        py = p.y;
+                    if (p.attachTo) {
+                        if (p.attachTo.objectType === 'carrier' && hasCarrier()) {
+                            px = CARRIER.x;
+                            py = CARRIER.y;
+                        } else if (p.attachTo.objectType === 'boat') {
+                            const attachedBoat = BOATS.find(b => b._objIdx === p.attachTo.objectIdx);
+                            if (attachedBoat) {
+                                px = attachedBoat.x;
+                                py = attachedBoat.y;
+                            }
+                        }
+                    }
+                    return {
+                        x: px,
+                        y: py,
+                        z: getGround(px, py),
+                        vx: 0,
+                        vy: 0,
+                        type: p.type,
+                        rescued: false,
+                        hanging: false,
+                        attachTo: p.attachTo || null,
+                    };
+                });
                 goalCount = payloads.length;
                 totalRescued = 0;
                 activePayload = null;
@@ -737,6 +855,7 @@
                 updateWind();
 
                 // carrier movement & heli-on-deck drag
+                updateBoats();
                 if (hasCarrier() && !crashed) {
                     let oldX = CARRIER.x,
                         oldY = CARRIER.y,
@@ -775,8 +894,13 @@
                 if (hasPad() && heli.x >= PAD.xMin && heli.x <= PAD.xMax && heli.y >= PAD.yMin && heli.y <= PAD.yMax)
                     onPad = true;
 
-                // tower collision
-                if (hasCarrier() && onPad && heli.z < CARRIER.zDeck + 1.0) {
+                // tower collision (nur wenn Heli nah am Carrier UND nicht auf dem PAD)
+                if (
+                    hasCarrier() &&
+                    !onPad &&
+                    Math.hypot(heli.x - CARRIER.x, heli.y - CARRIER.y) < 15 &&
+                    heli.z < CARRIER.zDeck + 1.0
+                ) {
                     let local = getCarrierLocal(heli.x, heli.y);
                     if (local.x > 1.2 && local.y > 1.5 && local.y < 5.0) triggerCrash('COLLISION WITH TOWER');
                 }
@@ -812,10 +936,26 @@
                     heli.vx -= ax * baseMass * heli.cargoResist;
                     heli.vy -= ay * baseMass * heli.cargoResist;
                 } else {
-                    // water bob for unrescued payloads
+                    // water bob + vessel tracking for unrescued payloads
                     payloads.forEach(p => {
-                        if (!p.rescued && !p.hanging && getGround(p.x, p.y) < 0)
+                        if (p.rescued || p.hanging) return;
+                        // Mitbewegen mit Träger/Boot
+                        if (p.attachTo) {
+                            if (p.attachTo.objectType === 'carrier' && hasCarrier()) {
+                                p.x = CARRIER.x;
+                                p.y = CARRIER.y;
+                                p.z = CARRIER.zDeck;
+                            } else if (p.attachTo.objectType === 'boat') {
+                                const b = BOATS.find(b => b._objIdx === p.attachTo.objectIdx);
+                                if (b) {
+                                    p.x = b.x;
+                                    p.y = b.y;
+                                    p.z = b.zDeck;
+                                }
+                            }
+                        } else if (getGround(p.x, p.y) < 0) {
                             p.z = -0.3 + Math.sin(Date.now() * 0.002) * 0.1;
+                        }
                     });
                 }
 
@@ -988,8 +1128,8 @@
                         else if (heli.vz < -0.15) triggerCrash('HARD IMPACT');
                     }
                     if (hasLighthouse()) {
-                        const { lighthouseX, lighthouseY } = window.campaignHandler.getCurrentMissionData();
-                        if (Math.hypot(heli.x - lighthouseX, heli.y - lighthouseY) < 2.0 && heli.z < 8.5)
+                        const _lh = getObjectByType('lighthouse');
+                        if (_lh && Math.hypot(heli.x - _lh.x, heli.y - _lh.y) < 2.0 && heli.z < 8.5)
                             triggerCrash('TOWER COLLISION');
                     }
                 }
@@ -1053,9 +1193,10 @@
                     window.soundHandler.play('final', false);
                     return;
                 }
-                const { gridSize, padX, padY } = next;
-                PAD = { xMin: padX, xMax: padX + 7, yMin: padY, yMax: padY + 7, z: 0.5 };
-                START_POS = { x: padX + 4, y: padY + 4 };
+                const { gridSize, objects: nextObjects } = next;
+                const nextPad = (nextObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
+                PAD = { xMin: nextPad.x, xMax: nextPad.x + 7, yMin: nextPad.y, yMax: nextPad.y + 7, z: 0.5 };
+                START_POS = { x: nextPad.x + 4, y: nextPad.y + 4 };
                 initGrid(gridSize);
 
                 const successEl = document.getElementById('mission-success-screen');
@@ -1151,9 +1292,10 @@
             function selectCampaign(index) {
                 const campaignHandler = window.campaignHandler;
                 campaignHandler.campaign.setActiveCampaign(index);
-                const { gridSize, padX, padY } = campaignHandler.getCurrentMissionData();
-                PAD = { xMin: padX, xMax: padX + 7, yMin: padY, yMax: padY + 7, z: 0.5 };
-                START_POS = { x: padX + 4, y: padY + 4 };
+                const { gridSize, objects: selObjects } = campaignHandler.getCurrentMissionData();
+                const selPad = (selObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
+                PAD = { xMin: selPad.x, xMax: selPad.x + 7, yMin: selPad.y, yMax: selPad.y + 7, z: 0.5 };
+                START_POS = { x: selPad.x + 4, y: selPad.y + 4 };
                 initGrid(gridSize);
                 document.getElementById('campaign-grid').innerHTML = '';
                 document.getElementById('campaign-select').style.display = 'none';
@@ -1193,6 +1335,7 @@
                 }
                 generateTerrain();
                 initCarrierFromMission();
+                initBoatsFromMission();
                 document.getElementById('heli-select').style.display = 'none';
                 showBriefing();
             }
@@ -1201,6 +1344,7 @@
                 const zstate = window.zstate;
                 generateTerrain();
                 initCarrierFromMission();
+                initBoatsFromMission();
                 initPayloadsFromMission();
 
                 zstate.crashed = false;
@@ -1234,12 +1378,10 @@
             // ─── rendering ──────────────────────────────────────────────────────────────
             function drawScene() {
                 const zstate = window.zstate;
-                const {
-                    rain,
-                    lighthouseX,
-                    lighthouseY,
-                    night: isNight,
-                } = window.campaignHandler.getCurrentMissionData();
+                const { rain, night: isNight } = window.campaignHandler.getCurrentMissionData();
+                const _lhObj = getObjectByType('lighthouse');
+                const lighthouseX = _lhObj ? _lhObj.x : -1;
+                const lighthouseY = _lhObj ? _lhObj.y : -1;
                 const { gridSize } = window.campaignHandler.getTerrain();
 
                 if (!zstate.gameStarted || zstate.crashed) return;
@@ -1329,6 +1471,9 @@
 
                 if (hasLighthouse() && isVisible(lighthouseX, lighthouseY)) drawLighthouse(camX, camY);
                 if (hasCarrier() && isVisible(CARRIER.x, CARRIER.y, 25)) drawVectorCarrier(camX, camY);
+                BOATS.forEach(b => {
+                    if (isVisible(b.x, b.y, 15)) drawSailboat(b.x, b.y, b.angle, camX, camY);
+                });
                 if (hasPad() && isVisible(PAD.xMin + 3, PAD.yMin + 3)) drawHangar(camX, camY);
                 if (hasPad() && isVisible(PAD.xMin, PAD.yMin)) drawWindsock(camX, camY);
 
@@ -1888,8 +2033,209 @@
                 ctx.fill();
             }
 
+            function drawSailboat(sX, sY, angle, cx, cy) {
+                let hullZ = 0.35; // Etwas höherer Freibord
+                function r(rx, ry) {
+                    let nx = rx * Math.cos(angle) - ry * Math.sin(angle);
+                    let ny = rx * Math.sin(angle) + ry * Math.cos(angle);
+                    return { x: sX + nx, y: sY + ny };
+                }
+
+                // Rumpf Punkte (Schmaler gemacht)
+                let bow = r(0, -1.3);
+                let sternL = r(-0.35, 1.1),
+                    sternR = r(0.35, 1.1);
+                let midL = r(-0.45, -0.2),
+                    midR = r(0.45, -0.2);
+
+                // Kiel/Schatten (Dunkelrot für Unterwasserbereich)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: 0 },
+                        { x: midR.x, y: midR.y, z: 0 },
+                        { x: sternR.x, y: sternR.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: 0 },
+                        { x: midL.x, y: midL.y, z: 0 },
+                    ],
+                    '#822',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Wände (Jetzt in klassischem Weiß statt Grau)
+                let waterlineZ = 0.1; // Kleiner roter Streifen an der Wasserlinie
+                // Unterer Rumpf (Rot)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: 0 },
+                        { x: midR.x, y: midR.y, z: 0 },
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                        { x: bow.x, y: bow.y, z: waterlineZ },
+                    ],
+                    '#a33',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: midR.x, y: midR.y, z: 0 },
+                        { x: sternR.x, y: sternR.y, z: 0 },
+                        { x: sternR.x, y: sternR.y, z: waterlineZ },
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                    ],
+                    '#922',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                // Oberer Rumpf (Weiß)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: waterlineZ },
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                        { x: midR.x, y: midR.y, z: hullZ },
+                        { x: bow.x, y: bow.y, z: hullZ },
+                    ],
+                    '#fff',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: midR.x, y: midR.y, z: waterlineZ },
+                        { x: sternR.x, y: sternR.y, z: waterlineZ },
+                        { x: sternR.x, y: sternR.y, z: hullZ },
+                        { x: midR.x, y: midR.y, z: hullZ },
+                    ],
+                    '#eee',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                // Backbordseite (Schattenseite)
+                drawFace(
+                    [
+                        { x: sternR.x, y: sternR.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: hullZ },
+                        { x: sternR.x, y: sternR.y, z: hullZ },
+                    ],
+                    '#ddd',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: 0 },
+                        { x: midL.x, y: midL.y, z: 0 },
+                        { x: midL.x, y: midL.y, z: hullZ },
+                        { x: bow.x, y: bow.y, z: hullZ },
+                    ],
+                    '#eee',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+                drawFace(
+                    [
+                        { x: midL.x, y: midL.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: 0 },
+                        { x: sternL.x, y: sternL.y, z: hullZ },
+                        { x: midL.x, y: midL.y, z: hullZ },
+                    ],
+                    '#ddd',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Deck (Holzoptik)
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: hullZ },
+                        { x: midR.x, y: midR.y, z: hullZ },
+                        { x: sternR.x, y: sternR.y, z: hullZ },
+                        { x: sternL.x, y: sternL.y, z: hullZ },
+                        { x: midL.x, y: midL.y, z: hullZ },
+                    ],
+                    '#b96',
+                    '#753',
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Mast
+                let mastBase = r(0, 0.3);
+                drawFace(
+                    [
+                        { x: mastBase.x - 0.04, y: mastBase.y - 0.04, z: hullZ },
+                        { x: mastBase.x + 0.04, y: mastBase.y - 0.04, z: hullZ },
+                        { x: mastBase.x + 0.04, y: mastBase.y - 0.04, z: 3.2 },
+                        { x: mastBase.x - 0.04, y: mastBase.y - 0.04, z: 3.2 },
+                    ],
+                    '#ddd',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Segel
+                let sailWind = angle + 0.3;
+                let sailEnd = {
+                    x: mastBase.x + Math.cos(sailWind + Math.PI) * 1.6,
+                    y: mastBase.y + Math.sin(sailWind + Math.PI) * 1.6,
+                };
+                // Hauptsegel
+                drawFace(
+                    [
+                        { x: mastBase.x, y: mastBase.y, z: hullZ + 0.3 },
+                        { x: mastBase.x, y: mastBase.y, z: 3.0 },
+                        { x: sailEnd.x, y: sailEnd.y, z: hullZ + 0.3 },
+                    ],
+                    'rgba(255, 255, 250, 0.95)',
+                    '#eee',
+                    0,
+                    cx,
+                    cy
+                );
+                // Vorsegel
+                drawFace(
+                    [
+                        { x: bow.x, y: bow.y, z: hullZ + 0.1 },
+                        { x: mastBase.x, y: mastBase.y, z: 2.7 },
+                        {
+                            x: mastBase.x + Math.cos(sailWind + Math.PI) * 0.4,
+                            y: mastBase.y + Math.sin(sailWind + Math.PI) * 0.4,
+                            z: hullZ + 0.2,
+                        },
+                    ],
+                    'rgba(245, 245, 245, 0.9)',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+            }
+
             function drawLighthouse(cx, cy) {
-                const { lighthouseX: lhX, lighthouseY: lhY } = window.campaignHandler.getCurrentMissionData();
+                const _lhObj = getObjectByType('lighthouse');
+                if (!_lhObj) return;
+                const lhX = _lhObj.x,
+                    lhY = _lhObj.y;
                 function drawCyl(zB, zT, col, borderCol, radius) {
                     let r = radius || 1.0;
                     let topPos = iso(lhX, lhY, zT, cx, cy);
