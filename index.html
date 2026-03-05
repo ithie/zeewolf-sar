@@ -2416,10 +2416,37 @@
                     targetCtx.lineTo(tTop.x, tTop.y);
                     targetCtx.lineTo(tBack.x, tBack.y);
                     targetCtx.fill();
-                    targetCtx.fillStyle = '#333';
+                    // Fenestron – enclosed tail rotor in fin opening
+                    const fenCenter = p(-1.7, 0.01, 0.82);
+                    const fenR = 5.5 * s;
+                    targetCtx.fillStyle = '#1a1a1a';
                     targetCtx.beginPath();
-                    targetCtx.arc(p(-1.7, 0, 0.8).x, p(-1.7, 0, 0.8).y, 3 * s, 0, 7);
+                    targetCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
                     targetCtx.fill();
+                    targetCtx.strokeStyle = 'rgba(210,235,255,0.7)';
+                    targetCtx.lineWidth = 1.2 * s;
+                    targetCtx.lineCap = 'round';
+                    for (let i = 0; i < 8; i++) {
+                        const a = hRotor * 2.0 + i * (Math.PI / 4);
+                        const bx1 = fenCenter.x + Math.cos(a) * fenR * 0.25;
+                        const by1 = fenCenter.y + Math.sin(a) * fenR * 0.25;
+                        const bx2 = fenCenter.x + Math.cos(a) * fenR * 0.88;
+                        const by2 = fenCenter.y + Math.sin(a) * fenR * 0.88;
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(bx1, by1);
+                        targetCtx.lineTo(bx2, by2);
+                        targetCtx.stroke();
+                    }
+                    targetCtx.fillStyle = '#444';
+                    targetCtx.beginPath();
+                    targetCtx.arc(fenCenter.x, fenCenter.y, 1.8 * s, 0, Math.PI * 2);
+                    targetCtx.fill();
+                    targetCtx.strokeStyle = fillColor;
+                    targetCtx.lineWidth = 1.5 * s;
+                    targetCtx.beginPath();
+                    targetCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
+                    targetCtx.stroke();
+                    // Main rotor
                     targetCtx.strokeStyle = 'rgba(220,245,255,0.5)';
                     targetCtx.lineWidth = 2;
                     let hub = p(0, 0, 0.7);
@@ -2517,6 +2544,20 @@
                     targetCtx.lineTo(finTop.x, finTop.y);
                     targetCtx.lineTo(finBack.x, finBack.y);
                     targetCtx.fill();
+                    // Tail rotor
+                    targetCtx.strokeStyle = 'rgba(220,245,255,0.55)';
+                    targetCtx.lineWidth = 2 * s;
+                    targetCtx.lineCap = 'round';
+                    const trHub = p(-2.95, 0.08, 0.95);
+                    for (let i = 0; i < 4; i++) {
+                        const a = hRotor * 1.5 + i * (Math.PI / 2);
+                        const trEnd = p(-2.95 + Math.sin(a) * 0.55, 0.08, 0.95 + Math.cos(a) * 0.55);
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(trHub.x, trHub.y);
+                        targetCtx.lineTo(trEnd.x, trEnd.y);
+                        targetCtx.stroke();
+                    }
+                    // Main rotor
                     targetCtx.strokeStyle = 'rgba(220,245,255,0.5)';
                     targetCtx.lineWidth = 3 * s;
                     let hub = p(0, 0, 0.8);
