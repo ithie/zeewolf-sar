@@ -1,4 +1,4 @@
-import { state, getCurrentMission, getPad, getCarrier, getBoats, getLighthouse, MissionV2 } from './state';
+import { state, getCurrentMission } from './state';
 import { COLORS, getLandColor } from '../shared/constants';
 
 const canvas = document.getElementById('editorCanvas') as HTMLCanvasElement;

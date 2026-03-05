@@ -1,22 +1,34 @@
+type PadObject = { type: 'pad'; x: number; y: number };
+type CarrierObject = {
+    type: 'carrier';
+    x: number;
+    y: number;
+    angle: number;
+    path: 'circle' | 'straight' | 'static';
+    speed: number;
+    radius: number;
+};
+type BoatObject = {
+    type: 'boat';
+    x: number;
+    y: number;
+    angle: number;
+    path: 'circle' | 'straight' | 'static';
+    speed: number;
+    radius: number;
+};
+type LighthouseObject = { type: 'lighthouse'; x: number; y: number };
+
+type MissionObject = PadObject | CarrierObject | BoatObject | LighthouseObject;
+
 export interface Mission {
     headline: string;
     briefing: string;
     gridSize: number;
     terrain: number[][];
 
-    padX: number;
-    padY: number;
-    carrierX: number;
-    carrierY: number;
-    carrierAngle: number;
-    lighthouseX: number;
-    lighthouseY: number;
-
-    carrierPath: 'static' | 'straight' | 'circle';
-    carrierSpeed: number;
-    carrierRadius: number;
-
-    spawnPoint: 'pad' | 'carrier';
+    spawnObject: 'pad' | 'carrier';
+    objects: MissionObject[];
     payloads: { type: 'person' | 'crate'; x: number; y: number }[];
 
     rain: boolean;
