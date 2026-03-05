@@ -299,7 +299,6 @@ const renderIso = (
         y: cY + (vx + vy) * (sTH / 2) - vz * sH,
     });
 
-    // Painter's Algorithm
     for (let d = 0; d < m.gridSize * 2; d += step) {
         for (let x = 0; x <= d; x += step) {
             const y = d - x;
@@ -336,7 +335,6 @@ const renderIso = (
         }
     }
 
-    // Objects in ISO view
     m.objects.forEach(obj => {
         if (obj.type === 'pad') {
             const pp = getIso(obj.x + 4, obj.y + 4, m.terrain[obj.x + 4]?.[obj.y + 4] ?? 0);
@@ -369,10 +367,8 @@ const renderIso = (
                 tCtx.stroke();
             }
         }
-        // boat + lighthouse: nicht im ISO-Preview
     });
 
-    // Payloads in ISO view
     if (mode === 'filled') {
         (m.payloads || []).forEach(p => {
             const h = m.terrain[p.x]?.[p.y] ?? 0;

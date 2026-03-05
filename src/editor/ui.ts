@@ -1,15 +1,7 @@
-import {
-    state,
-    createEmptyMission,
-    getCurrentMission,
-    MissionV2,
-    getPad,
-    getCarrier,
-    getBoats,
-    getLighthouse,
-} from './state';
+import { state, createEmptyMission, getCurrentMission } from './state';
 import { drawMap, drawPreview, generatePreviewBase64 } from './render';
 import { compressTerrain, decompressTerrain } from '../shared/utils';
+import { Mission } from '@/shared/types';
 
 const getEl = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const getInput = (id: string) => getEl<HTMLInputElement>(id);
@@ -198,7 +190,7 @@ const clampCamera = () => {
 };
 
 // ── Coastal smoothing ─────────────────────────────────────────────────────────
-const smoothCoast = (m: MissionV2, cx: number, cy: number, radius: number) => {
+const smoothCoast = (m: Mission, cx: number, cy: number, radius: number) => {
     for (let pass = 0; pass < 2; pass++) {
         for (let x = Math.max(1, cx - radius); x < Math.min(m.gridSize, cx + radius); x++) {
             for (let y = Math.max(1, cy - radius); y < Math.min(m.gridSize, cy + radius); y++) {
@@ -218,9 +210,8 @@ const smoothCoast = (m: MissionV2, cx: number, cy: number, radius: number) => {
     }
 };
 
-// ── Remove nearest payload ────────────────────────────────────────────────────
 const SNAP_RADIUS = 8;
-const makePayload = (type: 'person' | 'crate', gx: number, gy: number, m: MissionV2) => {
+const makePayload = (type: 'person' | 'crate', gx: number, gy: number, m: Mission) => {
     let nearestIdx = -1,
         nearestDist = SNAP_RADIUS;
     for (let i = 0; i < m.objects.length; i++) {
@@ -239,11 +230,11 @@ const makePayload = (type: 'person' | 'crate', gx: number, gy: number, m: Missio
     return { type, x: gx, y: gy };
 };
 
-const removeNearestPayload = (m: MissionV2, gx: number, gy: number, type: 'person' | 'crate') => {
+const removeNearestPayload = (m: Mission, gx: number, gy: number, type: 'person' | 'crate') => {
     if (!m.payloads) return;
     let nearestIdx = -1,
         nearestDist = 3;
-    m.payloads.forEach((p, i) => {
+    m.payloads.forEach((p, i: number) => {
         if (p.type !== type) return;
         const d = Math.hypot(p.x - gx, p.y - gy);
         if (d < nearestDist) {
@@ -789,11 +780,20 @@ export const initUI = () => {
 
     // ── Export ─────────────────────────────────────────────────────────────────
     getEl('btn-export-campaign').onclick = () => {
-        const data = state.campaign.map(m => ({
-            ...m,
-            terrain: compressTerrain(m.terrain),
-            previewBase64: generatePreviewBase64(),
-        }));
+        const savedIdx = state.curIdx;
+
+        const data = state.campaign.map((m, i) => {
+            state.curIdx = i;
+            console.log('CURR', state.curIdx);
+            return {
+                ...m,
+                terrain: compressTerrain(m.terrain),
+                previewBase64: generatePreviewBase64(),
+            };
+        });
+
+        state.curIdx = savedIdx;
+
         const exportData = {
             type: state.type || 'ZEEWOLF_CAMPAIGN',
             campaignTitle: getInput('c_title').value,
@@ -816,7 +816,7 @@ export const initUI = () => {
             getEl<HTMLTextAreaElement>('c_sublines').value = (parsed.campaignSublines || []).join('\n');
             state.type = parsed.type;
             state.campaign = parsed.levels.map((m: any) => {
-                const base = { ...m, terrain: decompressTerrain(m.terrain, m.gridSize) } as MissionV2;
+                const base = { ...m, terrain: decompressTerrain(m.terrain, m.gridSize) } as Mission;
                 delete (base as any).previewBase64;
                 return base;
             });
