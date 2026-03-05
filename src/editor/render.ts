@@ -44,12 +44,12 @@ export const drawMap = () => {
                 ctx.shadowColor = COLORS.padStroke;
             }
             ctx.fillStyle = COLORS.padFill;
-            ctx.fillRect(ox, oy, 8 * tSize, 8 * tSize);
+            ctx.fillRect(ox, oy, 7 * tSize, 7 * tSize);
             ctx.strokeStyle = COLORS.padStroke;
-            ctx.strokeRect(ox, oy, 8 * tSize, 8 * tSize);
+            ctx.strokeRect(ox, oy, 7 * tSize, 7 * tSize);
             ctx.fillStyle = COLORS.textLight;
             ctx.beginPath();
-            ctx.arc(ox + 4 * tSize, oy + 4 * tSize, Math.max(4, tSize / 2), 0, Math.PI * 2);
+            ctx.arc(ox + 3.5 * tSize, oy + 3.5 * tSize, Math.max(4, tSize / 2), 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
             if (m.spawnObject === 'pad') {
