@@ -1909,6 +1909,25 @@
                         cy,
                         ctx,
                         canvas,
+                        true,
+                        1,
+                        '#556b2f',
+                        '#3a4a1f',
+                        deckZ + 0.1
+                    );
+                    drawHeli(
+                        h.type,
+                        pos.x,
+                        pos.y,
+                        deckZ + 0.1,
+                        totalAng,
+                        0,
+                        0,
+                        0,
+                        cx,
+                        cy,
+                        ctx,
+                        canvas,
                         false,
                         1,
                         '#556b2f',
@@ -2347,7 +2366,8 @@
                 isShadow = false,
                 scaleOverride = 0,
                 fillColor = '#ff6600',
-                strokeColor = '#dd3300'
+                strokeColor = '#dd3300',
+                shadowZ = null
             ) {
                 const cosA = Math.cos(hAngle),
                     sinA = Math.sin(hAngle);
@@ -2363,8 +2383,12 @@
                     let ry = lx * sinA + ly * cosA + hY;
                     let rz = hZ + lz;
                     if (isShadow) {
-                        let g = getGround(rx, ry);
-                        rz = g > -5 ? g : 0;
+                        if (shadowZ !== null) {
+                            rz = shadowZ;
+                        } else {
+                            let g = getGround(rx, ry);
+                            rz = g > -5 ? g : 0;
+                        }
                     }
                     return iso(rx, ry, rz, camX, camY, targetCanvas);
                 }
