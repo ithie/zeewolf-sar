@@ -443,11 +443,9 @@
             let activePayload = null; // the one currently on the winch
 
             const parkedHelis = [
-                { type: 'jayhawk', xRel: -2, yRel: -5.5, angle: Math.PI / -2.4 },
-                { type: 'jayhawk', xRel: -1.6, yRel: -1.5, angle: Math.PI / -2.4 },
-                { type: 'dolphin', xRel: 1.8, yRel: 0, angle: -Math.PI / -1.2 },
-                { type: 'dolphin', xRel: 1.8, yRel: -2.5, angle: -Math.PI / -1.2 },
-                { type: 'dolphin', xRel: 1.8, yRel: -5.0, angle: -Math.PI / -1.2 },
+                { type: 'jayhawk', xRel: -2.5, yRel: -7.0, angle: Math.PI * 0.19 },
+                { type: 'jayhawk', xRel: -2.7, yRel: -1.5, angle: Math.PI * 0.15 },
+                { type: 'dolphin', xRel: 2.5, yRel: -7.0, angle: Math.PI * 0.55 },
             ];
 
             let heli = {
@@ -607,8 +605,8 @@
                 const angleRad = (obj.angle ?? 0) * (Math.PI / 180);
                 vessel.w = obj.type === 'carrier' ? 3.5 : 1.5;
                 vessel.l = obj.type === 'carrier' ? 8.0 : 3.0;
-                vessel.zDeck = obj.type === 'carrier' ? 0.8 : 0.35;
-                vessel.zHull = obj.type === 'carrier' ? 0.4 : 0.15;
+                vessel.zDeck = obj.type === 'carrier' ? 4.2 : 0.35;
+                vessel.zHull = obj.type === 'carrier' ? 3.8 : 0.15;
                 vessel.path = obj.path ?? 'static';
                 // Einheitliche Skalierung: beide ~gleich schnell bei gleichem speed-Wert
                 // circle: rad/frame * radius ≈ grid/frame; straight: grid/frame direkt
@@ -1643,260 +1641,261 @@
 
             // ─── draw carrier ────────────────────────────────────────────────────────────
             function drawVectorCarrier(cx, cy) {
-                let cw = CARRIER.w,
+                const cw = CARRIER.w,
                     cl = CARRIER.l;
-                let cX = CARRIER.x,
-                    cY = CARRIER.y;
-                let deckZ = CARRIER.zDeck,
+                const objX = CARRIER.x,
+                    objY = CARRIER.y;
+                const deckZ = CARRIER.zDeck,
                     hullZ = CARRIER.zHull;
-                let ang = CARRIER.angle;
+                const angle = CARRIER.angle;
+                const cosA = Math.cos(angle),
+                    sinA = Math.sin(angle);
 
                 function r(rx, ry) {
-                    return {
-                        x: cX + rx * Math.cos(ang) - ry * Math.sin(ang),
-                        y: cY + rx * Math.sin(ang) + ry * Math.cos(ang),
-                    };
+                    return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA };
+                }
+                function face(pts, col, stroke) {
+                    drawFace(pts, col, stroke || null, 0, cx, cy);
+                }
+                function H(p, z) {
+                    return { x: p.x, y: p.y, z };
+                }
+                function visible(lx, ly) {
+                    const wx = lx * cosA - ly * sinA,
+                        wy = lx * sinA + ly * cosA;
+                    return wx + wy > 0;
                 }
 
-                // hull
-                let h1 = r(-cw, -cl),
+                // Hull points
+                const h1 = r(-cw, -cl),
                     h2 = r(cw, -cl),
                     h3 = r(cw, cl),
                     h4 = r(-cw, cl);
-                drawFace(
-                    [
-                        { x: h1.x, y: h1.y, z: 0 },
-                        { x: h2.x, y: h2.y, z: 0 },
-                        { x: h3.x, y: h3.y, z: 0 },
-                        { x: h4.x, y: h4.y, z: 0 },
-                    ],
-                    'rgba(0,0,0,0.5)',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: h2.x, y: h2.y, z: 0 },
-                        { x: h3.x, y: h3.y, z: 0 },
-                        { x: h3.x, y: h3.y, z: hullZ },
-                        { x: h2.x, y: h2.y, z: hullZ },
-                    ],
-                    '#445',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: h4.x, y: h4.y, z: 0 },
-                        { x: h3.x, y: h3.y, z: 0 },
-                        { x: h3.x, y: h3.y, z: hullZ },
-                        { x: h4.x, y: h4.y, z: hullZ },
-                    ],
-                    '#334',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
 
-                // deck
-                let dw = cw + 1.2,
+                // Trapezoid hull
+                const dw = cw + 1.2,
                     dl = cl + 1.2;
-                let d1 = r(-dw, -dl),
+                const d1 = r(-dw, -dl),
                     d2 = r(dw, -dl),
                     d3 = r(dw, dl),
                     d4 = r(-dw, dl);
-                drawFace(
-                    [
-                        { x: d1.x, y: d1.y, z: hullZ },
-                        { x: d2.x, y: d2.y, z: hullZ },
-                        { x: d3.x, y: d3.y, z: hullZ },
-                        { x: d4.x, y: d4.y, z: hullZ },
-                    ],
-                    '#222',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: d2.x, y: d2.y, z: hullZ },
-                        { x: d3.x, y: d3.y, z: hullZ },
-                        { x: d3.x, y: d3.y, z: deckZ },
-                        { x: d2.x, y: d2.y, z: deckZ },
-                    ],
-                    '#333',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: d4.x, y: d4.y, z: hullZ },
-                        { x: d3.x, y: d3.y, z: hullZ },
-                        { x: d3.x, y: d3.y, z: deckZ },
-                        { x: d4.x, y: d4.y, z: deckZ },
-                    ],
-                    '#222',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: d4.x, y: d4.y, z: hullZ },
-                        { x: d1.x, y: d1.y, z: hullZ },
-                        { x: d1.x, y: d1.y, z: deckZ },
-                        { x: d4.x, y: d4.y, z: deckZ },
-                    ],
-                    '#333',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: d1.x, y: d1.y, z: deckZ },
-                        { x: d2.x, y: d2.y, z: deckZ },
-                        { x: d3.x, y: d3.y, z: deckZ },
-                        { x: d4.x, y: d4.y, z: deckZ },
-                    ],
-                    '#3a3a44',
-                    '#555',
-                    0,
-                    cx,
-                    cy
-                );
+                const hw = dw * 0.6;
+                const k1 = r(-hw, -dl),
+                    k2 = r(hw, -dl),
+                    k3 = r(hw, dl),
+                    k4 = r(-hw, dl);
+                face([H(k1, 0), H(k2, 0), H(k3, 0), H(k4, 0)], '#0a0a14');
+                if (visible(0, -1)) face([H(k1, 0), H(k2, 0), H(d2, hullZ), H(d1, hullZ)], '#2a3a4a');
+                if (visible(1, 0)) face([H(k2, 0), H(k3, 0), H(d3, hullZ), H(d2, hullZ)], '#3a4a5a');
+                if (visible(0, 1)) face([H(k3, 0), H(k4, 0), H(d4, hullZ), H(d3, hullZ)], '#2a3a4a');
+                if (visible(-1, 0)) face([H(k4, 0), H(k1, 0), H(d1, hullZ), H(d4, hullZ)], '#223344');
 
-                // stripes
-                let sw = 0.3,
-                    s1 = r(-sw, -dl + 2),
-                    s2 = r(sw, -dl + 2),
-                    s3 = r(sw, dl - 2),
-                    s4 = r(-sw, dl - 2);
-                drawFace(
-                    [
-                        { x: s1.x, y: s1.y, z: deckZ + 0.01 },
-                        { x: s2.x, y: s2.y, z: deckZ + 0.01 },
-                        { x: s3.x, y: s3.y, z: deckZ + 0.01 },
-                        { x: s4.x, y: s4.y, z: deckZ + 0.01 },
-                    ],
-                    'rgba(255,255,255,0.4)',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                let c1 = r(-1.5, 1.5),
-                    c2 = r(1.5, 1.5),
-                    c3 = r(1.5, 4),
-                    c4 = r(-1.5, 4);
-                drawFace(
-                    [
-                        { x: c1.x, y: c1.y, z: deckZ + 0.02 },
-                        { x: c2.x, y: c2.y, z: deckZ + 0.02 },
-                        { x: c3.x, y: c3.y, z: deckZ + 0.02 },
-                        { x: c4.x, y: c4.y, z: deckZ + 0.02 },
-                    ],
-                    'rgba(255,255,255,0.2)',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
+                // Hull top cap + flight deck sides
+                face([H(d1, hullZ), H(d2, hullZ), H(d3, hullZ), H(d4, hullZ)], '#1a1a22');
+                face([H(d1, hullZ), H(d2, hullZ), H(d3, hullZ), H(d4, hullZ)], '#222');
+                if (visible(0, -1)) face([H(d1, hullZ), H(d2, hullZ), H(d2, deckZ), H(d1, deckZ)], '#2a2a33');
+                if (visible(1, 0)) face([H(d2, hullZ), H(d3, hullZ), H(d3, deckZ), H(d2, deckZ)], '#333');
+                if (visible(0, 1)) face([H(d3, hullZ), H(d4, hullZ), H(d4, deckZ), H(d3, deckZ)], '#2a2a33');
+                if (visible(-1, 0)) face([H(d4, hullZ), H(d1, hullZ), H(d1, deckZ), H(d4, deckZ)], '#222');
+                face([H(d1, deckZ), H(d2, deckZ), H(d3, deckZ), H(d4, deckZ)], '#3a3a44', '#555');
 
-                // island
-                let ix = 2.6,
+                // Landing pads
+                [-4.5, 0.0, 4.5].forEach(py => {
+                    const px = -dw + 0.5,
+                        pw = 2.8,
+                        pl = 1.4;
+                    const p1 = r(px, py - pl),
+                        p2 = r(px + pw, py - pl),
+                        p3 = r(px + pw, py + pl),
+                        p4 = r(px, py + pl);
+                    face(
+                        [H(p1, deckZ + 0.01), H(p2, deckZ + 0.01), H(p3, deckZ + 0.01), H(p4, deckZ + 0.01)],
+                        '#52526a'
+                    );
+                });
+
+                // Tower
+                const ix = 2.6,
                     iy = 1.0,
                     iw = 1.5,
                     il = 4.5,
                     ih = 2.5;
-                let i1 = r(ix, iy),
+                const i1 = r(ix, iy),
                     i2 = r(ix + iw, iy),
                     i3 = r(ix + iw, iy + il),
                     i4 = r(ix, iy + il);
-                drawFace(
-                    [
-                        { x: i1.x, y: i1.y, z: deckZ },
-                        { x: i2.x, y: i2.y, z: deckZ },
-                        { x: i2.x, y: i2.y, z: deckZ + ih },
-                        { x: i1.x, y: i1.y, z: deckZ + ih },
-                    ],
-                    '#555',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: i1.x, y: i1.y, z: deckZ },
-                        { x: i4.x, y: i4.y, z: deckZ },
-                        { x: i4.x, y: i4.y, z: deckZ + ih },
-                        { x: i1.x, y: i1.y, z: deckZ + ih },
-                    ],
-                    '#444',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: i2.x, y: i2.y, z: deckZ },
-                        { x: i3.x, y: i3.y, z: deckZ },
-                        { x: i3.x, y: i3.y, z: deckZ + ih },
-                        { x: i2.x, y: i2.y, z: deckZ + ih },
-                    ],
-                    '#444',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: i1.x, y: i1.y, z: deckZ + ih },
-                        { x: i2.x, y: i2.y, z: deckZ + ih },
-                        { x: i3.x, y: i3.y, z: deckZ + ih },
-                        { x: i4.x, y: i4.y, z: deckZ + ih },
-                    ],
-                    '#222',
-                    '#000',
-                    0,
-                    cx,
-                    cy
-                );
+                if (visible(0, -1)) face([H(i1, deckZ), H(i2, deckZ), H(i2, deckZ + ih), H(i1, deckZ + ih)], '#555');
+                if (visible(1, 0)) face([H(i2, deckZ), H(i3, deckZ), H(i3, deckZ + ih), H(i2, deckZ + ih)], '#444');
+                if (visible(0, 1)) face([H(i4, deckZ), H(i3, deckZ), H(i3, deckZ + ih), H(i4, deckZ + ih)], '#333');
+                if (visible(-1, 0)) face([H(i1, deckZ), H(i4, deckZ), H(i4, deckZ + ih), H(i1, deckZ + ih)], '#444');
+                face([H(i1, deckZ + ih), H(i2, deckZ + ih), H(i3, deckZ + ih), H(i4, deckZ + ih)], '#222', '#000');
 
+                // Antenna
+                const antB = r(ix + iw * 0.5, iy + il * 0.25);
+                const a0 = iso(antB.x, antB.y, deckZ + ih, cx, cy);
+                const a1 = iso(antB.x, antB.y, deckZ + ih + 0.6, cx, cy);
+                ctx.strokeStyle = '#aaa';
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(a0.x, a0.y);
+                ctx.lineTo(a1.x, a1.y);
+                ctx.stroke();
+
+                // Radar
+                const rBase = r(ix + iw * 0.5, iy + il * 0.5);
+                const rZ = deckZ + ih + 0.18;
+                const rHub = iso(rBase.x, rBase.y, rZ, cx, cy);
+                const rm0 = iso(rBase.x, rBase.y, deckZ + ih, cx, cy);
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(rm0.x, rm0.y);
+                ctx.lineTo(rHub.x, rHub.y);
+                ctx.stroke();
+                const rA = Date.now() * 0.002,
+                    rL = 0.22;
+                const rt = iso(rBase.x + Math.cos(rA) * rL, rBase.y + Math.sin(rA) * rL, rZ, cx, cy);
+                const rtl = iso(rBase.x - Math.cos(rA) * rL, rBase.y - Math.sin(rA) * rL, rZ, cx, cy);
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(rtl.x, rtl.y);
+                ctx.lineTo(rt.x, rt.y);
+                ctx.stroke();
+                ctx.fillStyle = '#aaa';
+                ctx.beginPath();
+                ctx.arc(rHub.x, rHub.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tow tractors
+                function drawTractor(tx, ty, tAngle, bodyCol, bodyColSide, bodyColDark, cabCol, cabColSide, cabColTop) {
+                    const bodyL = 1.0,
+                        bodyW = 0.72,
+                        bodyH = 0.15;
+                    const isFireTractor = cabColTop === '#eeeeee';
+                    const cabStart = 0;
+                    const cabH = isFireTractor ? 0.22 : bodyH + 0.22;
+                    const cabL = isFireTractor ? bodyL * 0.75 : bodyL;
+                    const dZ = deckZ + 0.01,
+                        wW = 0.15,
+                        wH = 0.25;
+                    const cosT = Math.cos(tAngle + angle),
+                        sinT = Math.sin(tAngle + angle);
+                    function vt(lx, ly) {
+                        const wx = lx * cosT - ly * sinT,
+                            wy = lx * sinT + ly * cosT;
+                        return wx + wy > 0;
+                    }
+                    const ox = objX + tx * cosA - ty * sinA;
+                    const oy = objY + tx * sinA + ty * cosA;
+                    function rr(rx, ry) {
+                        return {
+                            x: ox + rx * Math.cos(tAngle + angle) - ry * Math.sin(tAngle + angle),
+                            y: oy + rx * Math.sin(tAngle + angle) + ry * Math.cos(tAngle + angle),
+                        };
+                    }
+                    if (isFireTractor) {
+                        const b1 = rr(0, 0),
+                            b2 = rr(bodyL, 0),
+                            b3 = rr(bodyL, bodyW),
+                            b4 = rr(0, bodyW);
+                        face([H(b1, dZ), H(b2, dZ), H(b3, dZ), H(b4, dZ)], bodyCol);
+                        if (vt(0, -1)) face([H(b1, dZ), H(b2, dZ), H(b2, dZ + bodyH), H(b1, dZ + bodyH)], bodyColSide);
+                        if (vt(1, 0)) face([H(b2, dZ), H(b3, dZ), H(b3, dZ + bodyH), H(b2, dZ + bodyH)], bodyColDark);
+                        if (vt(0, 1)) face([H(b3, dZ), H(b4, dZ), H(b4, dZ + bodyH), H(b3, dZ + bodyH)], bodyColSide);
+                        if (vt(-1, 0)) face([H(b4, dZ), H(b1, dZ), H(b1, dZ + bodyH), H(b4, dZ + bodyH)], bodyColDark);
+                        face([H(b1, dZ + bodyH), H(b2, dZ + bodyH), H(b3, dZ + bodyH), H(b4, dZ + bodyH)], bodyColSide);
+                        const eqZ = dZ + bodyH,
+                            eqW = 0.2,
+                            eqL = 0.25,
+                            eqH = 0.18;
+                        const eqX = bodyL - eqW - 0.02;
+                        const eq1 = rr(eqX, bodyW * 0.1),
+                            eq2 = rr(eqX + eqW, bodyW * 0.1);
+                        const eq3 = rr(eqX + eqW, bodyW * 0.1 + eqL),
+                            eq4 = rr(eqX, bodyW * 0.1 + eqL);
+                        face([H(eq1, eqZ), H(eq2, eqZ), H(eq3, eqZ), H(eq4, eqZ)], '#aa0000');
+                        if (vt(0, -1))
+                            face([H(eq1, eqZ), H(eq2, eqZ), H(eq2, eqZ + eqH), H(eq1, eqZ + eqH)], '#ee0000');
+                        if (vt(1, 0)) face([H(eq2, eqZ), H(eq3, eqZ), H(eq3, eqZ + eqH), H(eq2, eqZ + eqH)], '#880000');
+                        if (vt(0, 1)) face([H(eq3, eqZ), H(eq4, eqZ), H(eq4, eqZ + eqH), H(eq3, eqZ + eqH)], '#aa0000');
+                        if (vt(-1, 0))
+                            face([H(eq4, eqZ), H(eq1, eqZ), H(eq1, eqZ + eqH), H(eq4, eqZ + eqH)], '#880000');
+                        face([H(eq1, eqZ + eqH), H(eq2, eqZ + eqH), H(eq3, eqZ + eqH), H(eq4, eqZ + eqH)], '#cc0000');
+                    }
+                    const cZ = isFireTractor ? dZ + bodyH : dZ;
+                    const cc1 = rr(cabStart, 0),
+                        cc2 = rr(cabStart + cabL, 0);
+                    const cc3 = rr(cabStart + cabL, bodyW),
+                        cc4 = rr(cabStart, bodyW);
+                    face([H(cc1, cZ), H(cc2, cZ), H(cc3, cZ), H(cc4, cZ)], cabCol);
+                    if (vt(0, -1)) face([H(cc1, cZ), H(cc2, cZ), H(cc2, cZ + cabH), H(cc1, cZ + cabH)], cabColSide);
+                    if (vt(1, 0)) face([H(cc2, cZ), H(cc3, cZ), H(cc3, cZ + cabH), H(cc2, cZ + cabH)], bodyColDark);
+                    if (vt(0, 1)) face([H(cc3, cZ), H(cc4, cZ), H(cc4, cZ + cabH), H(cc3, cZ + cabH)], cabCol);
+                    if (vt(-1, 0)) face([H(cc4, cZ), H(cc1, cZ), H(cc1, cZ + cabH), H(cc4, cZ + cabH)], bodyColDark);
+                    face([H(cc1, cZ + cabH), H(cc2, cZ + cabH), H(cc3, cZ + cabH), H(cc4, cZ + cabH)], cabColTop);
+                    [0.15, bodyL - 0.15].forEach(ax => {
+                        if (vt(0, -1)) {
+                            const w1 = rr(ax - wW * 0.5, 0),
+                                w2 = rr(ax + wW * 0.5, 0);
+                            face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222');
+                        }
+                        if (vt(0, 1)) {
+                            const w1 = rr(ax - wW * 0.5, bodyW),
+                                w2 = rr(ax + wW * 0.5, bodyW);
+                            face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222');
+                        }
+                    });
+                }
+
+                const tractors = [
+                    {
+                        tx: ix + 0.1,
+                        ty: iy - 1.2,
+                        ta: 0,
+                        bc: '#9a7a00',
+                        bs: '#c8a000',
+                        bd: '#8a6c00',
+                        cc: '#b09000',
+                        cs: '#e0b800',
+                        ct: '#caa800',
+                    },
+                    {
+                        tx: ix + 0.1,
+                        ty: iy - 2.4,
+                        ta: 0,
+                        bc: '#9a7a00',
+                        bs: '#c8a000',
+                        bd: '#8a6c00',
+                        cc: '#b09000',
+                        cs: '#e0b800',
+                        ct: '#caa800',
+                    },
+                    {
+                        tx: ix + 0.1,
+                        ty: iy - 3.8,
+                        ta: 0.25,
+                        bc: '#888888',
+                        bs: '#dddddd',
+                        bd: '#666666',
+                        cc: '#aaaaaa',
+                        cs: '#ffffff',
+                        ct: '#eeeeee',
+                    },
+                ];
+                tractors.forEach(t => {
+                    const wx = objX + (t.tx + 0.5) * cosA - (t.ty + 0.35) * sinA;
+                    const wy = objY + (t.tx + 0.5) * sinA + (t.ty + 0.35) * cosA;
+                    t.depth = wx + wy;
+                });
+                tractors.sort((a, b) => b.depth - a.depth);
+                tractors.forEach(t => drawTractor(t.tx, t.ty, t.ta, t.bc, t.bs, t.bd, t.cc, t.cs, t.ct));
+
+                // Parked helis
                 parkedHelis.forEach(h => {
-                    let pos = r(h.xRel, h.yRel);
-                    let totalAng = h.angle + ang;
-                    drawHeli(
-                        h.type,
-                        pos.x,
-                        pos.y,
-                        deckZ + 0.1,
-                        totalAng,
-                        0,
-                        0,
-                        0,
-                        cx,
-                        cy,
-                        ctx,
-                        canvas,
-                        true,
-                        1,
-                        '#556b2f',
-                        '#dd3300'
-                    );
+                    const pos = r(h.xRel, h.yRel);
+                    const totalAng = h.angle + angle;
                     drawHeli(
                         h.type,
                         pos.x,
@@ -1913,13 +1912,12 @@
                         false,
                         1,
                         '#556b2f',
-                        '#dd3300'
+                        '#3a4a1f'
                     );
                 });
 
                 drawPadLights(cx, cy, CARRIER.zDeck, true);
             }
-
             // ─── pad / hangar / lights / windsock / lighthouse ───────────────────────────
             function drawHangar(cx, cy) {
                 const hX = PAD.xMax - 4,
@@ -2416,37 +2414,10 @@
                     targetCtx.lineTo(tTop.x, tTop.y);
                     targetCtx.lineTo(tBack.x, tBack.y);
                     targetCtx.fill();
-                    // Fenestron – enclosed tail rotor in fin opening
-                    const fenCenter = p(-1.7, 0.01, 0.82);
-                    const fenR = 5.5 * s;
-                    targetCtx.fillStyle = '#1a1a1a';
+                    targetCtx.fillStyle = '#333';
                     targetCtx.beginPath();
-                    targetCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
+                    targetCtx.arc(p(-1.7, 0, 0.8).x, p(-1.7, 0, 0.8).y, 3 * s, 0, 7);
                     targetCtx.fill();
-                    targetCtx.strokeStyle = 'rgba(210,235,255,0.7)';
-                    targetCtx.lineWidth = 1.2 * s;
-                    targetCtx.lineCap = 'round';
-                    for (let i = 0; i < 8; i++) {
-                        const a = hRotor * 2.0 + i * (Math.PI / 4);
-                        const bx1 = fenCenter.x + Math.cos(a) * fenR * 0.25;
-                        const by1 = fenCenter.y + Math.sin(a) * fenR * 0.25;
-                        const bx2 = fenCenter.x + Math.cos(a) * fenR * 0.88;
-                        const by2 = fenCenter.y + Math.sin(a) * fenR * 0.88;
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(bx1, by1);
-                        targetCtx.lineTo(bx2, by2);
-                        targetCtx.stroke();
-                    }
-                    targetCtx.fillStyle = '#444';
-                    targetCtx.beginPath();
-                    targetCtx.arc(fenCenter.x, fenCenter.y, 1.8 * s, 0, Math.PI * 2);
-                    targetCtx.fill();
-                    targetCtx.strokeStyle = fillColor;
-                    targetCtx.lineWidth = 1.5 * s;
-                    targetCtx.beginPath();
-                    targetCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
-                    targetCtx.stroke();
-                    // Main rotor
                     targetCtx.strokeStyle = 'rgba(220,245,255,0.5)';
                     targetCtx.lineWidth = 2;
                     let hub = p(0, 0, 0.7);
@@ -2544,20 +2515,6 @@
                     targetCtx.lineTo(finTop.x, finTop.y);
                     targetCtx.lineTo(finBack.x, finBack.y);
                     targetCtx.fill();
-                    // Tail rotor
-                    targetCtx.strokeStyle = 'rgba(220,245,255,0.55)';
-                    targetCtx.lineWidth = 2 * s;
-                    targetCtx.lineCap = 'round';
-                    const trHub = p(-2.95, 0.08, 0.95);
-                    for (let i = 0; i < 4; i++) {
-                        const a = hRotor * 1.5 + i * (Math.PI / 2);
-                        const trEnd = p(-2.95 + Math.sin(a) * 0.55, 0.08, 0.95 + Math.cos(a) * 0.55);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(trHub.x, trHub.y);
-                        targetCtx.lineTo(trEnd.x, trEnd.y);
-                        targetCtx.stroke();
-                    }
-                    // Main rotor
                     targetCtx.strokeStyle = 'rgba(220,245,255,0.5)';
                     targetCtx.lineWidth = 3 * s;
                     let hub = p(0, 0, 0.8);
