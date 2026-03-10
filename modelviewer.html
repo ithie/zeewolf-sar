@@ -1177,6 +1177,67 @@
                 ctx.fillText('MINIMAP', mapX + 5, mapY - 5);
             }
 
+            // --- COLLISION BOX ---
+            // Draws an axis-aligned bounding box in isometric space.
+            // oxMin/oxMax: local X extents (forward/back)
+            // oyMin/oyMax: local Y extents (left/right)
+            // ozMin/ozMax: local Z extents (bottom/top)
+            // angle: rotation of the object around Z (for oriented boxes)
+            function drawCollisionBox(cx, cy, wX, wY, angle, oxMin, oxMax, oyMin, oyMax, ozMin, ozMax) {
+                const cosA = Math.cos(angle),
+                    sinA = Math.sin(angle);
+                function wp(lx, ly, lz) {
+                    return {
+                        x: wX + lx * cosA - ly * sinA,
+                        y: wY + lx * sinA + ly * cosA,
+                        z: lz,
+                    };
+                }
+                // 8 corners of the box in local space
+                const corners = [
+                    wp(oxMin, oyMin, ozMin),
+                    wp(oxMax, oyMin, ozMin),
+                    wp(oxMax, oyMax, ozMin),
+                    wp(oxMin, oyMax, ozMin),
+                    wp(oxMin, oyMin, ozMax),
+                    wp(oxMax, oyMin, ozMax),
+                    wp(oxMax, oyMax, ozMax),
+                    wp(oxMin, oyMax, ozMax),
+                ];
+                const sc = corners.map(p => iso(p.x, p.y, p.z, cx, cy));
+
+                // 12 edges of the AABB
+                const edges = [
+                    [0, 1],
+                    [1, 2],
+                    [2, 3],
+                    [3, 0], // bottom face
+                    [4, 5],
+                    [5, 6],
+                    [6, 7],
+                    [7, 4], // top face
+                    [0, 4],
+                    [1, 5],
+                    [2, 6],
+                    [3, 7], // verticals
+                ];
+
+                ctx.save();
+                ctx.strokeStyle = 'rgba(0, 255, 100, 0.85)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 3]);
+                ctx.shadowColor = '#00ff66';
+                ctx.shadowBlur = 4;
+                edges.forEach(([a, b]) => {
+                    ctx.beginPath();
+                    ctx.moveTo(sc[a].x, sc[a].y);
+                    ctx.lineTo(sc[b].x, sc[b].y);
+                    ctx.stroke();
+                });
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
             // Render loop
             function render() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1201,6 +1262,21 @@
                 drawHangar(-15, 0, spin, cam.x, cam.y);
                 drawVectorCarrier(-15, 25, spin, cam.x, cam.y);
 
+                // --- COLLISION BOXES ---
+                // Lighthouse: Basis-Sockel (radius=4), dann schlanker Turm (radius=1.0), Höhe bis 8
+                drawCollisionBox(cam.x, cam.y, -35, 0, 0, -4.0, 4.0, -4.0, 4.0, 0, 0.4); // Sockelplatte
+                drawCollisionBox(cam.x, cam.y, -35, 0, 0, -1.0, 1.0, -1.0, 1.0, 0.4, 8.0); // Turm
+
+                // Hangar: ±2 in X und Y, Höhe 2.5, rotiert mit spin
+                drawCollisionBox(cam.x, cam.y, -15, 0, spin, -2.0, 2.0, -2.0, 2.0, 0, 2.5);
+
+                // Carrier: In r(rx, ry): rx=Breite (±dw=4.2), ry=Länge (±dl=8.7)
+                // drawCollisionBox ox↔rx, oy↔ry → ox=±4.2 (Breite), oy=±8.7 (Länge)
+                drawCollisionBox(cam.x, cam.y, -15, 25, spin, -4.2, 4.2, -8.7, 8.7, 0, 4.2); // Rumpf + Flugdeck
+
+                // Carrier Tower: ix=2.6 (rx=Breite), iy=1.0 (ry=Länge), iw=1.5, il=4.5, ih=2.5
+                drawCollisionBox(cam.x, cam.y, -15, 25, spin, 2.6, 4.1, 1.0, 5.5, 4.2, 6.7);
+
                 // Parked helis on carrier deck
                 const carrierX = -15,
                     carrierY = 25;
@@ -1221,10 +1297,31 @@
                     drawHeli(h.type, pos.x, pos.y, 4.2, totalAng, 0, 0, 0, cam.x, cam.y, true);
                     // Model – olive green for parked helis
                     drawHeliColored(h.type, pos.x, pos.y, 4.3, totalAng, cam.x, cam.y);
+                    // Collision boxes for parked helis
+                    const heliBox =
+                        h.type === 'dolphin'
+                            ? { x1: -1.8 * 0.7, x2: 1.8 * 0.7, y1: -0.4 * 0.7, y2: 0.4 * 0.7, z2: 0.8 * 0.7 }
+                            : { x1: -3.0, x2: 1.3, y1: -0.5, y2: 0.5, z2: 1.3 };
+                    drawCollisionBox(
+                        cam.x,
+                        cam.y,
+                        pos.x,
+                        pos.y,
+                        totalAng,
+                        heliBox.x1,
+                        heliBox.x2,
+                        heliBox.y1,
+                        heliBox.y2,
+                        4.3,
+                        4.3 + heliBox.z2
+                    );
                 });
 
                 // Helicopters
                 drawHeli('dolphin', 5, 0, 2, spin, Math.sin(time) * 0.1, Math.cos(time) * 0.1, time * 6, cam.x, cam.y);
+                // Dolphin: scale 0.7, extents: x[-1.26..1.26], y[-0.28..0.28], z[0..0.56] relative to hZ=2
+                drawCollisionBox(cam.x, cam.y, 5, 0, spin, -1.26, 1.26, -0.28, 0.28, 2.0, 2.0 + 0.56);
+
                 drawHeli(
                     'jayhawk',
                     25,
@@ -1237,6 +1334,9 @@
                     cam.x,
                     cam.y
                 );
+                // Jayhawk: x[-3.0..1.3], y[-0.5..0.5], z[0..1.3] relative to hZ=2
+                drawCollisionBox(cam.x, cam.y, 25, 0, spin, -3.0, 1.3, -0.5, 0.5, 2.0, 2.0 + 1.3);
+
                 drawHeli(
                     'chinook',
                     45,
@@ -1249,9 +1349,21 @@
                     cam.x,
                     cam.y
                 );
+                // Chinook: x[-2.6..2.8], y[-0.6..0.6], z[0..1.8] relative to hZ=2
+                drawCollisionBox(cam.x, cam.y, 45, 0, spin, -2.6, 2.8, -0.6, 0.6, 2.0, 2.0 + 1.8);
+
                 drawSailboat(5, 25, spin, cam.x, cam.y);
+                // Segelboot: Nur Rumpf-Box (bow=1.3, stern=-1.1, halbe Breite=0.45, deckHöhe=0.35)
+                drawCollisionBox(cam.x, cam.y, 5, 25, spin, -1.1, 1.3, -0.45, 0.45, 0, 0.35);
+                // Mast: dünne Box bei x=-0.3, bis Höhe 3.2
+                drawCollisionBox(cam.x, cam.y, 5, 25, spin, -0.4, -0.2, -0.1, 0.1, 0.35, 3.2);
+
                 drawPerson(25, 25, 0, spin, true, cam.x, cam.y, 'survivor');
+                // Person: small upright box, roughly ±0.15 x/y, height ~0.7 (in world units ~stepH based)
+                drawCollisionBox(cam.x, cam.y, 25, 25, 0, -0.2, 0.2, -0.2, 0.2, 0, 0.65);
+
                 drawPerson(45, 25, 0, spin, true, cam.x, cam.y, 'rescuer');
+                drawCollisionBox(cam.x, cam.y, 45, 25, 0, -0.2, 0.2, -0.2, 0.2, 0, 0.65);
 
                 drawMiniMap();
 

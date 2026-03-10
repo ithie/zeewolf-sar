@@ -250,6 +250,7 @@
                 z-index: 300;
             }
         </style>
+        <script type="module" src="/src/game/render.ts"></script>
         <script type="module" src="/src/game/main.ts"></script>
         <script type="module" src="/src/game/state.ts"></script>
     </head>
@@ -892,16 +893,7 @@
                 if (hasPad() && heli.x >= PAD.xMin && heli.x <= PAD.xMax && heli.y >= PAD.yMin && heli.y <= PAD.yMax)
                     onPad = true;
 
-                // tower collision (nur wenn Heli nah am Carrier UND nicht auf dem PAD)
-                if (
-                    hasCarrier() &&
-                    !onPad &&
-                    Math.hypot(heli.x - CARRIER.x, heli.y - CARRIER.y) < 15 &&
-                    heli.z < CARRIER.zDeck + 1.0
-                ) {
-                    let local = getCarrierLocal(heli.x, heli.y);
-                    if (local.x > 1.2 && local.y > 1.5 && local.y < 5.0) triggerCrash('COLLISION WITH TOWER');
-                }
+                // tower collision – handled by handleCollisionBoxes()
 
                 // engine
                 if (keys['KeyW'] && !heli.engineOn && heli.fuel > 0 && onPad && !zstate.introActive)
@@ -1125,11 +1117,7 @@
                         else if (Math.hypot(heli.vx, heli.vy) > 0.12) triggerCrash('TOO FAST');
                         else if (heli.vz < -0.15) triggerCrash('HARD IMPACT');
                     }
-                    if (hasLighthouse()) {
-                        const _lh = getObjectByType('lighthouse');
-                        if (_lh && Math.hypot(heli.x - _lh.x, heli.y - _lh.y) < 2.0 && heli.z < 8.5)
-                            triggerCrash('TOWER COLLISION');
-                    }
+                    // lighthouse collision – handled by handleCollisionBoxes()
                 }
             }
 
@@ -1427,10 +1415,10 @@
                         if (x < 0 || y < 0 || x >= gridSize - 1 || y >= gridSize - 1) continue;
                         let h = [points[x][y], points[x + 1][y], points[x + 1][y + 1], points[x][y + 1]];
                         let p = [
-                            iso(x, y, h[0], camX, camY),
-                            iso(x + 1, y, h[1], camX, camY),
-                            iso(x + 1, y + 1, h[2], camX, camY),
-                            iso(x, y + 1, h[3], camX, camY),
+                            iso(x, y, h[0], camX, camY, { stepH, tileW, tileH, canvas }),
+                            iso(x + 1, y, h[1], camX, camY, { stepH, tileW, tileH, canvas }),
+                            iso(x + 1, y + 1, h[2], camX, camY, { stepH, tileW, tileH, canvas }),
+                            iso(x, y + 1, h[3], camX, camY, { stepH, tileW, tileH, canvas }),
                         ];
                         let ang = Math.atan2(y - heli.y, x - heli.x);
                         let diff = ang - heli.angle;
@@ -1496,7 +1484,7 @@
 
                 // particles
                 particles.forEach(p => {
-                    let pos = iso(p.x, p.y, p.z, camX, camY);
+                    let pos = iso(p.x, p.y, p.z, camX, camY, { stepH, tileW, tileH, canvas });
                     ctx.fillStyle = `rgba(${p.color}, ${p.life})`;
                     ctx.fillRect(pos.x, pos.y, 3, 3);
                 });
@@ -1505,8 +1493,13 @@
 
                 // winch line (only when nothing hanging)
                 if (!activePayload) {
-                    let hP = iso(heli.x, heli.y, heli.z, camX, camY);
-                    let wP = iso(heli.x, heli.y, Math.max(getGround(heli.x, heli.y), heli.z - heli.winch), camX, camY);
+                    let hP = iso(heli.x, heli.y, heli.z, camX, camY, { stepH, tileW, tileH, canvas });
+                    let wP = iso(heli.x, heli.y, Math.max(getGround(heli.x, heli.y), heli.z - heli.winch), camX, camY, {
+                        stepH,
+                        tileW,
+                        tileH,
+                        canvas,
+                    });
                     ctx.strokeStyle = '#bbb';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
@@ -1533,12 +1526,15 @@
 
                 renderRain();
 
+                // collision box checks + optional debug rendering
+                handleCollisionBoxes();
+
                 // HUD
                 if (!zstate.introActive) {
                     ctx.font = 'bold 13px monospace';
                     ctx.fillStyle = '#5f5';
-                    let hX = iso(heli.x, heli.y, heli.z, camX, camY).x + 45;
-                    let hY = iso(heli.x, heli.y, heli.z, camX, camY).y - 35;
+                    let hX = iso(heli.x, heli.y, heli.z, camX, camY, { stepH, tileW, tileH, canvas }).x + 45;
+                    let hY = iso(heli.x, heli.y, heli.z, camX, camY, { stepH, tileW, tileH, canvas }).y - 35;
                     ctx.fillText(`ALT: ${Math.round((heli.z - getGround(heli.x, heli.y)) * 10)}m`, hX, hY);
                     ctx.fillText(`SPD: ${Math.round(Math.hypot(heli.vx, heli.vy) * 2000)}km/h`, hX, hY + 16);
                     ctx.fillText(`WINCH: ${Math.round(heli.winch * 10)}m`, hX, hY + 32);
@@ -1610,7 +1606,7 @@
                         if (Math.abs(diff) > 0.3 + alt * 0.05) return;
                     }
 
-                    let p = iso(payload.x, payload.y, payload.z, cam.x, cam.y);
+                    let p = iso(payload.x, payload.y, payload.z, cam.x, cam.y, { stepH, tileW, tileH, canvas });
                     if (payload.type === 'crate') {
                         ctx.fillStyle = '#d84';
                         ctx.strokeStyle = '#530';
@@ -1628,7 +1624,7 @@
                         }
                     }
                     if (payload.hanging) {
-                        let hPos = iso(heli.x, heli.y, heli.z, cam.x, cam.y);
+                        let hPos = iso(heli.x, heli.y, heli.z, cam.x, cam.y, { stepH, tileW, tileH, canvas });
                         ctx.strokeStyle = payload.type === 'crate' && heli.type === 'dolphin' ? '#f55' : '#aaa';
                         ctx.lineWidth = 1.5;
                         ctx.beginPath();
@@ -1732,8 +1728,8 @@
 
                 // Antenna
                 const antB = r(ix + iw * 0.5, iy + il * 0.25);
-                const a0 = iso(antB.x, antB.y, deckZ + ih, cx, cy);
-                const a1 = iso(antB.x, antB.y, deckZ + ih + 0.6, cx, cy);
+                const a0 = iso(antB.x, antB.y, deckZ + ih, cx, cy, { stepH, tileW, tileH, canvas });
+                const a1 = iso(antB.x, antB.y, deckZ + ih + 0.6, cx, cy, { stepH, tileW, tileH, canvas });
                 ctx.strokeStyle = '#aaa';
                 ctx.lineWidth = 1.5;
                 ctx.lineCap = 'round';
@@ -1745,8 +1741,8 @@
                 // Radar
                 const rBase = r(ix + iw * 0.5, iy + il * 0.5);
                 const rZ = deckZ + ih + 0.18;
-                const rHub = iso(rBase.x, rBase.y, rZ, cx, cy);
-                const rm0 = iso(rBase.x, rBase.y, deckZ + ih, cx, cy);
+                const rHub = iso(rBase.x, rBase.y, rZ, cx, cy, { stepH, tileW, tileH, canvas });
+                const rm0 = iso(rBase.x, rBase.y, deckZ + ih, cx, cy, { stepH, tileW, tileH, canvas });
                 ctx.strokeStyle = '#888';
                 ctx.lineWidth = 1.2;
                 ctx.beginPath();
@@ -1755,8 +1751,18 @@
                 ctx.stroke();
                 const rA = Date.now() * 0.002,
                     rL = 0.22;
-                const rt = iso(rBase.x + Math.cos(rA) * rL, rBase.y + Math.sin(rA) * rL, rZ, cx, cy);
-                const rtl = iso(rBase.x - Math.cos(rA) * rL, rBase.y - Math.sin(rA) * rL, rZ, cx, cy);
+                const rt = iso(rBase.x + Math.cos(rA) * rL, rBase.y + Math.sin(rA) * rL, rZ, cx, cy, {
+                    stepH,
+                    tileW,
+                    tileH,
+                    canvas,
+                });
+                const rtl = iso(rBase.x - Math.cos(rA) * rL, rBase.y - Math.sin(rA) * rL, rZ, cx, cy, {
+                    stepH,
+                    tileW,
+                    tileH,
+                    canvas,
+                });
                 ctx.strokeStyle = '#ccc';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -1942,14 +1948,14 @@
                 const hX = PAD.xMax - 4,
                     hY = PAD.yMin,
                     hZ = PAD.z;
-                const bFL = iso(hX, hY + 2, hZ, cx, cy),
-                    bFR = iso(hX + 4, hY + 2, hZ, cx, cy);
-                const bBL = iso(hX, hY, hZ, cx, cy),
-                    bBR = iso(hX + 4, hY, hZ, cx, cy);
-                const tFL = iso(hX, hY + 2, hZ + 1.8, cx, cy),
-                    tFR = iso(hX + 4, hY + 2, hZ + 1.8, cx, cy);
-                const tBL = iso(hX, hY, hZ + 1.8, cx, cy),
-                    tBR = iso(hX + 4, hY, hZ + 1.8, cx, cy);
+                const bFL = iso(hX, hY + 2, hZ, cx, cy, { stepH, tileW, tileH, canvas }),
+                    bFR = iso(hX + 4, hY + 2, hZ, cx, cy, { stepH, tileW, tileH, canvas });
+                const bBL = iso(hX, hY, hZ, cx, cy, { stepH, tileW, tileH, canvas }),
+                    bBR = iso(hX + 4, hY, hZ, cx, cy, { stepH, tileW, tileH, canvas });
+                const tFL = iso(hX, hY + 2, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas }),
+                    tFR = iso(hX + 4, hY + 2, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas });
+                const tBL = iso(hX, hY, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas }),
+                    tBR = iso(hX + 4, hY, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas });
                 ctx.fillStyle = '#bbbbbb';
                 ctx.beginPath();
                 ctx.moveTo(bFL.x, bFL.y);
@@ -2010,7 +2016,7 @@
 
             function setLightsOnDeck(lights, blink, cx, cy, z) {
                 lights.forEach(l => {
-                    let p = iso(l.x, l.y, z + 0.05, cx, cy);
+                    let p = iso(l.x, l.y, z + 0.05, cx, cy, { stepH, tileW, tileH, canvas });
                     ctx.fillStyle = blink ? '#f00' : '#500';
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, blink ? 3 : 2.5, 0, 7);
@@ -2021,8 +2027,8 @@
             function drawWindsock(cx, cy) {
                 let wx = PAD.xMin,
                     wy = PAD.yMin + 8.8;
-                let base = iso(wx, wy, getGround(wx, wy), cx, cy);
-                let top = iso(wx, wy, getGround(wx, wy) + 1.2, cx, cy);
+                let base = iso(wx, wy, getGround(wx, wy), cx, cy, { stepH, tileW, tileH, canvas });
+                let top = iso(wx, wy, getGround(wx, wy) + 1.2, cx, cy, { stepH, tileW, tileH, canvas });
                 ctx.strokeStyle = '#aaa';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -2259,7 +2265,7 @@
                     ctx.fillStyle = col;
                     for (let i = 0; i <= 24; i++) {
                         let cz = zB + i * ((zT - zB) / 24);
-                        let p = iso(lhX, lhY, cz, cx, cy);
+                        let p = iso(lhX, lhY, cz, cx, cy, { stepH, tileW, tileH, canvas });
                         ctx.beginPath();
                         ctx.ellipse(p.x, p.y, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
                         ctx.fill();
@@ -2278,7 +2284,7 @@
                 drawCyl(3, 6, '#eee', '#ccc');
                 drawCyl(6, 7, '#d22', '#900');
                 drawCyl(7, 8, '#ff0', '#cc0');
-                let p = iso(lhX, lhY, 8.1, cx, cy);
+                let p = iso(lhX, lhY, 8.1, cx, cy, { stepH, tileW, tileH, canvas });
                 ctx.fillStyle = '#333';
                 ctx.fillRect(p.x - 2, p.y - 10, 4, 10);
                 if (Math.floor(Date.now() / 300) % 2 === 0) {
@@ -2317,7 +2323,7 @@
 
             // ─── person ──────────────────────────────────────────────────────────────────
             function drawPerson(pX, pY, pZ, angle, isWaving, cx, cy) {
-                let base = iso(pX, pY, pZ, cx, cy);
+                let base = iso(pX, pY, pZ, cx, cy, { stepH, tileW, tileH, canvas });
                 const headR = 2.5,
                     torsoW = 5,
                     torsoH = 7,
@@ -2349,8 +2355,7 @@
                 }
             }
 
-            // ─── drawHeli ────────────────────────────────────────────────────────────────
-            function drawHeli(
+            const drawHeli = (
                 type,
                 hX,
                 hY,
@@ -2368,7 +2373,7 @@
                 fillColor = '#ff6600',
                 strokeColor = '#dd3300',
                 shadowZ = null
-            ) {
+            ) => {
                 const cosA = Math.cos(hAngle),
                     sinA = Math.sin(hAngle);
                 let s = type === 'dolphin' ? 0.7 : 1.0;
@@ -2390,7 +2395,7 @@
                             rz = g > -5 ? g : 0;
                         }
                     }
-                    return iso(rx, ry, rz, camX, camY, targetCanvas);
+                    return iso(rx, ry, rz, camX, camY, { stepH, tileW, tileH, canvas: targetCanvas });
                 }
                 targetCtx.lineJoin = 'round';
                 targetCtx.lineCap = 'round';
@@ -2635,24 +2640,25 @@
                         targetCtx.stroke();
                     }
                 }
-            }
-
-            // ─── iso / drawFace ──────────────────────────────────────────────────────────
-            function iso(vx, vy, h, cx, cy, canvasRef) {
-                let cv = canvasRef || document.getElementById('gameCanvas');
-                return {
-                    x: cv.width / 2 + (vx - vy) * (tileW / 2) - cx,
-                    y: cv.height / 2 + (vx + vy) * (tileH / 2) - h * stepH - cy,
-                };
-            }
+            };
 
             function drawFace(points, color, strokeColor, zOffset, cX, cY) {
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                let first = iso(points[0].x, points[0].y, points[0].z + zOffset, cX, cY);
+                let first = iso(points[0].x, points[0].y, points[0].z + zOffset, cX, cY, {
+                    stepH,
+                    tileW,
+                    tileH,
+                    canvas,
+                });
                 ctx.moveTo(first.x, first.y);
                 for (let i = 1; i < points.length; i++) {
-                    let p = iso(points[i].x, points[i].y, points[i].z + zOffset, cX, cY);
+                    let p = iso(points[i].x, points[i].y, points[i].z + zOffset, cX, cY, {
+                        stepH,
+                        tileW,
+                        tileH,
+                        canvas,
+                    });
                     ctx.lineTo(p.x, p.y);
                 }
                 ctx.closePath();
@@ -2666,6 +2672,275 @@
 
             function rotatePoint(x, y, rad) {
                 return { x: x * Math.cos(rad) - y * Math.sin(rad), y: x * Math.sin(rad) + y * Math.cos(rad) };
+            }
+
+            // ─── collision boxes ─────────────────────────────────────────────────────────
+            let showCollisionBoxes = false;
+            window.addEventListener('keydown', e => {
+                if (e.key === 'c' || e.key === 'C') showCollisionBoxes = !showCollisionBoxes;
+            });
+
+            // Draw an oriented bounding box in isometric space (debug visual).
+            // wX/wY: world center, angle: rotation, ox/oy/oz: local extents min/max
+            function drawCollisionBox(wX, wY, angle, oxMin, oxMax, oyMin, oyMax, ozMin, ozMax, color) {
+                const camX = window.zstate.cam.x,
+                    camY = window.zstate.cam.y;
+                const cosA = Math.cos(angle),
+                    sinA = Math.sin(angle);
+                function wp(lx, ly, lz) {
+                    return {
+                        x: wX + lx * cosA - ly * sinA,
+                        y: wY + lx * sinA + ly * cosA,
+                        z: lz,
+                    };
+                }
+                const corners = [
+                    wp(oxMin, oyMin, ozMin),
+                    wp(oxMax, oyMin, ozMin),
+                    wp(oxMax, oyMax, ozMin),
+                    wp(oxMin, oyMax, ozMin),
+                    wp(oxMin, oyMin, ozMax),
+                    wp(oxMax, oyMin, ozMax),
+                    wp(oxMax, oyMax, ozMax),
+                    wp(oxMin, oyMax, ozMax),
+                ];
+                const sc = corners.map(p => iso(p.x, p.y, p.z, camX, camY, { stepH, tileW, tileH, canvas }));
+                const edges = [
+                    [0, 1],
+                    [1, 2],
+                    [2, 3],
+                    [3, 0],
+                    [4, 5],
+                    [5, 6],
+                    [6, 7],
+                    [7, 4],
+                    [0, 4],
+                    [1, 5],
+                    [2, 6],
+                    [3, 7],
+                ];
+                ctx.save();
+                ctx.strokeStyle = color || 'rgba(0,255,100,0.85)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 3]);
+                ctx.shadowColor = color || '#00ff66';
+                ctx.shadowBlur = 4;
+                edges.forEach(([a, b]) => {
+                    ctx.beginPath();
+                    ctx.moveTo(sc[a].x, sc[a].y);
+                    ctx.lineTo(sc[b].x, sc[b].y);
+                    ctx.stroke();
+                });
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            // Check if a world point (px, py, pz) is inside an oriented bounding box.
+            function checkCollisionBox(px, py, pz, wX, wY, angle, oxMin, oxMax, oyMin, oyMax, ozMin, ozMax) {
+                const dx = px - wX,
+                    dy = py - wY;
+                const cosA = Math.cos(-angle),
+                    sinA = Math.sin(-angle);
+                const lx = dx * cosA - dy * sinA;
+                const ly = dx * sinA + dy * cosA;
+                return lx >= oxMin && lx <= oxMax && ly >= oyMin && ly <= oyMax && pz >= ozMin && pz <= ozMax;
+            }
+
+            // Draw all collision boxes and check heli collisions (called from drawScene).
+            function handleCollisionBoxes() {
+                const zstate = window.zstate;
+
+                // ── Carrier ────────────────────────────────────────────────────────────────
+                if (hasCarrier()) {
+                    const cx = CARRIER.x,
+                        cy = CARRIER.y,
+                        ca = CARRIER.angle;
+                    const deckZ = CARRIER.zDeck; // 4.2
+
+                    // Flugdeck: rx=Breite(±4.2), ry=Länge(±8.7)
+                    if (showCollisionBoxes)
+                        drawCollisionBox(cx, cy, ca, -4.2, 4.2, -8.7, 8.7, 0, deckZ, 'rgba(0,200,255,0.8)');
+
+                    // Tower: ix=2.6(rx), iy=1.0(ry), iw=1.5, il=4.5, ih=2.5
+                    if (showCollisionBoxes)
+                        drawCollisionBox(cx, cy, ca, 2.6, 4.1, 1.0, 5.5, deckZ, deckZ + 2.5, 'rgba(255,80,0,0.9)');
+
+                    // Tower-Kollision – nur wenn Heli in der Luft ist
+                    if (!zstate.introActive && !zstate.crashed && heli.inAir) {
+                        if (
+                            checkCollisionBox(
+                                heli.x,
+                                heli.y,
+                                heli.z,
+                                cx,
+                                cy,
+                                ca,
+                                2.6,
+                                4.1,
+                                1.0,
+                                5.5,
+                                deckZ,
+                                deckZ + 2.5
+                            )
+                        ) {
+                            triggerCrash('COLLISION WITH TOWER');
+                        }
+                    }
+
+                    // Parked Helis auf dem Deck
+                    const cosC = Math.cos(ca),
+                        sinC = Math.sin(ca);
+                    parkedHelis.forEach(h => {
+                        const pos = {
+                            x: cx + h.xRel * cosC - h.yRel * sinC,
+                            y: cy + h.xRel * sinC + h.yRel * cosC,
+                        };
+                        const totalAng = h.angle + ca;
+                        const hb =
+                            h.type === 'dolphin'
+                                ? { x1: -1.26, x2: 1.26, y1: -0.28, y2: 0.28, z2: 0.56 }
+                                : { x1: -3.0, x2: 1.3, y1: -0.5, y2: 0.5, z2: 1.3 };
+                        if (showCollisionBoxes)
+                            drawCollisionBox(
+                                pos.x,
+                                pos.y,
+                                totalAng,
+                                hb.x1,
+                                hb.x2,
+                                hb.y1,
+                                hb.y2,
+                                deckZ + 0.1,
+                                deckZ + 0.1 + hb.z2,
+                                'rgba(0,255,100,0.8)'
+                            );
+                        if (!zstate.introActive && !zstate.crashed && heli.inAir) {
+                            if (
+                                checkCollisionBox(
+                                    heli.x,
+                                    heli.y,
+                                    heli.z,
+                                    pos.x,
+                                    pos.y,
+                                    totalAng,
+                                    hb.x1,
+                                    hb.x2,
+                                    hb.y1,
+                                    hb.y2,
+                                    deckZ + 0.1,
+                                    deckZ + 0.1 + hb.z2
+                                )
+                            ) {
+                                triggerCrash('COLLISION WITH PARKED HELI');
+                            }
+                        }
+                    });
+                }
+
+                // ── Hangar ────────────────────────────────────────────────────────────────
+                if (hasPad()) {
+                    // Hangar: hX=PAD.xMax-4, hY=PAD.yMin, Breite=4, Tiefe=2, Höhe=1.8
+                    const hX = PAD.xMax - 4,
+                        hY = PAD.yMin,
+                        hZ = PAD.z;
+                    // Mittelpunkt + lokale Extents (keine Rotation)
+                    const hmx = hX + 2,
+                        hmy = hY + 1;
+                    if (showCollisionBoxes)
+                        drawCollisionBox(hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8, 'rgba(255,80,0,0.9)');
+                    if (!zstate.introActive && !zstate.crashed && heli.inAir) {
+                        if (checkCollisionBox(heli.x, heli.y, heli.z, hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8)) {
+                            triggerCrash('HANGAR COLLISION');
+                        }
+                    }
+                }
+
+                // ── Lighthouse ─────────────────────────────────────────────────────────────
+                if (hasLighthouse()) {
+                    const lh = getObjectByType('lighthouse');
+                    if (lh) {
+                        // Sockel (radius 4, aber nur die Platte – kein Flughindernis über 0.4)
+                        if (showCollisionBoxes)
+                            drawCollisionBox(lh.x, lh.y, 0, -4.0, 4.0, -4.0, 4.0, 0, 0.4, 'rgba(255,220,0,0.6)');
+                        // Turm (radius 1.0, Höhe 0.4–8)
+                        if (showCollisionBoxes)
+                            drawCollisionBox(lh.x, lh.y, 0, -1.0, 1.0, -1.0, 1.0, 0.4, 8.0, 'rgba(255,80,0,0.9)');
+
+                        if (!zstate.introActive && !zstate.crashed) {
+                            if (
+                                checkCollisionBox(heli.x, heli.y, heli.z, lh.x, lh.y, 0, -1.0, 1.0, -1.0, 1.0, 0.4, 8.5)
+                            ) {
+                                triggerCrash('TOWER COLLISION');
+                            }
+                        }
+                    }
+                }
+
+                // ── Sailboats ──────────────────────────────────────────────────────────────
+                BOATS.forEach(b => {
+                    // Rumpf
+                    if (showCollisionBoxes)
+                        drawCollisionBox(b.x, b.y, b.angle, -1.1, 1.3, -0.45, 0.45, 0, 0.35, 'rgba(0,255,100,0.8)');
+                    // Mast
+                    if (showCollisionBoxes)
+                        drawCollisionBox(b.x, b.y, b.angle, -0.4, -0.2, -0.1, 0.1, 0.35, 3.2, 'rgba(255,80,0,0.9)');
+
+                    if (!zstate.introActive && !zstate.crashed) {
+                        if (
+                            checkCollisionBox(
+                                heli.x,
+                                heli.y,
+                                heli.z,
+                                b.x,
+                                b.y,
+                                b.angle,
+                                -1.1,
+                                1.3,
+                                -0.45,
+                                0.45,
+                                0,
+                                0.35
+                            ) ||
+                            checkCollisionBox(
+                                heli.x,
+                                heli.y,
+                                heli.z,
+                                b.x,
+                                b.y,
+                                b.angle,
+                                -0.4,
+                                -0.2,
+                                -0.1,
+                                0.1,
+                                0.35,
+                                3.2
+                            )
+                        ) {
+                            triggerCrash('BOAT COLLISION');
+                        }
+                    }
+                });
+
+                // ── Player Heli box (nur Debug-Visualisierung) ────────────────────────────
+                if (showCollisionBoxes) {
+                    const hb =
+                        heli.type === 'dolphin'
+                            ? { x1: -1.26, x2: 1.26, y1: -0.28, y2: 0.28, z2: 0.56 }
+                            : heli.type === 'chinook'
+                              ? { x1: -2.6, x2: 2.8, y1: -0.6, y2: 0.6, z2: 1.8 }
+                              : { x1: -3.0, x2: 1.3, y1: -0.5, y2: 0.5, z2: 1.3 };
+                    drawCollisionBox(
+                        heli.x,
+                        heli.y,
+                        heli.angle,
+                        hb.x1,
+                        hb.x2,
+                        hb.y1,
+                        hb.y2,
+                        heli.z,
+                        heli.z + hb.z2,
+                        'rgba(255,255,0,0.9)'
+                    );
+                }
             }
 
             // ─── menu animations ─────────────────────────────────────────────────────────
