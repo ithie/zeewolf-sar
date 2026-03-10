@@ -1477,8 +1477,7 @@
                 if (hasPad() && isVisible(PAD.xMin + 3, PAD.yMin + 3)) drawHangar(camX, camY);
                 if (hasPad() && isVisible(PAD.xMin, PAD.yMin)) drawWindsock(camX, camY);
 
-                // Test-Bäume
-                TEST_TREES.forEach(t => {
+                TREES_MAP.forEach(t => {
                     if (isVisible(t.x, t.y, 14)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine');
                 });
 
@@ -2465,7 +2464,7 @@
             }
 
             // Beflockung aus Missionsdaten laden
-            let TEST_TREES = [];
+            let TREES_MAP = [];
             const FOLIAGE_DECODE = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
             function decompressFoliage(str) {
                 if (!str) return [];
@@ -2479,14 +2478,14 @@
             function initFoliageFromMission() {
                 const md = window.campaignHandler.getCurrentMissionData();
                 const foliage = decompressFoliage(md.foliage || []);
-                TEST_TREES = foliage.map(f => ({
+                TREES_MAP = foliage.map(f => ({
                     x: f.x,
                     y: f.y,
                     s: f.s || 1.0,
                     type: f.type || 'pine',
                     gz: null,
                 }));
-                TEST_TREES.forEach(t => {
+                TREES_MAP.forEach(t => {
                     t.gz = getGround(t.x, t.y);
                 });
             }
@@ -3166,7 +3165,7 @@
                     ctx.setLineDash([3, 3]);
                     const camX2 = window.zstate.cam.x,
                         camY2 = window.zstate.cam.y;
-                    TEST_TREES.forEach(t => {
+                    TREES_MAP.forEach(t => {
                         if (!isVisible(t.x, t.y, 16)) return;
                         const r = 0.35 * t.s;
                         const h = 2.3 * t.s;
@@ -3204,7 +3203,7 @@
                     ctx.restore();
                 }
                 if (!zstate.introActive && !zstate.crashed) {
-                    TEST_TREES.forEach(t => {
+                    TREES_MAP.forEach(t => {
                         if (!isVisible(t.x, t.y, 16)) return;
                         const r = 0.35 * t.s;
                         const h = 2.3 * t.s;
