@@ -27,6 +27,19 @@ export const renderPayloadList = () => {
             ? ` → ${(p as any).attachTo.objectType} #${(p as any).attachTo.objectIdx + 1}`
             : '';
         label.innerText = `${i + 1}. ${icon} ${p.type === 'person' ? 'Person' : 'Crate'} @ (${p.x}, ${p.y})${attach}`;
+
+        // NPC-Target Checkbox
+        const npcLabel = document.createElement('label');
+        npcLabel.style.cssText = 'display:flex;align-items:center;gap:2px;color:#8af;white-space:nowrap;cursor:pointer';
+        const npcCb = document.createElement('input');
+        npcCb.type = 'checkbox';
+        npcCb.checked = !!(p as any).npcTarget;
+        npcCb.onchange = () => {
+            (p as any).npcTarget = npcCb.checked;
+            drawMap();
+        };
+        npcLabel.append(npcCb, 'NPC');
+
         const btnDel = document.createElement('button');
         btnDel.innerText = 'X';
         btnDel.style.cssText = 'background:#822;color:#fff;border:none;padding:2px 6px;cursor:pointer;font-size:10px';
@@ -35,7 +48,7 @@ export const renderPayloadList = () => {
             renderPayloadList();
             drawMap();
         };
-        row.append(label, btnDel);
+        row.append(label, npcLabel, btnDel);
         container.appendChild(row);
     });
 };
@@ -99,6 +112,10 @@ export const syncToData = () => {
     m.windStr = parseFloat(getInput('m_wind_str').value) || 0;
     m.windVar = getInput('m_wind_var').checked;
     m.gridSize = parseInt(getInput('m_grid_size').value) || 100;
+    const npcCount = parseInt(getInput('m_npc_heli_count').value);
+    (m as any).npcHeliCount = npcCount > 0 ? npcCount : undefined;
+    const npcType = getEl<HTMLSelectElement>('m_npc_heli_type').value;
+    (m as any).npcHeliType = npcType !== 'random' ? npcType : undefined;
     renderMissionList();
     drawMap();
     drawPreview();
@@ -135,6 +152,8 @@ export const loadMission = (idx: number) => {
     getInput('m_wind_dir').value = m.windDir.toString();
     getInput('m_wind_str').value = m.windStr.toString();
     getInput('m_wind_var').checked = m.windVar;
+    getInput('m_npc_heli_count').value = ((m as any).npcHeliCount ?? 0).toString();
+    getEl<HTMLSelectElement>('m_npc_heli_type').value = (m as any).npcHeliType ?? 'random';
 
     state.selectedUI = null;
     state.selectedObjectIdx = null;
@@ -554,9 +573,17 @@ export const initUI = () => {
     );
 
     // General sync
-    ['m_headline', 'm_briefing', 'm_rain', 'm_night', 'm_wind_dir', 'm_wind_str', 'm_wind_var'].forEach(id =>
-        getEl(id).addEventListener('input', syncToData)
-    );
+    [
+        'm_headline',
+        'm_briefing',
+        'm_rain',
+        'm_night',
+        'm_wind_dir',
+        'm_wind_str',
+        'm_wind_var',
+        'm_npc_heli_count',
+        'm_npc_heli_type',
+    ].forEach(id => getEl(id)?.addEventListener('input', syncToData));
 
     const canvas = getEl<HTMLCanvasElement>('editorCanvas');
 
