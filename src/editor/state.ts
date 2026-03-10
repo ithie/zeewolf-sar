@@ -15,6 +15,7 @@ export const createEmptyMission = (name = 'Mission Alpha'): Mission => {
         objects: [{ type: 'pad', x: 10, y: 10 }],
         spawnObject: 'pad',
         payloads: [],
+        foliage: [],
         rain: false,
         night: false,
         windDir: 45,
@@ -46,6 +47,7 @@ export const state = {
     moveMode: false, // M-Taste: nächster Klick verschiebt selektiertes Objekt
 
     payloadBrushType: null as 'person' | 'crate' | null,
+    foliageBrushType: 'pine' as 'pine' | 'oak' | 'bush' | 'dead',
 
     isDrawing: false,
     isEditorDragging: false,

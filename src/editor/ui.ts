@@ -1,6 +1,6 @@
 import { state, createEmptyMission, getCurrentMission } from './state';
 import { drawMap, drawPreview, generatePreviewBase64 } from './render';
-import { compressTerrain, decompressTerrain } from '../shared/utils';
+import { compressTerrain, decompressTerrain, compressFoliage, decompressFoliage } from '../shared/utils';
 import { Mission } from '@/shared/types';
 
 const getEl = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -67,7 +67,27 @@ export const renderObjectList = () => {
     });
 };
 
-// ── Sync form → mission data ──────────────────────────────────────────────────
+// ── Foliage-Liste ─────────────────────────────────────────────────────────────
+export const renderFoliageList = () => {
+    const m = getCurrentMission();
+    const container = getEl('foliage-list');
+    const countEl = getEl('foliage-count');
+    if (!container || !m) return;
+    const foliage = (m as any).foliage || [];
+    if (countEl) countEl.innerText = `(${foliage.length} Objekte)`;
+    if (foliage.length === 0) {
+        container.innerHTML = '<span style="color:#555">Keine Bäume platziert</span>';
+        return;
+    }
+    const icons: Record<string, string> = { pine: '🌲', oak: '🌳', bush: '🌿', dead: '🪵' };
+    const counts: Record<string, number> = {};
+    foliage.forEach((f: any) => {
+        counts[f.type] = (counts[f.type] || 0) + 1;
+    });
+    container.innerHTML = Object.entries(counts)
+        .map(([type, n]) => `${icons[type] || '🌲'} ${type}: <strong style="color:#5f5">${n}</strong>`)
+        .join(' &nbsp;|&nbsp; ');
+};
 export const syncToData = () => {
     const m = getCurrentMission();
     if (!m) return;
@@ -121,6 +141,7 @@ export const loadMission = (idx: number) => {
     renderMissionList();
     renderPayloadList();
     renderObjectList();
+    renderFoliageList();
     drawMap();
     drawPreview();
 };
@@ -279,6 +300,14 @@ const paint = (e: MouseEvent) => {
                 if (Math.hypot(dx, dy) <= state.brushRadius && m.terrain[gx + dx]) m.terrain[gx + dx][gy + dy] = h;
             }
         }
+        // Bäume im Radius löschen wenn Wasser (shift) oder sehr flach
+        if (e.shiftKey || h <= 0.1) {
+            if ((m as any).foliage) {
+                (m as any).foliage = (m as any).foliage.filter(
+                    (f: any) => Math.hypot(f.x - gx, f.y - gy) > state.brushRadius
+                );
+            }
+        }
     } else if (state.currentTool === 'pad') {
         const existing = m.objects.findIndex(o => o.type === 'pad');
         if (e.shiftKey) {
@@ -363,6 +392,33 @@ const paint = (e: MouseEvent) => {
             m.payloads.push(makePayload('crate', gx, gy, m));
         }
         renderPayloadList();
+    } else if (state.currentTool === 'foliage') {
+        if (!(m as any).foliage) (m as any).foliage = [];
+        const foliage = (m as any).foliage;
+        if (e.shiftKey) {
+            // Alle Bäume im Brush-Radius entfernen
+            const rad = Math.max(0.5, state.brushRadius);
+            (m as any).foliage = foliage.filter((f: any) => Math.hypot(f.x - gx, f.y - gy) > rad);
+        } else {
+            // Zufällig im Brush-Radius streuen (1-3 Bäume pro Klick)
+            const rad = Math.max(0.5, state.brushRadius);
+            const count = Math.max(1, Math.round(rad * 0.8));
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * rad;
+                const fx = gx + Math.cos(angle) * dist;
+                const fy = gy + Math.sin(angle) * dist;
+                if (fx < 0 || fx >= m.gridSize || fy < 0 || fy >= m.gridSize) continue;
+                const h = m.terrain[Math.round(fx)]?.[Math.round(fy)] ?? -1;
+                if (h <= 0.05) continue; // kein Wasser
+                const scale = parseFloat(
+                    (document.getElementById('foliage-scale') as HTMLInputElement)?.value || '1.0'
+                );
+                const type = (document.getElementById('foliage-type') as HTMLSelectElement)?.value || 'pine';
+                foliage.push({ x: Math.round(fx * 10) / 10, y: Math.round(fy * 10) / 10, s: scale, type });
+            }
+        }
+        renderFoliageList();
     }
 
     if (state.currentTool === 'terrain' || state.currentTool === 'flatten')
@@ -385,9 +441,31 @@ export const initUI = () => {
         loadMission(state.campaign.length - 1);
     };
 
+    // Foliage scale display
+    const scaleInput = document.getElementById('foliage-scale') as HTMLInputElement;
+    const scaleVal = document.getElementById('foliage-scale-val');
+    if (scaleInput && scaleVal)
+        scaleInput.oninput = () => {
+            scaleVal.innerText = scaleInput.value;
+        };
+    // Clear foliage
+    const clearFoliageBtn = document.getElementById('btn-clear-foliage');
+    if (clearFoliageBtn) {
+        clearFoliageBtn.onclick = () => {
+            const m = getCurrentMission();
+            if (!m || !confirm('Alle Bäume löschen?')) return;
+            (m as any).foliage = [];
+            renderFoliageList();
+            drawMap();
+            drawPreview();
+        };
+    }
+
     document.querySelectorAll('input[name="tool"]').forEach(el => {
         (el as HTMLInputElement).onchange = e => {
             state.currentTool = (e.target as HTMLInputElement).value;
+            const foliageBar = getEl('foliage-type-bar');
+            if (foliageBar) foliageBar.style.display = state.currentTool === 'foliage' ? 'block' : 'none';
             updateCursor();
         };
     });
@@ -488,7 +566,7 @@ export const initUI = () => {
     cursorEl.style.cssText = 'position:fixed;pointer-events:none;z-index:9999;display:none;';
     document.body.appendChild(cursorEl);
     const cursorCtx = cursorEl.getContext('2d')!;
-    const PAINT_TOOLS = new Set(['terrain', 'flatten']);
+    const PAINT_TOOLS = new Set(['terrain', 'flatten', 'foliage']);
     const POINT_TOOLS = new Set(['pad', 'carrier', 'boat', 'lighthouse', 'person', 'crate']);
     const dotColors: Record<string, string> = {
         pad: '#5f5',
@@ -528,7 +606,12 @@ export const initUI = () => {
             cursorCtx.fill();
             cursorCtx.beginPath();
             cursorCtx.arc(size / 2, size / 2, radiusPx, 0, Math.PI * 2);
-            cursorCtx.fillStyle = tool === 'flatten' ? 'rgba(100,200,255,0.08)' : 'rgba(255,160,0,0.08)';
+            cursorCtx.fillStyle =
+                tool === 'flatten'
+                    ? 'rgba(100,200,255,0.08)'
+                    : tool === 'foliage'
+                      ? 'rgba(50,200,50,0.1)'
+                      : 'rgba(255,160,0,0.08)';
             cursorCtx.fill();
         } else if (POINT_TOOLS.has(tool)) {
             const size = 32;
@@ -696,7 +779,8 @@ export const initUI = () => {
                 state.currentTool !== 'boat' &&
                 state.currentTool !== 'carrier' &&
                 state.currentTool !== 'pad' &&
-                state.currentTool !== 'lighthouse'
+                state.currentTool !== 'lighthouse' &&
+                state.currentTool !== 'foliage'
             ) {
                 paint(e);
             }
@@ -787,7 +871,12 @@ export const initUI = () => {
             console.log('CURR', state.curIdx);
             return {
                 ...m,
-                terrain: compressTerrain(m.terrain),
+                terrain: typeof m.terrain === 'string' ? m.terrain : compressTerrain(m.terrain),
+                foliage: compressFoliage(
+                    typeof (m as any).foliage === 'string'
+                        ? decompressFoliage((m as any).foliage)
+                        : (m as any).foliage || []
+                ),
                 previewBase64: generatePreviewBase64(),
             };
         });
@@ -816,7 +905,11 @@ export const initUI = () => {
             getEl<HTMLTextAreaElement>('c_sublines').value = (parsed.campaignSublines || []).join('\n');
             state.type = parsed.type;
             state.campaign = parsed.levels.map((m: any) => {
-                const base = { ...m, terrain: decompressTerrain(m.terrain, m.gridSize) } as Mission;
+                const base = {
+                    ...m,
+                    terrain: typeof m.terrain === 'string' ? decompressTerrain(m.terrain, m.gridSize) : m.terrain,
+                    foliage: typeof m.foliage === 'string' ? decompressFoliage(m.foliage) : m.foliage || [],
+                } as Mission;
                 delete (base as any).previewBase64;
                 return base;
             });

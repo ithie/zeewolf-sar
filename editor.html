@@ -107,6 +107,38 @@ Viel Glück, Pilot.</textarea
                             ><input type="radio" name="tool" value="crate" /> 🟠 Crate platzieren (Shift: Löschen, M:
                             Bewegen)</label
                         >
+                        <br /><strong>BEFLOCKUNG:</strong><br />
+                        <label><input type="radio" name="tool" value="foliage" /> 🌲 Bäume (Shift: Löschen)</label
+                        ><br />
+                        <div id="foliage-type-bar" style="margin-left: 14px; margin-top: 4px; display: none">
+                            Typ:
+                            <select
+                                id="foliage-type"
+                                style="
+                                    background: #000;
+                                    color: #5f5;
+                                    border: 1px solid #444;
+                                    font-family: monospace;
+                                    font-size: 11px;
+                                "
+                            >
+                                <option value="pine">🌲 Nadelbaum</option>
+                                <option value="oak">🌳 Laubbaum</option>
+                                <option value="bush">🌿 Busch</option>
+                                <option value="dead">🪵 Kahler Baum</option>
+                            </select>
+                            &nbsp;Scale:
+                            <input
+                                type="range"
+                                id="foliage-scale"
+                                min="0.5"
+                                max="2.0"
+                                step="0.1"
+                                value="1.0"
+                                style="width: 70px; vertical-align: middle"
+                            />
+                            <span id="foliage-scale-val" style="color: #5f5; font-size: 11px">1.0</span>
+                        </div>
                     </div>
                     <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
                         <strong>BRUSH RADIUS:</strong><br />
@@ -303,6 +335,39 @@ Viel Glück, Pilot.</textarea
                         <strong>ENVIRONMENT:</strong><br />
                         <label><input type="checkbox" id="m_rain" /> 🌧️ Rain / Storm</label><br />
                         <label><input type="checkbox" id="m_night" /> 🌙 Night Ops</label>
+                        <hr style="border-color: #222" />
+                        <strong>BEFLOCKUNG:</strong>
+                        <span id="foliage-count" style="color: #888; font-size: 10px; margin-left: 6px"></span>
+                        <button
+                            id="btn-clear-foliage"
+                            style="
+                                float: right;
+                                background: #822;
+                                color: #fff;
+                                border: none;
+                                padding: 2px 6px;
+                                cursor: pointer;
+                                font-size: 10px;
+                            "
+                        >
+                            Alle löschen
+                        </button>
+                        <div
+                            id="foliage-list"
+                            style="
+                                min-height: 30px;
+                                background: #0a0a0a;
+                                border: 1px solid #333;
+                                padding: 6px;
+                                margin: 6px 0;
+                                max-height: 80px;
+                                overflow-y: auto;
+                                font-size: 10px;
+                                color: #888;
+                            "
+                        >
+                            Keine Bäume platziert
+                        </div>
                     </div>
                 </div>
             </div>

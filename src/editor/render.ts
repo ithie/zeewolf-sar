@@ -234,6 +234,24 @@ export const drawMap = () => {
         ctx.textAlign = 'left';
     });
 
+    // ── Foliage (2D) ───────────────────────────────────────────────────────────
+    const foliage = (m as any).foliage || [];
+    const treeColors: Record<string, string> = { pine: '#1a5a1a', oak: '#2a6a1a', bush: '#3a7a2a', dead: '#6a4a2a' };
+    foliage.forEach((f: any) => {
+        const fx = (f.x - state.panX) * tSize;
+        const fy = (f.y - state.panY) * tSize;
+        const r = Math.max(3, tSize * 0.6 * (f.s || 1));
+        ctx.fillStyle = treeColors[f.type] || '#1a5a1a';
+        ctx.beginPath();
+        ctx.arc(fx, fy, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (f.type === 'dead') {
+            ctx.strokeStyle = '#8a6a4a';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    });
+
     // ── Wind compass ───────────────────────────────────────────────────────────
     const dirRad = (m.windDir * Math.PI) / 180;
     if (state.selectedUI === 'wind') {
@@ -368,6 +386,102 @@ const renderIso = (
             }
         }
     });
+
+    if (mode === 'filled') {
+        // Foliage
+        const foliage = (m as any).foliage || [];
+        foliage.forEach((f: any) => {
+            const gz = Math.max(0, m.terrain[Math.round(f.x)]?.[Math.round(f.y)] ?? 0);
+            if (gz <= 0) return;
+            const s = f.s || 1.0;
+            const trunkH = 0.5 * s;
+
+            // Stamm
+            const p0 = getIso(f.x, f.y, gz);
+            const p1 = getIso(f.x, f.y, gz + trunkH);
+            tCtx.strokeStyle = '#5a3a1a';
+            tCtx.lineWidth = Math.max(1, sTW * 0.04 * s);
+            tCtx.beginPath();
+            tCtx.moveTo(p0.x, p0.y);
+            tCtx.lineTo(p1.x, p1.y);
+            tCtx.stroke();
+
+            if (f.type === 'pine') {
+                // Kegel-Ebenen
+                [
+                    { z: gz + trunkH * 0.3, r: 0.75 * s, col: '#1a4a1a' },
+                    { z: gz + trunkH * 0.3 + 0.6 * s, r: 0.5 * s, col: '#1e5a1e' },
+                    { z: gz + trunkH * 0.3 + 1.1 * s, r: 0.28 * s, col: '#246024' },
+                ].forEach(layer => {
+                    const lp = getIso(f.x, f.y, layer.z);
+                    tCtx.fillStyle = layer.col;
+                    tCtx.beginPath();
+                    tCtx.ellipse(lp.x, lp.y, layer.r * sTW, layer.r * sTH, 0, 0, Math.PI * 2);
+                    tCtx.fill();
+                });
+            } else if (f.type === 'oak') {
+                const cp = getIso(f.x, f.y, gz + trunkH + 0.6 * s);
+                const cr = 0.65 * s;
+                // Schatten
+                tCtx.fillStyle = '#1a3a0a';
+                tCtx.beginPath();
+                tCtx.ellipse(cp.x + 2, cp.y + 1, cr * sTW * 1.1, cr * sTH * 1.1, 0, 0, Math.PI * 2);
+                tCtx.fill();
+                // Krone
+                tCtx.fillStyle = '#2a6a1a';
+                tCtx.beginPath();
+                tCtx.ellipse(cp.x, cp.y, cr * sTW, cr * sTH, 0, 0, Math.PI * 2);
+                tCtx.fill();
+                tCtx.fillStyle = '#3a8a2a';
+                tCtx.beginPath();
+                tCtx.ellipse(
+                    cp.x - sTW * 0.2 * s,
+                    cp.y - sTH * 0.3 * s,
+                    cr * sTW * 0.7,
+                    cr * sTH * 0.7,
+                    0,
+                    0,
+                    Math.PI * 2
+                );
+                tCtx.fill();
+            } else if (f.type === 'bush') {
+                const bp = getIso(f.x, f.y, gz + 0.15 * s);
+                tCtx.fillStyle = '#1a4a0a';
+                tCtx.beginPath();
+                tCtx.ellipse(bp.x, bp.y, 0.7 * s * sTW, 0.4 * s * sTH, 0, 0, Math.PI * 2);
+                tCtx.fill();
+                tCtx.fillStyle = '#3a7a2a';
+                tCtx.beginPath();
+                tCtx.ellipse(bp.x, bp.y - sTH * 0.2 * s, 0.55 * s * sTW, 0.32 * s * sTH, 0, 0, Math.PI * 2);
+                tCtx.fill();
+            } else if (f.type === 'dead') {
+                // Kahler Baum: Stamm + Äste
+                const th = gz + trunkH + 0.8 * s;
+                const ptop = getIso(f.x, f.y, th);
+                tCtx.strokeStyle = '#7a5a3a';
+                tCtx.lineWidth = Math.max(1, sTW * 0.05 * s);
+                tCtx.beginPath();
+                tCtx.moveTo(p1.x, p1.y);
+                tCtx.lineTo(ptop.x, ptop.y);
+                tCtx.stroke();
+                // Äste
+                tCtx.lineWidth = Math.max(0.5, sTW * 0.025 * s);
+                [
+                    [-0.3, 0.5, 0.4],
+                    [0.3, 0.5, 0.4],
+                    [-0.2, 0.8, 0.3],
+                    [0.2, 0.8, 0.3],
+                ].forEach(([dx, tz, len]) => {
+                    const ab = getIso(f.x, f.y, gz + trunkH + tz * s);
+                    const ae = getIso(f.x + dx * len * s, f.y, gz + trunkH + (tz + 0.25) * s);
+                    tCtx.beginPath();
+                    tCtx.moveTo(ab.x, ab.y);
+                    tCtx.lineTo(ae.x, ae.y);
+                    tCtx.stroke();
+                });
+            }
+        });
+    }
 
     if (mode === 'filled') {
         (m.payloads || []).forEach(p => {

@@ -1,3 +1,31 @@
+// Foliage-Typ → einstelliger Code
+const FOLIAGE_ENCODE: Record<string, string> = { pine: 'p', oak: 'o', bush: 'b', dead: 'd' };
+const FOLIAGE_DECODE: Record<string, string> = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
+
+// Format pro Baum: {type}{x*10},{y*10},{s*10}  →  z.B. "p123,87,10"
+// Bäume getrennt durch "|"
+export const compressFoliage = (foliage: { x: number; y: number; s: number; type: string }[]): string => {
+    if (!foliage || foliage.length === 0) return '';
+    return foliage
+        .map(f => {
+            const t = FOLIAGE_ENCODE[f.type] || 'p';
+            const x = Math.round(f.x * 10);
+            const y = Math.round(f.y * 10);
+            const s = Math.round((f.s || 1.0) * 10);
+            return `${t}${x},${y},${s}`;
+        })
+        .join('|');
+};
+
+export const decompressFoliage = (str: string): { x: number; y: number; s: number; type: string }[] => {
+    if (!str) return [];
+    return str.split('|').map(token => {
+        const type = FOLIAGE_DECODE[token[0]] || 'pine';
+        const [x, y, s] = token.slice(1).split(',').map(Number);
+        return { type, x: x / 10, y: y / 10, s: s / 10 };
+    });
+};
+
 export const compressTerrain = (grid: number[][]): string => {
     const flat: number[] = [];
     grid.forEach(col => col.forEach(v => flat.push(Math.round(v * 10))));

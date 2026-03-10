@@ -1341,7 +1341,7 @@
             function launchMission() {
                 const zstate = window.zstate;
                 generateTerrain();
-                initTreesFromTerrain();
+                initFoliageFromMission();
                 initCarrierFromMission();
                 initBoatsFromMission();
                 initPayloadsFromMission();
@@ -1478,7 +1478,7 @@
 
                 // Test-Bäume
                 TEST_TREES.forEach(t => {
-                    if (isVisible(t.x, t.y, 16)) drawTree(t.x, t.y, camX, camY, t.s, t.gz);
+                    if (isVisible(t.x, t.y, 16)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine');
                 });
 
                 // shadow pass
@@ -2272,114 +2272,222 @@
                 );
             }
 
-            // ─── tree ────────────────────────────────────────────────────────────────────
-            function drawTree(tX, tY, cx, cy, scale = 1.0, gz = 0) {
+            // ─── trees ───────────────────────────────────────────────────────────────────
+            function drawTree(tX, tY, cx, cy, scale = 1.0, gz = 0, type = 'pine') {
                 if (gz < 0.05) return;
                 const z0 = gz;
                 const trunkH = 0.5 * scale;
                 const trunkR = 0.08 * scale;
 
-                // Windwiegen: Stärke aus wind.x/y, Phase leicht per Position versetzt
+                // Windwiegen
                 const windStrength = Math.hypot(wind.x, wind.y);
                 const swayPhase = wind.phase + tX * 0.3 + tY * 0.17;
                 const swayX = Math.cos(swayPhase) * windStrength * 18 * scale;
                 const swayY = Math.sin(swayPhase) * windStrength * 10 * scale;
 
-                // Stamm
-                ctx.fillStyle = '#5a3a1a';
-                for (let i = 0; i <= 6; i++) {
-                    const cz = z0 + i * (trunkH / 6);
-                    const p = iso(tX, tY, cz, cx, cy, { stepH, tileW, tileH, canvas });
-                    ctx.beginPath();
-                    ctx.ellipse(p.x, p.y, (trunkR * tileW) / 2, (trunkR * tileH) / 2, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                // 3 Kegel-Ebenen – jede höhere Ebene schaukelt stärker
-                const layers = [
-                    {
-                        zBase: z0 + trunkH * 0.3,
-                        zTop: z0 + trunkH * 0.3 + 1.4 * scale,
-                        rBase: 0.9 * scale,
-                        color: '#1a4a1a',
-                        shadow: '#0f2f0f',
-                        sway: 0.3,
-                    },
-                    {
-                        zBase: z0 + trunkH * 0.3 + 0.7 * scale,
-                        zTop: z0 + trunkH * 0.3 + 1.9 * scale,
-                        rBase: 0.65 * scale,
-                        color: '#1e5a1e',
-                        shadow: '#133513',
-                        sway: 0.65,
-                    },
-                    {
-                        zBase: z0 + trunkH * 0.3 + 1.3 * scale,
-                        zTop: z0 + trunkH * 0.3 + 2.3 * scale,
-                        rBase: 0.4 * scale,
-                        color: '#246024',
-                        shadow: '#163a16',
-                        sway: 1.0,
-                    },
-                ];
-
-                layers.forEach(l => {
-                    for (let i = 10; i >= 0; i--) {
-                        const t = i / 10;
-                        const cz = l.zBase + t * (l.zTop - l.zBase);
-                        const r = l.rBase * (1 - t);
-                        if (r <= 0) continue;
+                // Stamm (alle Typen außer bush)
+                if (type !== 'bush') {
+                    ctx.fillStyle = type === 'dead' ? '#7a5a3a' : '#5a3a1a';
+                    for (let i = 0; i <= 6; i++) {
+                        const cz = z0 + i * (trunkH / 6);
                         const p = iso(tX, tY, cz, cx, cy, { stepH, tileW, tileH, canvas });
-                        // Auslenkung wächst mit Höhe (t=0 ist oben)
-                        const ox = swayX * l.sway * (1 - t * 0.5);
-                        const oy = swayY * l.sway * (1 - t * 0.5);
-                        ctx.fillStyle = l.shadow;
                         ctx.beginPath();
-                        ctx.ellipse(p.x + ox + 2, p.y + oy + 1, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.fillStyle = l.color;
-                        ctx.beginPath();
-                        ctx.ellipse(p.x + ox, p.y + oy, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                        ctx.ellipse(p.x, p.y, (trunkR * tileW) / 2, (trunkR * tileH) / 2, 0, 0, Math.PI * 2);
                         ctx.fill();
                     }
-                });
+                }
+
+                if (type === 'pine') {
+                    const layers = [
+                        {
+                            zBase: z0 + trunkH * 0.3,
+                            zTop: z0 + trunkH * 0.3 + 1.4 * scale,
+                            rBase: 0.9 * scale,
+                            color: '#1a4a1a',
+                            shadow: '#0f2f0f',
+                            sway: 0.3,
+                        },
+                        {
+                            zBase: z0 + trunkH * 0.3 + 0.7 * scale,
+                            zTop: z0 + trunkH * 0.3 + 1.9 * scale,
+                            rBase: 0.65 * scale,
+                            color: '#1e5a1e',
+                            shadow: '#133513',
+                            sway: 0.65,
+                        },
+                        {
+                            zBase: z0 + trunkH * 0.3 + 1.3 * scale,
+                            zTop: z0 + trunkH * 0.3 + 2.3 * scale,
+                            rBase: 0.4 * scale,
+                            color: '#246024',
+                            shadow: '#163a16',
+                            sway: 1.0,
+                        },
+                    ];
+                    layers.forEach(l => {
+                        for (let i = 10; i >= 0; i--) {
+                            const t = i / 10;
+                            const cz = l.zBase + t * (l.zTop - l.zBase);
+                            const r = l.rBase * (1 - t);
+                            if (r <= 0) continue;
+                            const p = iso(tX, tY, cz, cx, cy, { stepH, tileW, tileH, canvas });
+                            const ox = swayX * l.sway * (1 - t * 0.5);
+                            const oy = swayY * l.sway * (1 - t * 0.5);
+                            ctx.fillStyle = l.shadow;
+                            ctx.beginPath();
+                            ctx.ellipse(
+                                p.x + ox + 2,
+                                p.y + oy + 1,
+                                (r * tileW) / 2,
+                                (r * tileH) / 2,
+                                0,
+                                0,
+                                Math.PI * 2
+                            );
+                            ctx.fill();
+                            ctx.fillStyle = l.color;
+                            ctx.beginPath();
+                            ctx.ellipse(p.x + ox, p.y + oy, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    });
+                } else if (type === 'oak') {
+                    // Laubbaum: runde unregelmäßige Krone
+                    const crownZ = z0 + trunkH + 0.5 * scale;
+                    const crownR = 0.75 * scale;
+                    const sw = swayX * 0.8,
+                        sh = swayY * 0.8;
+                    // Mehrere überlappende Kugeln für organische Form
+                    [
+                        { dx: 0, dz: 0, r: crownR, col: '#2a5a10', scol: '#1a3a08' },
+                        { dx: -0.25 * scale, dz: 0.3 * scale, r: crownR * 0.75, col: '#336614', scol: '#1e4a0a' },
+                        { dx: 0.3 * scale, dz: 0.2 * scale, r: crownR * 0.7, col: '#2e6012', scol: '#1c4208' },
+                        { dx: -0.1 * scale, dz: 0.6 * scale, r: crownR * 0.55, col: '#3a7018', scol: '#234a0e' },
+                        { dx: 0.15 * scale, dz: 0.55 * scale, r: crownR * 0.5, col: '#4a8020', scol: '#2a5010' },
+                    ].forEach(blob => {
+                        const p = iso(tX + blob.dx * 0.3, tY, crownZ + blob.dz, cx, cy, {
+                            stepH,
+                            tileW,
+                            tileH,
+                            canvas,
+                        });
+                        const ox = sw + blob.dx * 10;
+                        const oy = sh;
+                        ctx.fillStyle = blob.scol;
+                        ctx.beginPath();
+                        ctx.ellipse(
+                            p.x + ox + 3,
+                            p.y + oy + 2,
+                            (blob.r * tileW) / 2,
+                            (blob.r * tileH) / 2,
+                            0,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                        ctx.fillStyle = blob.col;
+                        ctx.beginPath();
+                        ctx.ellipse(p.x + ox, p.y + oy, (blob.r * tileW) / 2, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                } else if (type === 'bush') {
+                    // Busch: flach, kein Stamm, breit
+                    const bz = z0 + 0.15 * scale;
+                    [
+                        { dx: 0, r: 0.65 * scale, col: '#1a4a0a', dz: 0 },
+                        { dx: -0.2 * scale, r: 0.5 * scale, col: '#2a6014', dz: 0.1 },
+                        { dx: 0.25 * scale, r: 0.45 * scale, col: '#266010', dz: 0.08 },
+                        { dx: 0, r: 0.38 * scale, col: '#347018', dz: 0.2 },
+                    ].forEach(blob => {
+                        const p = iso(tX + blob.dx * 0.4, tY, bz + blob.dz * scale, cx, cy, {
+                            stepH,
+                            tileW,
+                            tileH,
+                            canvas,
+                        });
+                        const ox = swayX * 0.4,
+                            oy = swayY * 0.4;
+                        ctx.fillStyle = blob.col;
+                        ctx.beginPath();
+                        ctx.ellipse(
+                            p.x + ox,
+                            p.y + oy,
+                            ((blob.r * tileW) / 2) * 1.3,
+                            (blob.r * tileH) / 2,
+                            0,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                    });
+                } else if (type === 'dead') {
+                    // Kahler Baum: Stamm + verzweigte Äste
+                    const topZ = z0 + trunkH + 0.9 * scale;
+                    const ptop = iso(tX, tY, topZ, cx, cy, { stepH, tileW, tileH, canvas });
+                    const pbase = iso(tX, tY, z0 + trunkH, cx, cy, { stepH, tileW, tileH, canvas });
+                    ctx.strokeStyle = '#8a6a4a';
+                    ctx.lineWidth = Math.max(1.5, tileW * 0.06 * scale);
+                    ctx.beginPath();
+                    ctx.moveTo(pbase.x, pbase.y);
+                    ctx.lineTo(ptop.x, ptop.y);
+                    ctx.stroke();
+                    // Äste
+                    ctx.lineWidth = Math.max(0.8, tileW * 0.03 * scale);
+                    ctx.strokeStyle = '#7a5a3a';
+                    [
+                        { ax: -0.35, az: 0.45, bx: -0.6, bz: 0.65 },
+                        { ax: 0.3, az: 0.5, bx: 0.55, bz: 0.68 },
+                        { ax: -0.2, az: 0.72, bx: -0.38, bz: 0.88 },
+                        { ax: 0.22, az: 0.75, bx: 0.4, bz: 0.9 },
+                        { ax: 0, az: 0.85, bx: -0.15, bz: 1.0 },
+                    ].forEach(br => {
+                        const pa = iso(tX + br.ax * 0.3 * scale, tY, z0 + trunkH + br.az * scale, cx, cy, {
+                            stepH,
+                            tileW,
+                            tileH,
+                            canvas,
+                        });
+                        const pb = iso(tX + br.bx * 0.35 * scale, tY, z0 + trunkH + br.bz * scale, cx, cy, {
+                            stepH,
+                            tileW,
+                            tileH,
+                            canvas,
+                        });
+                        // Leichtes Wiegen
+                        const sw = swayX * 0.5 * (br.bz - 0.3);
+                        ctx.beginPath();
+                        ctx.moveTo(pa.x, pa.y);
+                        ctx.lineTo(pb.x + sw, pb.y);
+                        ctx.stroke();
+                    });
+                }
             }
 
-            // Bäume werden beim Missionsstart aus dem Terrain generiert
+            // Beflockung aus Missionsdaten laden
             let TEST_TREES = [];
-            function initTreesFromTerrain() {
-                const { gridSize } = window.campaignHandler.getTerrain();
-                TEST_TREES = [];
-                for (let x = 1; x < gridSize - 1; x++) {
-                    for (let y = 1; y < gridSize - 1; y++) {
-                        if (!points[x] || points[x][y] === undefined) continue;
-                        const gz = points[x][y];
-                        if (gz < 0.1) continue; // Wasser
-                        if (gz > 4.5) continue; // zu hoch (Berggipfel)
-
-                        // Steigung aus Nachbarn
-                        const slope = Math.max(
-                            Math.abs(points[x + 1][y] - points[x - 1][y]),
-                            Math.abs(points[x][y + 1] - points[x][y - 1])
-                        );
-                        if (slope > 1.2) continue; // zu steiler Hang
-
-                        if (Math.random() > 0.08) continue;
-                        // nicht auf dem Pad
-                        if (
-                            hasPad() &&
-                            x >= PAD.xMin - 1 &&
-                            x <= PAD.xMax + 1 &&
-                            y >= PAD.yMin - 1 &&
-                            y <= PAD.yMax + 1
-                        )
-                            continue;
-                        const tx = x + Math.random() * 0.8 - 0.4;
-                        const ty = y + Math.random() * 0.8 - 0.4;
-                        const s = 0.7 + Math.random() * 0.6;
-                        TEST_TREES.push({ x: tx, y: ty, s, gz });
-                    }
-                }
+            const FOLIAGE_DECODE = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
+            function decompressFoliage(str) {
+                if (!str) return [];
+                if (typeof str !== 'string') return str; // bereits dekomprimiert (Array)
+                return str.split('|').map(token => {
+                    const type = FOLIAGE_DECODE[token[0]] || 'pine';
+                    const [x, y, s] = token.slice(1).split(',').map(Number);
+                    return { type, x: x / 10, y: y / 10, s: s / 10 };
+                });
+            }
+            function initFoliageFromMission() {
+                const md = window.campaignHandler.getCurrentMissionData();
+                const foliage = decompressFoliage(md.foliage || []);
+                TEST_TREES = foliage.map(f => ({
+                    x: f.x,
+                    y: f.y,
+                    s: f.s || 1.0,
+                    type: f.type || 'pine',
+                    gz: null,
+                }));
+                TEST_TREES.forEach(t => {
+                    t.gz = getGround(t.x, t.y);
+                });
             }
 
             function drawLighthouse(cx, cy) {

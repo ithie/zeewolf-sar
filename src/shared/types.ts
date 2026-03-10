@@ -30,6 +30,7 @@ export interface Mission {
     spawnObject: 'pad' | 'carrier';
     objects: MissionObject[];
     payloads: { type: 'person' | 'crate'; x: number; y: number }[];
+    foliage: { x: number; y: number; s: number; type: string }[];
 
     rain: boolean;
     night: boolean;
