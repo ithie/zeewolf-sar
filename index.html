@@ -250,6 +250,7 @@
                 z-index: 300;
             }
         </style>
+
         <script type="module" src="/src/game/render.ts"></script>
         <script type="module" src="/src/game/main.ts"></script>
         <script type="module" src="/src/game/state.ts"></script>
@@ -611,7 +612,18 @@
                 vessel.path = obj.path ?? 'static';
                 // Einheitliche Skalierung: beide ~gleich schnell bei gleichem speed-Wert
                 // circle: rad/frame * radius ≈ grid/frame; straight: grid/frame direkt
-                vessel.speed = obj.path === 'straight' ? (obj.speed ?? 0) * 0.006 : (obj.speed ?? 0) * 0.0001;
+                // 1 Einheit = 5.16m, 60fps → 1 Knoten = 0.001663 E/frame
+                // circle: speed in rad/frame → v = speed * radius → Faktor = 0.001663 / radius
+                // Da radius variiert, speichern wir E/frame und teilen später durch radius
+                // straight: direkt E/frame
+                const knotsToUnits = 0.001663;
+                if (obj.path === 'straight') {
+                    vessel.speed = (obj.speed ?? 0) * knotsToUnits;
+                } else {
+                    // circle: rad/frame = (knots * knotsToUnits) / radius
+                    const r = obj.radius ?? 45;
+                    vessel.speed = ((obj.speed ?? 0) * knotsToUnits) / r;
+                }
                 if (obj.path === 'circle') {
                     const r = obj.radius ?? 45;
                     vessel.radiusX = r;
@@ -1296,24 +1308,24 @@
                 heli.type = type;
                 if (type === 'dolphin') {
                     heli.maxLoad = 3;
-                    heli.accel = 0.0035;
-                    heli.friction = 0.97;
+                    heli.accel = 0.00117; // Vmax ~260 km/h
+                    heli.friction = 0.995;
                     heli.tiltSpeed = 0.05;
                     heli.fuelRate = 0.012;
                     heli.liftPower = 0.0009;
                     heli.cargoResist = 2.0;
                 } else if (type === 'jayhawk') {
                     heli.maxLoad = 10;
-                    heli.accel = 0.001;
-                    heli.friction = 0.995;
+                    heli.accel = 0.000502; // Vmax ~280 km/h
+                    heli.friction = 0.998;
                     heli.tiltSpeed = 0.015;
                     heli.fuelRate = 0.007;
                     heli.liftPower = 0.0005;
                     heli.cargoResist = 0.3;
                 } else if (type === 'chinook') {
                     heli.maxLoad = 20;
-                    heli.accel = 0.0008;
-                    heli.friction = 0.998;
+                    heli.accel = 0.000212; // Vmax ~295 km/h
+                    heli.friction = 0.9992;
                     heli.tiltSpeed = 0.01;
                     heli.fuelRate = 0.005;
                     heli.liftPower = 0.0004;
@@ -1329,6 +1341,7 @@
             function launchMission() {
                 const zstate = window.zstate;
                 generateTerrain();
+                initTreesFromTerrain();
                 initCarrierFromMission();
                 initBoatsFromMission();
                 initPayloadsFromMission();
@@ -1463,6 +1476,11 @@
                 if (hasPad() && isVisible(PAD.xMin + 3, PAD.yMin + 3)) drawHangar(camX, camY);
                 if (hasPad() && isVisible(PAD.xMin, PAD.yMin)) drawWindsock(camX, camY);
 
+                // Test-Bäume
+                TEST_TREES.forEach(t => {
+                    if (isVisible(t.x, t.y, 16)) drawTree(t.x, t.y, camX, camY, t.s, t.gz);
+                });
+
                 // shadow pass
                 if (!isNight) {
                     drawHeli(
@@ -1536,7 +1554,7 @@
                     let hX = iso(heli.x, heli.y, heli.z, camX, camY, { stepH, tileW, tileH, canvas }).x + 45;
                     let hY = iso(heli.x, heli.y, heli.z, camX, camY, { stepH, tileW, tileH, canvas }).y - 35;
                     ctx.fillText(`ALT: ${Math.round((heli.z - getGround(heli.x, heli.y)) * 10)}m`, hX, hY);
-                    ctx.fillText(`SPD: ${Math.round(Math.hypot(heli.vx, heli.vy) * 2000)}km/h`, hX, hY + 16);
+                    ctx.fillText(`SPD: ${Math.round(Math.hypot(heli.vx, heli.vy) * 1115)}km/h`, hX, hY + 16);
                     ctx.fillText(`WINCH: ${Math.round(heli.winch * 10)}m`, hX, hY + 32);
                     ctx.fillStyle = heli.fuel < 20 ? '#f00' : '#5f5';
                     ctx.fillText(`FUEL: ${Math.max(0, Math.round(heli.fuel))}%`, hX, hY + 48);
@@ -2254,6 +2272,116 @@
                 );
             }
 
+            // ─── tree ────────────────────────────────────────────────────────────────────
+            function drawTree(tX, tY, cx, cy, scale = 1.0, gz = 0) {
+                if (gz < 0.05) return;
+                const z0 = gz;
+                const trunkH = 0.5 * scale;
+                const trunkR = 0.08 * scale;
+
+                // Windwiegen: Stärke aus wind.x/y, Phase leicht per Position versetzt
+                const windStrength = Math.hypot(wind.x, wind.y);
+                const swayPhase = wind.phase + tX * 0.3 + tY * 0.17;
+                const swayX = Math.cos(swayPhase) * windStrength * 18 * scale;
+                const swayY = Math.sin(swayPhase) * windStrength * 10 * scale;
+
+                // Stamm
+                ctx.fillStyle = '#5a3a1a';
+                for (let i = 0; i <= 6; i++) {
+                    const cz = z0 + i * (trunkH / 6);
+                    const p = iso(tX, tY, cz, cx, cy, { stepH, tileW, tileH, canvas });
+                    ctx.beginPath();
+                    ctx.ellipse(p.x, p.y, (trunkR * tileW) / 2, (trunkR * tileH) / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 3 Kegel-Ebenen – jede höhere Ebene schaukelt stärker
+                const layers = [
+                    {
+                        zBase: z0 + trunkH * 0.3,
+                        zTop: z0 + trunkH * 0.3 + 1.4 * scale,
+                        rBase: 0.9 * scale,
+                        color: '#1a4a1a',
+                        shadow: '#0f2f0f',
+                        sway: 0.3,
+                    },
+                    {
+                        zBase: z0 + trunkH * 0.3 + 0.7 * scale,
+                        zTop: z0 + trunkH * 0.3 + 1.9 * scale,
+                        rBase: 0.65 * scale,
+                        color: '#1e5a1e',
+                        shadow: '#133513',
+                        sway: 0.65,
+                    },
+                    {
+                        zBase: z0 + trunkH * 0.3 + 1.3 * scale,
+                        zTop: z0 + trunkH * 0.3 + 2.3 * scale,
+                        rBase: 0.4 * scale,
+                        color: '#246024',
+                        shadow: '#163a16',
+                        sway: 1.0,
+                    },
+                ];
+
+                layers.forEach(l => {
+                    for (let i = 10; i >= 0; i--) {
+                        const t = i / 10;
+                        const cz = l.zBase + t * (l.zTop - l.zBase);
+                        const r = l.rBase * (1 - t);
+                        if (r <= 0) continue;
+                        const p = iso(tX, tY, cz, cx, cy, { stepH, tileW, tileH, canvas });
+                        // Auslenkung wächst mit Höhe (t=0 ist oben)
+                        const ox = swayX * l.sway * (1 - t * 0.5);
+                        const oy = swayY * l.sway * (1 - t * 0.5);
+                        ctx.fillStyle = l.shadow;
+                        ctx.beginPath();
+                        ctx.ellipse(p.x + ox + 2, p.y + oy + 1, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = l.color;
+                        ctx.beginPath();
+                        ctx.ellipse(p.x + ox, p.y + oy, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            }
+
+            // Bäume werden beim Missionsstart aus dem Terrain generiert
+            let TEST_TREES = [];
+            function initTreesFromTerrain() {
+                const { gridSize } = window.campaignHandler.getTerrain();
+                TEST_TREES = [];
+                for (let x = 1; x < gridSize - 1; x++) {
+                    for (let y = 1; y < gridSize - 1; y++) {
+                        if (!points[x] || points[x][y] === undefined) continue;
+                        const gz = points[x][y];
+                        if (gz < 0.1) continue; // Wasser
+                        if (gz > 4.5) continue; // zu hoch (Berggipfel)
+
+                        // Steigung aus Nachbarn
+                        const slope = Math.max(
+                            Math.abs(points[x + 1][y] - points[x - 1][y]),
+                            Math.abs(points[x][y + 1] - points[x][y - 1])
+                        );
+                        if (slope > 1.2) continue; // zu steiler Hang
+
+                        if (Math.random() > 0.08) continue;
+                        // nicht auf dem Pad
+                        if (
+                            hasPad() &&
+                            x >= PAD.xMin - 1 &&
+                            x <= PAD.xMax + 1 &&
+                            y >= PAD.yMin - 1 &&
+                            y <= PAD.yMax + 1
+                        )
+                            continue;
+                        const tx = x + Math.random() * 0.8 - 0.4;
+                        const ty = y + Math.random() * 0.8 - 0.4;
+                        const s = 0.7 + Math.random() * 0.6;
+                        TEST_TREES.push({ x: tx, y: ty, s, gz });
+                    }
+                }
+            }
+
             function drawLighthouse(cx, cy) {
                 const _lhObj = getObjectByType('lighthouse');
                 if (!_lhObj) return;
@@ -2920,6 +3048,63 @@
                     }
                 });
 
+                // ── Bäume ─────────────────────────────────────────────────────────────────
+                // Kollisions-Check + optionaler Debug-Draw in einem einzigen batched Pass
+                if (showCollisionBoxes) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(0,255,100,0.75)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    const camX2 = window.zstate.cam.x,
+                        camY2 = window.zstate.cam.y;
+                    TEST_TREES.forEach(t => {
+                        if (!isVisible(t.x, t.y, 16)) return;
+                        const r = 0.35 * t.s;
+                        const h = 2.3 * t.s;
+                        const corners = [
+                            { x: t.x - r, y: t.y - r, z: t.gz },
+                            { x: t.x + r, y: t.y - r, z: t.gz },
+                            { x: t.x + r, y: t.y + r, z: t.gz },
+                            { x: t.x - r, y: t.y + r, z: t.gz },
+                            { x: t.x - r, y: t.y - r, z: t.gz + h },
+                            { x: t.x + r, y: t.y - r, z: t.gz + h },
+                            { x: t.x + r, y: t.y + r, z: t.gz + h },
+                            { x: t.x - r, y: t.y + r, z: t.gz + h },
+                        ].map(p => iso(p.x, p.y, p.z, camX2, camY2, { stepH, tileW, tileH, canvas }));
+                        [
+                            [0, 1],
+                            [1, 2],
+                            [2, 3],
+                            [3, 0],
+                            [4, 5],
+                            [5, 6],
+                            [6, 7],
+                            [7, 4],
+                            [0, 4],
+                            [1, 5],
+                            [2, 6],
+                            [3, 7],
+                        ].forEach(([a, b]) => {
+                            ctx.beginPath();
+                            ctx.moveTo(corners[a].x, corners[a].y);
+                            ctx.lineTo(corners[b].x, corners[b].y);
+                            ctx.stroke();
+                        });
+                    });
+                    ctx.setLineDash([]);
+                    ctx.restore();
+                }
+                if (!zstate.introActive && !zstate.crashed) {
+                    TEST_TREES.forEach(t => {
+                        if (!isVisible(t.x, t.y, 16)) return;
+                        const r = 0.35 * t.s;
+                        const h = 2.3 * t.s;
+                        if (checkCollisionBox(heli.x, heli.y, heli.z, t.x, t.y, 0, -r, r, -r, r, t.gz, t.gz + h)) {
+                            triggerCrash('TREE STRIKE');
+                        }
+                    });
+                }
+
                 // ── Player Heli box (nur Debug-Visualisierung) ────────────────────────────
                 if (showCollisionBoxes) {
                     const hb =
@@ -3021,6 +3206,14 @@
                 window.zinit();
                 drawMenuHeli();
             };
+
+            // Expose functions used in HTML onclick attributes
+            window.toCampaignSelect = toCampaignSelect;
+            window.returnToBase = returnToBase;
+            window.selectCampaign = selectCampaign;
+            window.startGame = startGame;
+            window.setHover = setHover;
+            window.dismissBriefing = dismissBriefing;
         </script>
     </body>
 </html>
