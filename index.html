@@ -1092,11 +1092,11 @@
                             bird.vy = (bird.vy / spd) * baseSpd;
                         }
 
-                        // Höhe halten, leicht wellig
-                        const targetZ = 4 + Math.sin(bird.wingPhase * 0.3) * 0.5;
-                        bird.vz += (targetZ - bird.z) * 0.01;
-                        bird.vz *= 0.9;
-
+                        // Höhe über Terrain halten, leicht wellig
+                        const gz = getGround(bird.x, bird.y);
+                        const targetZ = gz + 4 + Math.sin(bird.wingPhase * 0.3) * 0.5;
+                        bird.vz += (targetZ - bird.z) * 0.05;
+                        bird.vz *= 0.85;
                         bird.x += bird.vx;
                         bird.y += bird.vy;
                         bird.z += bird.vz;
@@ -1107,10 +1107,6 @@
                         if (bird.x > gridSize - 3) bird.vx -= 0.005;
                         if (bird.y < 3) bird.vy += 0.005;
                         if (bird.y > gridSize - 3) bird.vy -= 0.005;
-
-                        // Nicht unter Terrain
-                        const gz = getGround(bird.x, bird.y);
-                        if (bird.z < gz + 1.0) bird.vz += 0.01;
                     });
                 });
             }
