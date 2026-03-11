@@ -56,7 +56,7 @@
             let lastMouse = { x: 0, y: 0 };
 
             // World setup for the minimap
-            const WORLD = { minX: -50, maxX: 65, minY: -10, maxY: 45 };
+            const WORLD = { minX: -50, maxX: 65, minY: -10, maxY: 65 };
             const MAP_SIZE = 180;
             const MAP_MARGIN = 20;
 
@@ -71,6 +71,11 @@
                 { id: 'sailboat', type: 'misc', x: 5, y: 25, color: '#fff', label: 'SAILBOAT' },
                 { id: 'survivor', type: 'misc', x: 25, y: 25, color: '#aaa', label: 'SURVIVOR' },
                 { id: 'rescuer', type: 'misc', x: 45, y: 25, color: '#f60', label: 'RETTER' },
+                { id: 'tree_pine', type: 'foliage', x: -35, y: 50, color: '#1a4a1a', label: 'PINE' },
+                { id: 'tree_oak', type: 'foliage', x: -20, y: 50, color: '#2a5a10', label: 'OAK' },
+                { id: 'tree_bush', type: 'foliage', x: -8, y: 50, color: '#1a4a0a', label: 'BUSH' },
+                { id: 'tree_dead', type: 'foliage', x: 4, y: 50, color: '#8a6a4a', label: 'DEAD TREE' },
+                { id: 'fuel_truck', type: 'vehicle', x: 20, y: 50, color: '#4a7a4a', label: 'FUEL TRUCK' },
             ];
 
             canvas.addEventListener('mousedown', e => {
@@ -1238,6 +1243,458 @@
                 ctx.restore();
             }
 
+            // --- TREES ---
+            // Shared wind sim for viewer
+            const viewerWind = { x: 0.00008, y: 0.00004, phase: 0, angle: Math.PI * 0.75 };
+
+            function drawTree(tX, tY, cx, cy, scale = 1.0, gz = 0, type = 'pine') {
+                if (gz < 0.05) gz = 0.05;
+                const z0 = gz;
+                const trunkH = 0.5 * scale;
+                const trunkR = 0.08 * scale;
+                const windStrength = Math.hypot(viewerWind.x, viewerWind.y);
+                const swayPhase = viewerWind.phase + tX * 0.3 + tY * 0.17;
+                const swayX = Math.cos(swayPhase) * windStrength * 18 * scale;
+                const swayY = Math.sin(swayPhase) * windStrength * 10 * scale;
+                if (type !== 'bush') {
+                    ctx.fillStyle = type === 'dead' ? '#7a5a3a' : '#5a3a1a';
+                    for (let i = 0; i <= 6; i++) {
+                        const cz = z0 + i * (trunkH / 6);
+                        const p = iso(tX, tY, cz, cx, cy);
+                        ctx.beginPath();
+                        ctx.ellipse(p.x, p.y, (trunkR * tileW) / 2, (trunkR * tileH) / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                if (type === 'pine') {
+                    const layers = [
+                        {
+                            zBase: z0 + trunkH * 0.3,
+                            zTop: z0 + trunkH * 0.3 + 1.4 * scale,
+                            rBase: 0.9 * scale,
+                            color: '#1a4a1a',
+                            shadow: '#0f2f0f',
+                            sway: 0.3,
+                        },
+                        {
+                            zBase: z0 + trunkH * 0.3 + 0.7 * scale,
+                            zTop: z0 + trunkH * 0.3 + 1.9 * scale,
+                            rBase: 0.65 * scale,
+                            color: '#1e5a1e',
+                            shadow: '#133513',
+                            sway: 0.65,
+                        },
+                        {
+                            zBase: z0 + trunkH * 0.3 + 1.3 * scale,
+                            zTop: z0 + trunkH * 0.3 + 2.3 * scale,
+                            rBase: 0.4 * scale,
+                            color: '#246024',
+                            shadow: '#163a16',
+                            sway: 1.0,
+                        },
+                    ];
+                    layers.forEach(l => {
+                        for (let i = 10; i >= 0; i--) {
+                            const t = i / 10;
+                            const cz = l.zBase + t * (l.zTop - l.zBase);
+                            const r = l.rBase * (1 - t);
+                            if (r <= 0) continue;
+                            const p = iso(tX, tY, cz, cx, cy);
+                            const ox = swayX * l.sway * (1 - t * 0.5);
+                            const oy = swayY * l.sway * (1 - t * 0.5);
+                            ctx.fillStyle = l.shadow;
+                            ctx.beginPath();
+                            ctx.ellipse(
+                                p.x + ox + 2,
+                                p.y + oy + 1,
+                                (r * tileW) / 2,
+                                (r * tileH) / 2,
+                                0,
+                                0,
+                                Math.PI * 2
+                            );
+                            ctx.fill();
+                            ctx.fillStyle = l.color;
+                            ctx.beginPath();
+                            ctx.ellipse(p.x + ox, p.y + oy, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    });
+                } else if (type === 'oak') {
+                    const crownZ = z0 + trunkH + 0.5 * scale;
+                    const crownR = 0.75 * scale;
+                    const sw = swayX * 0.8,
+                        sh = swayY * 0.8;
+                    [
+                        { dx: 0, dz: 0, r: crownR, col: '#2a5a10', scol: '#1a3a08' },
+                        { dx: -0.25 * scale, dz: 0.3 * scale, r: crownR * 0.75, col: '#336614', scol: '#1e4a0a' },
+                        { dx: 0.3 * scale, dz: 0.2 * scale, r: crownR * 0.7, col: '#2e6012', scol: '#1c4208' },
+                        { dx: -0.1 * scale, dz: 0.6 * scale, r: crownR * 0.55, col: '#3a7018', scol: '#234a0e' },
+                        { dx: 0.15 * scale, dz: 0.55 * scale, r: crownR * 0.5, col: '#4a8020', scol: '#2a5010' },
+                    ].forEach(blob => {
+                        const p = iso(tX + blob.dx * 0.3, tY, crownZ + blob.dz, cx, cy);
+                        const ox = sw + blob.dx * 10,
+                            oy = sh;
+                        ctx.fillStyle = blob.scol;
+                        ctx.beginPath();
+                        ctx.ellipse(
+                            p.x + ox + 3,
+                            p.y + oy + 2,
+                            (blob.r * tileW) / 2,
+                            (blob.r * tileH) / 2,
+                            0,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                        ctx.fillStyle = blob.col;
+                        ctx.beginPath();
+                        ctx.ellipse(p.x + ox, p.y + oy, (blob.r * tileW) / 2, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                } else if (type === 'bush') {
+                    const bz = z0 + 0.15 * scale;
+                    [
+                        { dx: 0, r: 0.65 * scale, col: '#1a4a0a', dz: 0 },
+                        { dx: -0.2 * scale, r: 0.5 * scale, col: '#2a6014', dz: 0.1 },
+                        { dx: 0.25 * scale, r: 0.45 * scale, col: '#266010', dz: 0.08 },
+                        { dx: 0, r: 0.38 * scale, col: '#347018', dz: 0.2 },
+                    ].forEach(blob => {
+                        const p = iso(tX + blob.dx * 0.4, tY, bz + blob.dz * scale, cx, cy);
+                        const ox = swayX * 0.4,
+                            oy = swayY * 0.4;
+                        ctx.fillStyle = blob.col;
+                        ctx.beginPath();
+                        ctx.ellipse(
+                            p.x + ox,
+                            p.y + oy,
+                            ((blob.r * tileW) / 2) * 1.3,
+                            (blob.r * tileH) / 2,
+                            0,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                    });
+                } else if (type === 'dead') {
+                    const topZ = z0 + trunkH + 0.9 * scale;
+                    const ptop = iso(tX, tY, topZ, cx, cy);
+                    const pbase = iso(tX, tY, z0 + trunkH, cx, cy);
+                    ctx.strokeStyle = '#8a6a4a';
+                    ctx.lineWidth = Math.max(1.5, tileW * 0.06 * scale);
+                    ctx.beginPath();
+                    ctx.moveTo(pbase.x, pbase.y);
+                    ctx.lineTo(ptop.x, ptop.y);
+                    ctx.stroke();
+                    ctx.lineWidth = Math.max(0.8, tileW * 0.03 * scale);
+                    ctx.strokeStyle = '#7a5a3a';
+                    [
+                        { ax: -0.35, az: 0.45, bx: -0.6, bz: 0.65 },
+                        { ax: 0.3, az: 0.5, bx: 0.55, bz: 0.68 },
+                        { ax: -0.2, az: 0.72, bx: -0.38, bz: 0.88 },
+                        { ax: 0.22, az: 0.75, bx: 0.4, bz: 0.9 },
+                        { ax: 0, az: 0.85, bx: -0.15, bz: 1.0 },
+                    ].forEach(br => {
+                        const pa = iso(tX + br.ax * 0.3 * scale, tY, z0 + trunkH + br.az * scale, cx, cy);
+                        const pb = iso(tX + br.bx * 0.35 * scale, tY, z0 + trunkH + br.bz * scale, cx, cy);
+                        const sw2 = swayX * 0.5 * (br.bz - 0.3);
+                        ctx.beginPath();
+                        ctx.moveTo(pa.x, pa.y);
+                        ctx.lineTo(pb.x + sw2, pb.y);
+                        ctx.stroke();
+                    });
+                }
+            }
+
+            // --- WINDSOCK ---
+            function setLightsOnDeck(lights, blink, cx, cy, z) {
+                lights.forEach(l => {
+                    let p = iso(l.x, l.y, z + 0.05, cx, cy);
+                    ctx.fillStyle = blink ? '#f00' : '#500';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, blink ? 3 : 2.5, 0, 7);
+                    ctx.fill();
+                });
+            }
+
+            function drawPadLightsViewer(cx, cy, padX, padY, z) {
+                const blink = Math.floor(Date.now() / 500) % 2 === 0;
+                setLightsOnDeck(
+                    [
+                        { x: padX - 3.5, y: padY - 3.5 },
+                        { x: padX + 3.5, y: padY - 3.5 },
+                        { x: padX + 3.5, y: padY + 3.5 },
+                        { x: padX - 3.5, y: padY + 3.5 },
+                    ],
+                    blink,
+                    cx,
+                    cy,
+                    z
+                );
+            }
+
+            function drawWindsock(sockX, sockY, windAngle, cx, cy) {
+                const base = iso(sockX, sockY, 0, cx, cy);
+                const top = iso(sockX, sockY, 1.2, cx, cy);
+                ctx.strokeStyle = '#aaa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(base.x, base.y);
+                ctx.lineTo(top.x, top.y);
+                ctx.stroke();
+                let wIsoX = (Math.cos(windAngle) - Math.sin(windAngle)) * (tileW / 2);
+                let wIsoY = (Math.cos(windAngle) + Math.sin(windAngle)) * (tileH / 2);
+                const len = Math.hypot(wIsoX, wIsoY);
+                wIsoX = (wIsoX / len) * 5;
+                wIsoY = (wIsoY / len) * 5;
+                const perpX = -wIsoY,
+                    perpY = wIsoX;
+                const phase = Date.now() * 0.005;
+                ctx.fillStyle = 'orange';
+                ctx.beginPath();
+                ctx.moveTo(top.x - perpX * 0.5, top.y - perpY * 0.5);
+                ctx.lineTo(top.x + perpX * 0.5, top.y + perpY * 0.5);
+                for (let i = 1; i <= 4; i++) {
+                    const t = i / 4;
+                    const bend = Math.sin(phase + i * 0.5) * 1.5 * t;
+                    ctx.lineTo(
+                        top.x + wIsoX * i * 1.5 + perpX * (0.5 - t * 0.5) + bend * perpX * 0.2,
+                        top.y + wIsoY * i * 1.5 + perpY * (0.5 - t * 0.5) + bend * perpY * 0.2
+                    );
+                }
+                for (let i = 3; i >= 1; i--) {
+                    const t = i / 4;
+                    const bend = Math.sin(phase + i * 0.5) * 1.5 * t;
+                    ctx.lineTo(
+                        top.x + wIsoX * i * 1.5 - perpX * (0.5 - t * 0.5) + bend * perpX * 0.2,
+                        top.y + wIsoY * i * 1.5 - perpY * (0.5 - t * 0.5) + bend * perpY * 0.2
+                    );
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // --- FUEL TRUCK ---
+            function drawFuelTruck(tX, tY, angle, cx, cy, armExtend = 0) {
+                const cosA = Math.cos(angle),
+                    sinA = Math.sin(angle);
+                function r(lx, ly) {
+                    return { x: tX + lx * cosA - ly * sinA, y: tY + lx * sinA + ly * cosA };
+                }
+                function H(p, z) {
+                    return { x: p.x, y: p.y, z };
+                }
+                function visible(lx, ly) {
+                    return lx * cosA + ly * sinA > 0 || -lx * sinA + ly * cosA > 0;
+                }
+                function visN(lx, ly) {
+                    return lx * cosA - ly * sinA + lx * sinA + ly * cosA > 0;
+                }
+
+                const baseZ = 0;
+                const chassisL = 2.2,
+                    chassisW = 0.9,
+                    chassisH = 0.3;
+                const wheelR = 0.2,
+                    wheelW = 0.15;
+                const cabL = 0.7,
+                    cabH = 0.55;
+                const tankR = 0.38,
+                    tankL = 1.3;
+
+                // Chassis
+                const c1 = r(0, -chassisW / 2),
+                    c2 = r(chassisL, -chassisW / 2);
+                const c3 = r(chassisL, chassisW / 2),
+                    c4 = r(0, chassisW / 2);
+                drawFace([H(c1, baseZ), H(c2, baseZ), H(c3, baseZ), H(c4, baseZ)], '#3a5a3a', null, 0, cx, cy);
+                // Chassis sides
+                if (Math.cos(angle) + Math.sin(angle) < 0)
+                    drawFace(
+                        [H(c1, baseZ), H(c2, baseZ), H(c2, baseZ + chassisH), H(c1, baseZ + chassisH)],
+                        '#2a4a2a',
+                        null,
+                        0,
+                        cx,
+                        cy
+                    );
+                if (Math.cos(angle) - Math.sin(angle) > 0)
+                    drawFace(
+                        [H(c2, baseZ), H(c3, baseZ), H(c3, baseZ + chassisH), H(c2, baseZ + chassisH)],
+                        '#4a6a4a',
+                        null,
+                        0,
+                        cx,
+                        cy
+                    );
+                if (Math.cos(angle) + Math.sin(angle) > 0)
+                    drawFace(
+                        [H(c3, baseZ), H(c4, baseZ), H(c4, baseZ + chassisH), H(c3, baseZ + chassisH)],
+                        '#2a4a2a',
+                        null,
+                        0,
+                        cx,
+                        cy
+                    );
+                drawFace(
+                    [
+                        H(c1, baseZ + chassisH),
+                        H(c2, baseZ + chassisH),
+                        H(c3, baseZ + chassisH),
+                        H(c4, baseZ + chassisH),
+                    ],
+                    '#4a6a4a',
+                    '#5a8a5a',
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Cab
+                const cabZ = baseZ + chassisH;
+                const cab1 = r(0, -chassisW / 2),
+                    cab2 = r(cabL, -chassisW / 2);
+                const cab3 = r(cabL, chassisW / 2),
+                    cab4 = r(0, chassisW / 2);
+                drawFace([H(cab1, cabZ), H(cab2, cabZ), H(cab3, cabZ), H(cab4, cabZ)], '#3a5a3a', null, 0, cx, cy);
+                if (Math.cos(angle) + Math.sin(angle) < 0)
+                    drawFace(
+                        [H(cab1, cabZ), H(cab2, cabZ), H(cab2, cabZ + cabH), H(cab1, cabZ + cabH)],
+                        '#5a8a5a',
+                        null,
+                        0,
+                        cx,
+                        cy
+                    );
+                if (Math.cos(angle) - Math.sin(angle) > 0)
+                    drawFace(
+                        [H(cab2, cabZ), H(cab3, cabZ), H(cab3, cabZ + cabH), H(cab2, cabZ + cabH)],
+                        '#3a6a3a',
+                        null,
+                        0,
+                        cx,
+                        cy
+                    );
+                if (Math.cos(angle) + Math.sin(angle) > 0)
+                    drawFace(
+                        [H(cab3, cabZ), H(cab4, cabZ), H(cab4, cabZ + cabH), H(cab3, cabZ + cabH)],
+                        '#4a7a4a',
+                        null,
+                        0,
+                        cx,
+                        cy
+                    );
+                drawFace(
+                    [H(cab1, cabZ + cabH), H(cab2, cabZ + cabH), H(cab3, cabZ + cabH), H(cab4, cabZ + cabH)],
+                    '#6a9a6a',
+                    '#8aba8a',
+                    0,
+                    cx,
+                    cy
+                );
+                // Windshield
+                const wsP = iso(r(cabL * 0.85, 0).x, r(cabL * 0.85, 0).y, cabZ + cabH * 0.3, cx, cy);
+                ctx.fillStyle = '#112233';
+                ctx.beginPath();
+                ctx.ellipse(wsP.x, wsP.y, 7, 4, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tank (cylinder lying on its side — approximated with segments)
+                const tankCX = 0.65 + tankL / 2; // center along truck length
+                const tankBaseZ = baseZ + chassisH;
+                const tankTopZ = tankBaseZ + tankR * 2;
+                const segments = 8;
+                const tankCenter = r(tankCX, 0);
+                for (let i = 0; i < segments; i++) {
+                    const a0 = (i / segments) * Math.PI * 2;
+                    const a1 = ((i + 1) / segments) * Math.PI * 2;
+                    const y0 = Math.sin(a0) * tankR * 0.55; // squish in Y for iso
+                    const z0 = tankBaseZ + tankR + Math.cos(a0) * tankR;
+                    const y1 = Math.sin(a1) * tankR * 0.55;
+                    const z1 = tankBaseZ + tankR + Math.cos(a1) * tankR;
+                    // Front face
+                    const fA = r(tankCX - tankL / 2, y0);
+                    const fB = r(tankCX - tankL / 2, y1);
+                    // Back face
+                    const bA = r(tankCX + tankL / 2, y0);
+                    const bB = r(tankCX + tankL / 2, y1);
+                    const bright = Math.cos(a0) > 0 ? 1.0 : 0.6;
+                    const baseCol = [Math.round(200 * bright), Math.round(200 * bright), Math.round(180 * bright)];
+                    const col = `rgb(${baseCol[0]},${baseCol[1]},${baseCol[2]})`;
+                    // Side strip
+                    if (Math.cos(angle) * (y0 + y1) * 0.5 + Math.sin(angle) * 0 < 0.3) {
+                        drawFace([H(fA, z0), H(bA, z0), H(bB, z1), H(fB, z1)], col, null, 0, cx, cy);
+                    }
+                    // Front cap
+                    if (Math.cos(angle) + Math.sin(angle) > 0) {
+                        drawFace(
+                            [H(r(tankCX - tankL / 2, 0), tankBaseZ + tankR), H(fA, z0), H(fB, z1)],
+                            '#bbb',
+                            null,
+                            0,
+                            cx,
+                            cy
+                        );
+                    }
+                }
+                // Tank highlight stripe
+                const strA = r(tankCX - tankL / 2 + 0.1, -0.05);
+                const strB = r(tankCX + tankL / 2 - 0.1, -0.05);
+                drawFace(
+                    [
+                        H(strA, tankTopZ - 0.05),
+                        H(strB, tankTopZ - 0.05),
+                        H(strB, tankTopZ - 0.02),
+                        H(strA, tankTopZ - 0.02),
+                    ],
+                    '#ff4400',
+                    null,
+                    0,
+                    cx,
+                    cy
+                );
+
+                // Refueling arm
+                const armBaseX = tankCX + tankL / 2 + 0.1;
+                const armExtX = armBaseX + armExtend * 1.2;
+                const armPivot = r(armBaseX, 0);
+                const armTip = r(armExtX, 0);
+                const armPivotIso = iso(armPivot.x, armPivot.y, tankBaseZ + tankR * 1.5, cx, cy);
+                const armTipIso = iso(armTip.x, armTip.y, tankBaseZ + tankR * 0.8, cx, cy);
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(armPivotIso.x, armPivotIso.y);
+                ctx.lineTo(armTipIso.x, armTipIso.y);
+                ctx.stroke();
+                // Nozzle
+                ctx.fillStyle = '#555';
+                ctx.beginPath();
+                ctx.arc(armTipIso.x, armTipIso.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wheels — flat side-mounted like carrier tractors
+                const wH2 = 0.22,
+                    wW2 = 0.12;
+                [
+                    [0.35, -chassisW / 2],
+                    [0.35, chassisW / 2],
+                    [chassisL - 0.35, -chassisW / 2],
+                    [chassisL - 0.35, chassisW / 2],
+                ].forEach(([wx, wy]) => {
+                    const wp = r(wx, wy);
+                    const wMid = iso(wp.x, wp.y, baseZ + wH2 * 0.5, cx, cy);
+                    ctx.fillStyle = '#111';
+                    ctx.beginPath();
+                    ctx.ellipse(wMid.x, wMid.y, (wW2 * tileW) / 2, (wH2 * stepH) / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                });
+            }
+
             // Render loop
             function render() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1246,7 +1703,16 @@
 
                 MODELS.forEach(m => {
                     let angle = m.type === 'building' && m.id === 'lighthouse' ? 0 : spin;
-                    let radius = m.type === 'ship' ? 9 : m.type === 'heli' && m.id === 'chinook' ? 4.5 : 3.5;
+                    let radius =
+                        m.type === 'ship'
+                            ? 9
+                            : m.type === 'heli' && m.id === 'chinook'
+                              ? 4.5
+                              : m.type === 'vehicle'
+                                ? 3.5
+                                : m.type === 'foliage'
+                                  ? 2.5
+                                  : 3.5;
 
                     // Platform Frame
                     drawFrame(m.x, m.y, radius, m.label, angle, cam.x, cam.y);
@@ -1364,6 +1830,19 @@
 
                 drawPerson(45, 25, 0, spin, true, cam.x, cam.y, 'rescuer');
                 drawCollisionBox(cam.x, cam.y, 45, 25, 0, -0.2, 0.2, -0.2, 0.2, 0, 0.65);
+
+                // --- ROW 3: Foliage & Vehicles ---
+                viewerWind.phase += 0.008;
+
+                drawTree(-35, 50, cam.x, cam.y, 1.2, 0.1, 'pine');
+                drawTree(-20, 50, cam.x, cam.y, 1.0, 0.1, 'oak');
+                drawTree(-8, 50, cam.x, cam.y, 1.0, 0.1, 'bush');
+                drawTree(4, 50, cam.x, cam.y, 1.0, 0.1, 'dead');
+
+                // Fuel Truck — slowly rotating, arm partially extended
+                const armAnim = (Math.sin(time * 0.4) + 1) / 2; // 0..1
+                drawFuelTruck(20, 50, spin, cam.x, cam.y, armAnim);
+                drawCollisionBox(cam.x, cam.y, 20, 50, spin, 0, 2.2, -0.45, 0.45, 0, 0.9);
 
                 drawMiniMap();
 
