@@ -49,6 +49,7 @@
                 HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF,
                 JAYHAWK_DEF, DOLPHIN_DEF, CHINOOK_DEF, GLIDER_DEF,
                 CARRIER_HULL_DEF, CARRIER_TOWER_DEF,
+                FUEL_TRUCK_CHASSIS_DEF, FUEL_TRUCK_TANK_DEF, FUEL_TRUCK_CAB_DEF,
             } from '/src/game/defs.ts';
             import { createSceneRenderer } from '/src/game/scene-renderer.ts';
 
@@ -1044,223 +1045,40 @@
 
             // --- FUEL TRUCK ---
             function drawFuelTruck(tX, tY, angle, cx, cy, armExtend = 0) {
-                const cosA = Math.cos(angle),
-                    sinA = Math.sin(angle);
-                function r(lx, ly) {
-                    return { x: tX + lx * cosA - ly * sinA, y: tY + lx * sinA + ly * cosA };
-                }
-                function H(p, z) {
-                    return { x: p.x, y: p.y, z };
-                }
-                function visible(lx, ly) {
-                    return lx * cosA + ly * sinA > 0 || -lx * sinA + ly * cosA > 0;
-                }
-                function visN(lx, ly) {
-                    return lx * cosA - ly * sinA + lx * sinA + ly * cosA > 0;
-                }
-
-                const baseZ = 0;
-                const chassisL = 2.2,
-                    chassisW = 0.9,
-                    chassisH = 0.3;
-                const wheelR = 0.2,
-                    wheelW = 0.15;
-                const cabL = 0.7,
-                    cabH = 0.55;
-                const tankR = 0.38,
-                    tankL = 1.3;
-
-                // Chassis
-                const c1 = r(0, -chassisW / 2),
-                    c2 = r(chassisL, -chassisW / 2);
-                const c3 = r(chassisL, chassisW / 2),
-                    c4 = r(0, chassisW / 2);
-                drawFace([H(c1, baseZ), H(c2, baseZ), H(c3, baseZ), H(c4, baseZ)], '#3a5a3a', null, 0, cx, cy);
-                // Chassis sides
-                if (Math.cos(angle) + Math.sin(angle) < 0)
-                    drawFace(
-                        [H(c1, baseZ), H(c2, baseZ), H(c2, baseZ + chassisH), H(c1, baseZ + chassisH)],
-                        '#2a4a2a',
-                        null,
-                        0,
-                        cx,
-                        cy
-                    );
-                if (Math.cos(angle) - Math.sin(angle) > 0)
-                    drawFace(
-                        [H(c2, baseZ), H(c3, baseZ), H(c3, baseZ + chassisH), H(c2, baseZ + chassisH)],
-                        '#4a6a4a',
-                        null,
-                        0,
-                        cx,
-                        cy
-                    );
-                if (Math.cos(angle) + Math.sin(angle) > 0)
-                    drawFace(
-                        [H(c3, baseZ), H(c4, baseZ), H(c4, baseZ + chassisH), H(c3, baseZ + chassisH)],
-                        '#2a4a2a',
-                        null,
-                        0,
-                        cx,
-                        cy
-                    );
-                drawFace(
-                    [
-                        H(c1, baseZ + chassisH),
-                        H(c2, baseZ + chassisH),
-                        H(c3, baseZ + chassisH),
-                        H(c4, baseZ + chassisH),
-                    ],
-                    '#4a6a4a',
-                    '#5a8a5a',
-                    0,
-                    cx,
-                    cy
-                );
-
-                // Cab
-                const cabZ = baseZ + chassisH;
-                const cab1 = r(0, -chassisW / 2),
-                    cab2 = r(cabL, -chassisW / 2);
-                const cab3 = r(cabL, chassisW / 2),
-                    cab4 = r(0, chassisW / 2);
-                drawFace([H(cab1, cabZ), H(cab2, cabZ), H(cab3, cabZ), H(cab4, cabZ)], '#3a5a3a', null, 0, cx, cy);
-                if (Math.cos(angle) + Math.sin(angle) < 0)
-                    drawFace(
-                        [H(cab1, cabZ), H(cab2, cabZ), H(cab2, cabZ + cabH), H(cab1, cabZ + cabH)],
-                        '#5a8a5a',
-                        null,
-                        0,
-                        cx,
-                        cy
-                    );
-                if (Math.cos(angle) - Math.sin(angle) > 0)
-                    drawFace(
-                        [H(cab2, cabZ), H(cab3, cabZ), H(cab3, cabZ + cabH), H(cab2, cabZ + cabH)],
-                        '#3a6a3a',
-                        null,
-                        0,
-                        cx,
-                        cy
-                    );
-                if (Math.cos(angle) + Math.sin(angle) > 0)
-                    drawFace(
-                        [H(cab3, cabZ), H(cab4, cabZ), H(cab4, cabZ + cabH), H(cab3, cabZ + cabH)],
-                        '#4a7a4a',
-                        null,
-                        0,
-                        cx,
-                        cy
-                    );
-                drawFace(
-                    [H(cab1, cabZ + cabH), H(cab2, cabZ + cabH), H(cab3, cabZ + cabH), H(cab4, cabZ + cabH)],
-                    '#6a9a6a',
-                    '#8aba8a',
-                    0,
-                    cx,
-                    cy
-                );
-                // Windshield
-                const wsP = iso(r(cabL * 0.85, 0).x, r(cabL * 0.85, 0).y, cabZ + cabH * 0.3, cx, cy);
-                ctx.fillStyle = '#112233';
-                ctx.beginPath();
-                ctx.ellipse(wsP.x, wsP.y, 7, 4, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Tank (cylinder lying on its side — approximated with segments)
-                const tankCX = 0.65 + tankL / 2; // center along truck length
-                const tankBaseZ = baseZ + chassisH;
-                const tankTopZ = tankBaseZ + tankR * 2;
-                const segments = 8;
-                const tankCenter = r(tankCX, 0);
-                for (let i = 0; i < segments; i++) {
-                    const a0 = (i / segments) * Math.PI * 2;
-                    const a1 = ((i + 1) / segments) * Math.PI * 2;
-                    const y0 = Math.sin(a0) * tankR * 0.55; // squish in Y for iso
-                    const z0 = tankBaseZ + tankR + Math.cos(a0) * tankR;
-                    const y1 = Math.sin(a1) * tankR * 0.55;
-                    const z1 = tankBaseZ + tankR + Math.cos(a1) * tankR;
-                    // Front face
-                    const fA = r(tankCX - tankL / 2, y0);
-                    const fB = r(tankCX - tankL / 2, y1);
-                    // Back face
-                    const bA = r(tankCX + tankL / 2, y0);
-                    const bB = r(tankCX + tankL / 2, y1);
-                    const bright = Math.cos(a0) > 0 ? 1.0 : 0.6;
-                    const baseCol = [Math.round(200 * bright), Math.round(200 * bright), Math.round(180 * bright)];
-                    const col = `rgb(${baseCol[0]},${baseCol[1]},${baseCol[2]})`;
-                    // Side strip
-                    if (Math.cos(angle) * (y0 + y1) * 0.5 + Math.sin(angle) * 0 < 0.3) {
-                        drawFace([H(fA, z0), H(bA, z0), H(bB, z1), H(fB, z1)], col, null, 0, cx, cy);
-                    }
-                    // Front cap
-                    if (Math.cos(angle) + Math.sin(angle) > 0) {
-                        drawFace(
-                            [H(r(tankCX - tankL / 2, 0), tankBaseZ + tankR), H(fA, z0), H(fB, z1)],
-                            '#bbb',
-                            null,
-                            0,
-                            cx,
-                            cy
-                        );
-                    }
-                }
-                // Tank highlight stripe
-                const strA = r(tankCX - tankL / 2 + 0.1, -0.05);
-                const strB = r(tankCX + tankL / 2 - 0.1, -0.05);
-                drawFace(
-                    [
-                        H(strA, tankTopZ - 0.05),
-                        H(strB, tankTopZ - 0.05),
-                        H(strB, tankTopZ - 0.02),
-                        H(strA, tankTopZ - 0.02),
-                    ],
-                    '#ff4400',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-
-                // Refueling arm
-                const armBaseX = tankCX + tankL / 2 + 0.1;
-                const armExtX = armBaseX + armExtend * 1.2;
-                const armPivot = r(armBaseX, 0);
-                const armTip = r(armExtX, 0);
-                const armPivotIso = iso(armPivot.x, armPivot.y, tankBaseZ + tankR * 1.5, cx, cy);
-                const armTipIso = iso(armTip.x, armTip.y, tankBaseZ + tankR * 0.8, cx, cy);
-                ctx.strokeStyle = '#888';
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(armPivotIso.x, armPivotIso.y);
-                ctx.lineTo(armTipIso.x, armTipIso.y);
-                ctx.stroke();
-                // Nozzle
-                ctx.fillStyle = '#555';
-                ctx.beginPath();
-                ctx.arc(armTipIso.x, armTipIso.y, 3, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Wheels — flat side-mounted like carrier tractors
-                const wH2 = 0.22,
-                    wW2 = 0.12;
-                [
-                    [0.35, -chassisW / 2],
-                    [0.35, chassisW / 2],
-                    [chassisL - 0.35, -chassisW / 2],
-                    [chassisL - 0.35, chassisW / 2],
-                ].forEach(([wx, wy]) => {
-                    const wp = r(wx, wy);
-                    const wMid = iso(wp.x, wp.y, baseZ + wH2 * 0.5, cx, cy);
-                    ctx.fillStyle = '#111';
-                    ctx.beginPath();
-                    ctx.ellipse(wMid.x, wMid.y, (wW2 * tileW) / 2, (wH2 * stepH) / 2, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
+                const cosA = Math.cos(angle), sinA = Math.sin(angle);
+                const tkDepth  = tX + tY + 0.825 * (cosA + sinA);
+                const cabDepth = tX + tY + 1.85  * (cosA + sinA);
+                const chDepth  = Math.min(tkDepth, cabDepth) - 0.01;
+                const pivotWX = tX + 0.3 * cosA;
+                const pivotWY = tY + 0.3 * sinA;
+                SceneRenderer.add(FUEL_TRUCK_CHASSIS_DEF, { x: tX, y: tY, z: 0, angle, depth: chDepth });
+                SceneRenderer.add(FUEL_TRUCK_TANK_DEF,    { x: tX, y: tY, z: 0, angle, depth: tkDepth });
+                SceneRenderer.add(FUEL_TRUCK_CAB_DEF, {
+                    x: tX, y: tY, z: 0, angle, depth: cabDepth,
+                    drawFn: (camX, camY) => {
+                        if (armExtend <= 0) return;
+                        const pivotZ = 0.98;
+                        const pivotIso = iso(pivotWX, pivotWY, pivotZ, camX, camY);
+                        // Elbow: extends rearward (-x direction) with slight arc
+                        const elbowWX = pivotWX - cosA * 0.65 * armExtend;
+                        const elbowWY = pivotWY - sinA * 0.65 * armExtend;
+                        const elbowZ = pivotZ + 0.2 * Math.sin(armExtend * Math.PI * 0.7);
+                        const elbowIso = iso(elbowWX, elbowWY, elbowZ, camX, camY);
+                        // Tip: extends further rearward, drops down
+                        const tipWX = elbowWX - cosA * 0.5 * armExtend;
+                        const tipWY = elbowWY - sinA * 0.5 * armExtend;
+                        const tipZ = elbowZ - 0.6 * armExtend;
+                        const tipIso = iso(tipWX, tipWY, tipZ, camX, camY);
+                        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                        ctx.strokeStyle = '#777'; ctx.lineWidth = 4;
+                        ctx.beginPath(); ctx.moveTo(pivotIso.x, pivotIso.y); ctx.lineTo(elbowIso.x, elbowIso.y); ctx.stroke();
+                        ctx.strokeStyle = '#aaa'; ctx.lineWidth = 3;
+                        ctx.beginPath(); ctx.moveTo(elbowIso.x, elbowIso.y); ctx.lineTo(tipIso.x, tipIso.y); ctx.stroke();
+                        ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(elbowIso.x, elbowIso.y, 3, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#444'; ctx.beginPath(); ctx.arc(tipIso.x, tipIso.y, 4, 0, Math.PI * 2); ctx.fill();
+                    },
                 });
+                SceneRenderer.flush(cx, cy);
             }
 
             // Render loop
