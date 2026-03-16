@@ -342,41 +342,7 @@
         <div id="heli-select">
             <div class="title">HANGAR</div>
             <div class="subtitle">SELECT AIRFRAME</div>
-            <div class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width: 900px">
-                <div
-                    class="grid-box"
-                    onclick="startGame('dolphin')"
-                    onmouseenter="setHover('dolphin', true)"
-                    onmouseleave="setHover('dolphin', false)"
-                >
-                    <canvas id="icon-dolphin" class="mini-canvas" width="300" height="200"></canvas>
-                    <div class="box-label">MH-65 DOLPHIN</div>
-                    <div class="box-sub">Agile / Fast</div>
-                    <div class="box-sub" style="color: #aaa">Cap: 3 (Lightweight)</div>
-                </div>
-                <div
-                    class="grid-box"
-                    onclick="startGame('jayhawk')"
-                    onmouseenter="setHover('jayhawk', true)"
-                    onmouseleave="setHover('jayhawk', false)"
-                >
-                    <canvas id="icon-jayhawk" class="mini-canvas" width="300" height="200"></canvas>
-                    <div class="box-label">MH-60T JAYHAWK</div>
-                    <div class="box-sub">Heavy / Stable</div>
-                    <div class="box-sub" style="color: #aaa">Cap: 10 (Heavy Lift)</div>
-                </div>
-                <div
-                    class="grid-box"
-                    onclick="startGame('chinook')"
-                    onmouseenter="setHover('chinook', true)"
-                    onmouseleave="setHover('chinook', false)"
-                >
-                    <canvas id="icon-chinook" class="mini-canvas" width="300" height="200"></canvas>
-                    <div class="box-label">CH-47 CHINOOK</div>
-                    <div class="box-sub">Tandem / Ultra Heavy</div>
-                    <div class="box-sub" style="color: #aaa">Cap: 20 (Heavy Lift)</div>
-                </div>
-            </div>
+            <div id="heli-options" class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width: 900px"></div>
         </div>
 
         <div id="crash-screen">
@@ -424,6 +390,7 @@
         <script type="module">
             import { HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF, CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from '/src/game/defs.ts';
             import { createSceneRenderer } from '/src/game/scene-renderer.ts';
+            import { HELI_TYPES, getHeliType } from '/src/game/heli-types.ts';
 
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
@@ -440,8 +407,8 @@
             const G = {
                 goalCount: 0,
                 totalRescued: 0,
-                menuHover: { dolphin: false, jayhawk: false, chinook: false },
-                menuAngles: { dolphin: -0.5, jayhawk: -0.5, chinook: -0.5 },
+                menuHover: Object.fromEntries(HELI_TYPES.map(h => [h.id, false])),
+                menuAngles: Object.fromEntries(HELI_TYPES.map(h => [h.id, -0.5])),
                 points: [],
                 particles: [],
                 debris: [],
@@ -874,7 +841,8 @@
                 }
 
                 // Heli-Trümmer — fliegen hauptsächlich in Flugrichtung weiter
-                const scale = heli.type === 'dolphin' ? 0.7 : 1.0;
+                const _ht = getHeliType(heli.type);
+                const scale = _ht.scale;
                 const parts = [
                     { name: 'fuselage', color: '#ff6600', stroke: '#dd3300', w: 1.5 * scale, h: 0.4 * scale },
                     { name: 'tail', color: '#ff6600', stroke: '#dd3300', w: 1.0 * scale, h: 0.2 * scale },
@@ -882,7 +850,7 @@
                     { name: 'rotor2', color: '#333', stroke: '#555', w: 1.8 * scale, h: 0.08 * scale },
                     { name: 'door', color: '#cc4400', stroke: '#aa2200', w: 0.5 * scale, h: 0.4 * scale },
                 ];
-                if (heli.type === 'chinook')
+                if (_ht.extraRotorDebris)
                     parts.push({ name: 'rotor3', color: '#333', stroke: '#555', w: 1.8, h: 0.08 });
 
                 parts.forEach(part => {
@@ -1162,15 +1130,11 @@
             }
 
             function getRotorPositions() {
-                const cosA = Math.cos(G.heli.angle),
-                    sinA = Math.sin(G.heli.angle);
-                if (G.heli.type === 'chinook') {
-                    return [
-                        { x: G.heli.x + cosA * 1.5, y: G.heli.y + sinA * 1.5 },
-                        { x: G.heli.x + cosA * -2.3, y: G.heli.y + sinA * -2.3 },
-                    ];
-                }
-                return [{ x: G.heli.x, y: G.heli.y }];
+                const cosA = Math.cos(G.heli.angle), sinA = Math.sin(G.heli.angle);
+                return getHeliType(G.heli.type).rotorOffsets.map(ox => ({
+                    x: G.heli.x + cosA * ox,
+                    y: G.heli.y + sinA * ox,
+                }));
             }
 
             function handleParticles() {
@@ -1721,31 +1685,14 @@
                 if (zstate.gameStarted) return;
                 window.soundHandler.play('tutorial');
                 G.heli.type = type;
-                if (type === 'dolphin') {
-                    G.heli.maxLoad = 3;
-                    G.heli.accel = 0.00117; // Vmax ~260 km/h
-                    G.heli.friction = 0.995;
-                    G.heli.tiltSpeed = 0.05;
-                    G.heli.fuelRate = 0.012;
-                    G.heli.liftPower = 0.0009;
-                    G.heli.cargoResist = 2.0;
-                } else if (type === 'jayhawk') {
-                    G.heli.maxLoad = 10;
-                    G.heli.accel = 0.000502; // Vmax ~280 km/h
-                    G.heli.friction = 0.998;
-                    G.heli.tiltSpeed = 0.015;
-                    G.heli.fuelRate = 0.007;
-                    G.heli.liftPower = 0.0005;
-                    G.heli.cargoResist = 0.3;
-                } else if (type === 'chinook') {
-                    G.heli.maxLoad = 20;
-                    G.heli.accel = 0.000212; // Vmax ~295 km/h
-                    G.heli.friction = 0.9992;
-                    G.heli.tiltSpeed = 0.01;
-                    G.heli.fuelRate = 0.005;
-                    G.heli.liftPower = 0.0004;
-                    G.heli.cargoResist = 0.05;
-                }
+                const _heliType = getHeliType(type);
+                G.heli.maxLoad    = _heliType.maxLoad;
+                G.heli.accel      = _heliType.accel;
+                G.heli.friction   = _heliType.friction;
+                G.heli.tiltSpeed  = _heliType.tiltSpeed;
+                G.heli.fuelRate   = _heliType.fuelRate;
+                G.heli.liftPower  = _heliType.liftPower;
+                G.heli.cargoResist = _heliType.cargoResist;
                 generateTerrain(G.points, G.PAD);
                 initCarrierFromMission(G);
                 initBoatsFromMission(G);
@@ -2575,7 +2522,7 @@
                     }
                     if (payload.hanging) {
                         let hPos = iso(G.heli.x, G.heli.y, G.heli.z, cam.x, cam.y, { stepH, tileW, tileH, canvas });
-                        ctx.strokeStyle = payload.type === 'crate' && G.heli.type === 'dolphin' ? '#f55' : '#aaa';
+                        ctx.strokeStyle = payload.type === 'crate' && !getHeliType(G.heli.type).canCarryCargo ? '#f55' : '#aaa';
                         ctx.lineWidth = 1.5;
                         ctx.beginPath();
                         ctx.moveTo(hPos.x, hPos.y);
@@ -3193,8 +3140,8 @@
             ) => {
                 const cosA = Math.cos(hAngle),
                     sinA = Math.sin(hAngle);
-                let s = type === 'dolphin' ? 0.7 : 1.0;
-                if (scaleOverride > 0) s = scaleOverride * (type === 'dolphin' ? 0.7 : 1.0);
+                let s = getHeliType(type).scale;
+                if (scaleOverride > 0) s = scaleOverride * getHeliType(type).scale;
 
                 function p(lx, ly, lz) {
                     lx *= s;
@@ -3783,10 +3730,8 @@
                             y: cy + h.xRel * sinC + h.yRel * cosC,
                         };
                         const totalAng = h.angle + ca;
-                        const hb =
-                            h.type === 'dolphin'
-                                ? { x1: -1.26, x2: 1.26, y1: -0.28, y2: 0.28, z2: 0.56 }
-                                : { x1: -3.0, x2: 1.3, y1: -0.5, y2: 0.5, z2: 1.3 };
+                        const _hcb = getHeliType(h.type).collisionBox;
+                        const hb = { x1: _hcb.xMin, x2: _hcb.xMax, y1: _hcb.yMin, y2: _hcb.yMax, z2: _hcb.zMax };
                         if (showCollisionBoxes)
                             drawCollisionBox(
                                 pos.x,
@@ -4019,12 +3964,8 @@
 
                 // ── Player Heli box (nur Debug-Visualisierung) ────────────────────────────
                 if (showCollisionBoxes) {
-                    const hb =
-                        G.heli.type === 'dolphin'
-                            ? { x1: -1.26, x2: 1.26, y1: -0.28, y2: 0.28, z2: 0.56 }
-                            : G.heli.type === 'chinook'
-                              ? { x1: -2.6, x2: 2.8, y1: -0.6, y2: 0.6, z2: 1.8 }
-                              : { x1: -3.0, x2: 1.3, y1: -0.5, y2: 0.5, z2: 1.3 };
+                    const _phcb = getHeliType(G.heli.type).collisionBox;
+                    const hb = { x1: _phcb.xMin, x2: _phcb.xMax, y1: _phcb.yMin, y2: _phcb.yMax, z2: _phcb.zMax };
                     drawCollisionBox(
                         G.heli.x,
                         G.heli.y,
@@ -4072,39 +4013,42 @@
 
             function animateHeliPreviews() {
                 if (document.getElementById('heli-select').style.display === 'none') return;
-                ['dolphin', 'jayhawk', 'chinook'].forEach(id => {
-                    if (G.menuHover[id]) {
-                        G.menuAngles[id] += 0.05;
+                HELI_TYPES.forEach(ht => {
+                    if (G.menuHover[ht.id]) {
+                        G.menuAngles[ht.id] += 0.05;
                     } else {
-                        let diff = -0.075 - G.menuAngles[id];
-                        G.menuAngles[id] += Math.abs(diff) > 0.01 ? diff * 0.1 : 0;
+                        let diff = -0.075 - G.menuAngles[ht.id];
+                        G.menuAngles[ht.id] += Math.abs(diff) > 0.01 ? diff * 0.1 : 0;
                     }
-                    const c = document.getElementById('icon-' + id);
+                    const c = document.getElementById('icon-' + ht.id);
                     if (c) {
                         const cx = c.getContext('2d');
                         c.width = 300;
                         c.height = 200;
                         cx.clearRect(0, 0, 300, 200);
-                        drawHeli(
-                            id,
-                            0,
-                            0,
-                            0,
-                            G.menuAngles[id],
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            cx,
-                            c,
-                            false,
-                            id === 'chinook' ? 1.5 : 2.5
-                        );
+                        drawHeli(ht.id, 0, 0, 0, G.menuAngles[ht.id], 0, 0, 0, 0, 0, cx, c, false, ht.previewScale);
                     }
                 });
                 requestAnimationFrame(animateHeliPreviews);
             }
+
+            // Generate heli select buttons from HELI_TYPES
+            (function buildHeliSelect() {
+                const container = document.getElementById('heli-options');
+                if (!container) return;
+                HELI_TYPES.forEach(ht => {
+                    const div = document.createElement('div');
+                    div.className = 'grid-box';
+                    div.setAttribute('onclick', `startGame('${ht.id}')`);
+                    div.setAttribute('onmouseenter', `setHover('${ht.id}', true)`);
+                    div.setAttribute('onmouseleave', `setHover('${ht.id}', false)`);
+                    div.innerHTML = `<canvas id="icon-${ht.id}" class="mini-canvas" width="300" height="200"></canvas>
+                        <div class="box-label">${ht.selectLabel}</div>
+                        <div class="box-sub">${ht.selectSub}</div>
+                        <div class="box-sub" style="color: #aaa">${ht.selectCap}</div>`;
+                    container.appendChild(div);
+                });
+            })();
 
             window.onkeydown = e => (G.keys[e.code] = true);
             window.onkeyup = e => (G.keys[e.code] = false);
