@@ -421,13 +421,18 @@
 
         <canvas id="gameCanvas"></canvas>
 
-        <script>
+        <script type="module">
+            import { HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF, CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from '/src/game/defs.ts';
+            import { createSceneRenderer } from '/src/game/scene-renderer.ts';
+
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
             ctx.imageSmoothingEnabled = false;
             const tileW = 64,
                 tileH = 32,
                 stepH = 25;
+            const isoFn = (wx, wy, wz, cx, cy) => iso(wx, wy, wz, cx, cy, { canvas, tileW, tileH, stepH });
+            const SceneRenderer = createSceneRenderer(ctx, isoFn);
 
             // ─── state ───────────────────────────────────────────────────────────────────
             // G = single mutable game state object; all functions receive what they need
@@ -478,7 +483,6 @@
                 },
                 wind: { x: 0, y: 0, phase: 0, angle: Math.random() * Math.PI * 2 },
                 keys: {},
-                npcHelis: [],
                 flocks: [],
                 TREES_MAP: null,
                 PAD: null,
@@ -995,19 +999,7 @@
                     ctx.globalAlpha = 1.0;
                 });
             }
-            // ─── NPC helis ───────────────────────────────────────────────────────────────
-
-            const NPC_TYPES = ['dolphin', 'jayhawk', 'chinook'];
-            const NPC_STATE = {
-                PARKED: 0,
-                TAKEOFF: 1,
-                PATROL: 2,
-                WINCH: 3,
-                APPROACH: 4,
-                LAND: 5,
-                TOUCH_AND_GO: 6,
-                GONE: 7,
-            };
+            // ─── NPC helis removed ───────────────────────────────────────────────────────
 
             function getCarrierPadWorld(padIdx, CARRIER) {
                 const dw = CARRIER.w + 1.2;
@@ -1031,289 +1023,6 @@
                     z: CARRIER.zDeck,
                 };
             }
-
-            function initNpcHelis(G) {
-                G.npcHelis = [];
-                const md = window.campaignHandler.getCurrentMissionData();
-                const npcPayloads = (md.payloads || []).filter(p => p.npcTarget);
-                if (!npcPayloads.length) return;
-
-                const count = Math.min(md.npcHeliCount ?? 1, parkedHelis.length);
-                for (let i = 0; i < count; i++) {
-                    const slot = parkedHelis[i];
-                    const type = md.npcHeliType ?? slot.type; // Typ vom echten Heli übernehmen
-                    const spawnPos = hasCarrier()
-                        ? getCarrierSlotWorld({ xRel: slot.xRel, yRel: slot.yRel }, G.CARRIER)
-                        : null;
-                    const myTargets = npcPayloads.filter((_, idx) => idx % count === i).map(p => ({ x: p.x, y: p.y }));
-                    if (!myTargets.length) continue;
-
-                    const sx = spawnPos?.x ?? 5,
-                        sy = spawnPos?.y ?? 5,
-                        sz = spawnPos?.z ?? 8;
-                    G.npcHelis.push({
-                        type,
-                        x: sx,
-                        y: sy,
-                        z: sz,
-                        vx: 0,
-                        vy: 0,
-                        vz: 0,
-                        angle: (G.CARRIER.angle ?? 0) + slot.angle,
-                        tilt: 0,
-                        roll: 0,
-                        rotorRPM: 0,
-                        rotorPos: 0,
-                        state: NPC_STATE.PARKED,
-                        stateTimer: 120 + i * 180,
-                        targets: myTargets,
-                        targetIdx: 0,
-                        cruiseZ: 8 + Math.random() * 3,
-                        spawnSlot: { xRel: slot.xRel, yRel: slot.yRel },
-                        parkedIdx: i, // Index in parkedHelis → zum Ausblenden
-                        landPadIdx: i % 3,
-                        fromCarrier: hasCarrier(),
-                    });
-                }
-            }
-
-            function updateNpcHelis(G, zstate, triggerCrash) {
-                G.npcHelis.forEach(n => {
-                    if (n.state === NPC_STATE.GONE) return;
-                    n.stateTimer = Math.max(0, n.stateTimer - 1);
-                    n.rotorPos += n.rotorRPM * 0.08;
-
-                    switch (n.state) {
-                        case NPC_STATE.PARKED:
-                            // Position mit Carrier mitführen
-                            if (n.fromCarrier) {
-                                const p = getCarrierSlotWorld(n.spawnSlot, G.CARRIER);
-                                n.x = p.x;
-                                n.y = p.y;
-                                n.z = p.z;
-                                n.angle = G.CARRIER.angle + (n.spawnSlot.angle || 0);
-                            }
-                            // Rotor dreht die letzten 180 Frames (3s) langsam hoch
-                            if (n.stateTimer < 180) {
-                                n.rotorRPM = Math.min(1.0, n.rotorRPM + 0.006);
-                            }
-                            if (n.stateTimer === 0 && n.rotorRPM >= 0.99) n.state = NPC_STATE.TAKEOFF;
-                            break;
-
-                        case NPC_STATE.TAKEOFF:
-                            n.rotorRPM = 1.0;
-                            // Erst kurz hovern (0.5s), dann steigen
-                            n.vz = Math.min(0.05, n.vz + 0.002);
-                            n.vx *= 0.95;
-                            n.vy *= 0.95;
-                            n.z += n.vz;
-                            if (n.z >= n.cruiseZ) {
-                                n.vz = 0;
-                                n.state = NPC_STATE.PATROL;
-                            }
-                            break;
-
-                        case NPC_STATE.PATROL: {
-                            const target = n.targets[n.targetIdx];
-                            if (!target) {
-                                n.state = n.fromCarrier ? NPC_STATE.APPROACH : NPC_STATE.GONE;
-                                break;
-                            }
-                            const dist = Math.hypot(target.x - n.x, target.y - n.y);
-                            // Sanft absteigen wenn nah am Ziel
-                            const targetZ = n.cruiseZ - Math.max(0, 1 - dist / 8) * 3;
-                            npcFlyTo(n, target.x, target.y, targetZ, 0.04);
-                            if (dist < 0.8) {
-                                // Über Ziel angekommen → Winch starten
-                                n.vx *= 0.5;
-                                n.vy *= 0.5; // kurz abbremsen
-                                n.state = NPC_STATE.WINCH;
-                                n.winch = 0;
-                                n.winchPhase = 'down';
-                                n.stateTimer = 0;
-                            }
-                            break;
-                        }
-
-                        case NPC_STATE.WINCH: {
-                            // Hovern: Position halten
-                            const target = n.targets[n.targetIdx];
-                            if (target) npcFlyTo(n, target.x, target.y, n.cruiseZ - 2, 0.01);
-
-                            const maxWinch =
-                                n.cruiseZ - 2 - (target ? getGround(target.x, target.y, G.points, G.CARRIER) : 0) + 0.3;
-
-                            if (n.winchPhase === 'down') {
-                                n.winch = Math.min(maxWinch, (n.winch || 0) + 0.04);
-                                if (n.winch >= maxWinch - 0.1) {
-                                    n.winchPhase = 'wait';
-                                    n.stateTimer = 90; // 1.5s warten am Boden
-                                }
-                            } else if (n.winchPhase === 'wait') {
-                                if (n.stateTimer <= 0) n.winchPhase = 'up';
-                            } else if (n.winchPhase === 'up') {
-                                n.winch = Math.max(0, (n.winch || 0) - 0.06);
-                                if (n.winch <= 0) {
-                                    // Payload retten
-                                    if (target) {
-                                        const rescued = G.payloads.find(
-                                            p => p.npcTarget && !p.rescued && Math.hypot(p.x - n.x, p.y - n.y) < 3
-                                        );
-                                        if (rescued) {
-                                            rescued.rescued = true;
-                                            G.totalRescued++;
-                                            if (G.totalRescued >= G.goalCount) missionComplete();
-                                        }
-                                    }
-                                    n.winch = 0;
-                                    n.targetIdx++;
-                                    n.state = NPC_STATE.PATROL;
-                                }
-                            }
-                            break;
-                        }
-
-                        case NPC_STATE.APPROACH: {
-                            // Zum Landing Pad fliegen
-                            const pad = getCarrierPadWorld(n.landPadIdx, G.CARRIER);
-                            const dist = Math.hypot(pad.x - n.x, pad.y - n.y);
-                            const targetZ = dist < 6 ? pad.z + (dist / 6) * 4 : n.cruiseZ;
-                            npcFlyTo(n, pad.x, pad.y, targetZ, 0.03);
-                            if (dist < 1.2 && Math.abs(n.z - pad.z) < 1.5) {
-                                n.state = NPC_STATE.LAND;
-                                n.vx = 0;
-                                n.vy = 0;
-                            }
-                            break;
-                        }
-
-                        case NPC_STATE.LAND: {
-                            const pad = getCarrierPadWorld(n.landPadIdx, G.CARRIER);
-                            // Sanft aufsetzen
-                            n.vx = n.vx * 0.8 + (pad.x - n.x) * 0.05;
-                            n.vy = n.vy * 0.8 + (pad.y - n.y) * 0.05;
-                            n.vz = Math.max(-0.05, (pad.z - n.z) * 0.08 - 0.01);
-                            n.x += n.vx;
-                            n.y += n.vy;
-                            n.z += n.vz;
-                            n.tilt *= 0.9;
-                            if (n.z <= pad.z + 0.05) {
-                                n.z = pad.z;
-                                n.vx = 0;
-                                n.vy = 0;
-                                n.vz = 0;
-                                n.state = NPC_STATE.TOUCH_AND_GO;
-                                n.stateTimer = 90; // 1.5s auf dem Deck
-                            }
-                            break;
-                        }
-
-                        case NPC_STATE.TOUCH_AND_GO:
-                            // Position mit Carrier mitführen, Rotor bleibt an
-                            if (n.fromCarrier) {
-                                const pad = getCarrierPadWorld(n.landPadIdx, G.CARRIER);
-                                n.x = pad.x;
-                                n.y = pad.y;
-                                n.z = pad.z;
-                                n.angle = G.CARRIER.angle;
-                            }
-                            n.rotorRPM = 1.0;
-                            if (n.stateTimer === 0) {
-                                // Neue Targets? Sonst weg
-                                n.targetIdx = 0;
-                                const remaining = n.targets.filter(
-                                    (_, i) =>
-                                        !G.payloads.find(
-                                            p =>
-                                                p.npcTarget &&
-                                                p.rescued &&
-                                                Math.hypot(p.x - n.targets[i]?.x, p.y - n.targets[i]?.y) < 1
-                                        )
-                                );
-                                if (
-                                    remaining.length > 0 &&
-                                    n.targets.some((_, i) => {
-                                        const p = G.payloads.find(
-                                            pp =>
-                                                pp.npcTarget &&
-                                                !pp.rescued &&
-                                                Math.hypot(pp.x - n.targets[i]?.x, pp.y - n.targets[i]?.y) < 1
-                                        );
-                                        return !!p;
-                                    })
-                                ) {
-                                    n.state = NPC_STATE.TAKEOFF;
-                                } else {
-                                    n.state = NPC_STATE.GONE; // Fertig, verschwindet
-                                }
-                            }
-                            break;
-                    }
-
-                    // Kollision mit Spieler
-                    if (n.state !== NPC_STATE.PARKED && n.state !== NPC_STATE.GONE && !zstate.crashed) {
-                        if (Math.hypot(n.x - G.heli.x, n.y - G.heli.y) < 2.0 && Math.abs(n.z - G.heli.z) < 1.0) {
-                            // Spieler-Heli explodiert
-                            spawnExplosion(G.heli, G.particles, G.debris, G.points, G.CARRIER);
-                            // NPC-Heli explodiert an seiner Position
-                            const savedX = G.heli.x,
-                                savedY = G.heli.y,
-                                savedZ = G.heli.z;
-                            const savedVx = G.heli.vx,
-                                savedVy = G.heli.vy,
-                                savedVz = G.heli.vz;
-                            G.heli.x = n.x;
-                            G.heli.y = n.y;
-                            G.heli.z = n.z;
-                            G.heli.vx = n.vx;
-                            G.heli.vy = n.vy;
-                            G.heli.vz = n.vz || 0;
-                            spawnExplosion(G.heli, G.particles, G.debris, G.points, G.CARRIER);
-                            G.heli.x = savedX;
-                            G.heli.y = savedY;
-                            G.heli.z = savedZ;
-                            G.heli.vx = savedVx;
-                            G.heli.vy = savedVy;
-                            G.heli.vz = savedVz;
-                            n.state = NPC_STATE.GONE;
-                            triggerCrash('MIDAIR COLLISION');
-                        }
-                    }
-                });
-            }
-
-            // Hilfsfunktion: NPC zu Zielposition fliegen
-            function npcFlyTo(n, tx, ty, tz, maxSpd) {
-                const dx = tx - n.x,
-                    dy = ty - n.y;
-                const dist = Math.hypot(dx, dy);
-                const targetAngle = Math.atan2(dy, dx);
-                let da = targetAngle - n.angle;
-                while (da > Math.PI) da -= Math.PI * 2;
-                while (da < -Math.PI) da += Math.PI * 2;
-                n.angle += da * 0.06;
-
-                // Bremsen wenn nah am Ziel
-                const brakeDist = 6;
-                const speedFactor = dist < brakeDist ? dist / brakeDist : 1.0;
-                const targetSpd = maxSpd * speedFactor;
-
-                n.vx += Math.cos(n.angle) * 0.003;
-                n.vy += Math.sin(n.angle) * 0.003;
-                const spd = Math.hypot(n.vx, n.vy);
-                if (spd > targetSpd) {
-                    n.vx = (n.vx / spd) * targetSpd;
-                    n.vy = (n.vy / spd) * targetSpd;
-                }
-
-                n.vz += (tz - n.z) * 0.025;
-                n.vz *= 0.88;
-                n.x += n.vx;
-                n.y += n.vy;
-                n.z += n.vz;
-                n.tilt = Math.hypot(n.vx, n.vy) * 8;
-            }
-
             // ─── birds ───────────────────────────────────────────────────────────────────
             // G.flocks initialized in G object
 
@@ -2051,7 +1760,6 @@
                 initBoatsFromMission(G);
                 initFoliageFromMission();
                 initBirds();
-                initNpcHelis(G);
                 initPayloadsFromMission(G);
                 if (hasPad()) initFuelTruck(G);
 
@@ -2647,9 +2355,6 @@
                 updateBirds();
                 drawBirds(camX, camY);
 
-                // NPC-Helis
-                updateNpcHelis(G, window.zstate, triggerCrash);
-
                 // shadow pass
                 if (!isNight && !zstate.crashed) {
                     drawHeli(
@@ -2811,15 +2516,6 @@
                         ctx.arc(bx + G.CARRIER.x * sc, by + G.CARRIER.y * sc, 4, 0, 7);
                         ctx.fill();
                     }
-                    // NPC-Helis auf Minimap (blau)
-                    G.npcHelis.forEach(n => {
-                        if (n.state === NPC_STATE.GONE || n.state === NPC_STATE.PARKED) return;
-                        if (!inMM(n.x, n.y)) return;
-                        ctx.fillStyle = '#46f';
-                        ctx.beginPath();
-                        ctx.arc(bx + n.x * sc, by + n.y * sc, 2, 0, 7);
-                        ctx.fill();
-                    });
                     if (inMM(G.heli.x, G.heli.y)) {
                         ctx.fillStyle = '#fff';
                         ctx.fillRect(bx + G.heli.x * sc - 1.5, by + G.heli.y * sc - 1.5, 3, 3);
@@ -2890,95 +2586,92 @@
             }
 
             // ─── draw carrier ────────────────────────────────────────────────────────────
-            function drawVectorCarrier(cx, cy) {
-                const cw = G.CARRIER.w,
-                    cl = G.CARRIER.l;
-                const objX = G.CARRIER.x,
-                    objY = G.CARRIER.y;
-                const deckZ = G.CARRIER.zDeck,
-                    hullZ = G.CARRIER.zHull;
-                const angle = G.CARRIER.angle;
-                const cosA = Math.cos(angle),
-                    sinA = Math.sin(angle);
-
-                function r(rx, ry) {
-                    return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA };
-                }
-                function face(pts, col, stroke) {
-                    drawFace(pts, col, stroke || null, 0, cx, cy);
-                }
-                function H(p, z) {
-                    return { x: p.x, y: p.y, z };
-                }
-                function visible(lx, ly) {
-                    const wx = lx * cosA - ly * sinA,
-                        wy = lx * sinA + ly * cosA;
+            // ─── drawTractor ─────────────────────────────────────────────────────────────
+            function drawTractor(objX, objY, carrierAngle, deckZ, cx, cy, tx, ty, tAngle, bc, bs, bd, cc, cs, ct) {
+                const cosA = Math.cos(carrierAngle), sinA = Math.sin(carrierAngle);
+                const bodyL = 1.0, bodyW = 0.72, bodyH = 0.15;
+                const isFireTractor = ct === '#eeeeee';
+                const cabH = isFireTractor ? 0.22 : bodyH + 0.22;
+                const cabL = isFireTractor ? bodyL * 0.75 : bodyL;
+                const dZ = deckZ + 0.01, wW = 0.15, wH = 0.25;
+                const cosT = Math.cos(tAngle + carrierAngle), sinT = Math.sin(tAngle + carrierAngle);
+                function vt(lx, ly) {
+                    const wx = lx * cosT - ly * sinT, wy = lx * sinT + ly * cosT;
                     return wx + wy > 0;
                 }
-
-                // Hull G.points
-                const h1 = r(-cw, -cl),
-                    h2 = r(cw, -cl),
-                    h3 = r(cw, cl),
-                    h4 = r(-cw, cl);
-
-                // Trapezoid hull
-                const dw = cw + 1.2,
-                    dl = cl + 1.2;
-                const d1 = r(-dw, -dl),
-                    d2 = r(dw, -dl),
-                    d3 = r(dw, dl),
-                    d4 = r(-dw, dl);
-                const hw = dw * 0.6;
-                const k1 = r(-hw, -dl),
-                    k2 = r(hw, -dl),
-                    k3 = r(hw, dl),
-                    k4 = r(-hw, dl);
-                face([H(k1, 0), H(k2, 0), H(k3, 0), H(k4, 0)], '#0a0a14');
-                if (visible(0, -1)) face([H(k1, 0), H(k2, 0), H(d2, hullZ), H(d1, hullZ)], '#2a3a4a');
-                if (visible(1, 0)) face([H(k2, 0), H(k3, 0), H(d3, hullZ), H(d2, hullZ)], '#3a4a5a');
-                if (visible(0, 1)) face([H(k3, 0), H(k4, 0), H(d4, hullZ), H(d3, hullZ)], '#2a3a4a');
-                if (visible(-1, 0)) face([H(k4, 0), H(k1, 0), H(d1, hullZ), H(d4, hullZ)], '#223344');
-
-                // Hull top cap + flight deck sides
-                face([H(d1, hullZ), H(d2, hullZ), H(d3, hullZ), H(d4, hullZ)], '#1a1a22');
-                face([H(d1, hullZ), H(d2, hullZ), H(d3, hullZ), H(d4, hullZ)], '#222');
-                if (visible(0, -1)) face([H(d1, hullZ), H(d2, hullZ), H(d2, deckZ), H(d1, deckZ)], '#2a2a33');
-                if (visible(1, 0)) face([H(d2, hullZ), H(d3, hullZ), H(d3, deckZ), H(d2, deckZ)], '#333');
-                if (visible(0, 1)) face([H(d3, hullZ), H(d4, hullZ), H(d4, deckZ), H(d3, deckZ)], '#2a2a33');
-                if (visible(-1, 0)) face([H(d4, hullZ), H(d1, hullZ), H(d1, deckZ), H(d4, deckZ)], '#222');
-                face([H(d1, deckZ), H(d2, deckZ), H(d3, deckZ), H(d4, deckZ)], '#3a3a44', '#555');
-
-                // Landing pads
-                [-4.5, 0.0, 4.5].forEach(py => {
-                    const px = -dw + 0.5,
-                        pw = 2.8,
-                        pl = 1.4;
-                    const p1 = r(px, py - pl),
-                        p2 = r(px + pw, py - pl),
-                        p3 = r(px + pw, py + pl),
-                        p4 = r(px, py + pl);
-                    face(
-                        [H(p1, deckZ + 0.01), H(p2, deckZ + 0.01), H(p3, deckZ + 0.01), H(p4, deckZ + 0.01)],
-                        '#52526a'
-                    );
+                const ox = objX + tx * cosA - ty * sinA;
+                const oy = objY + tx * sinA + ty * cosA;
+                function rr(rx, ry) {
+                    return {
+                        x: ox + rx * Math.cos(tAngle + carrierAngle) - ry * Math.sin(tAngle + carrierAngle),
+                        y: oy + rx * Math.sin(tAngle + carrierAngle) + ry * Math.cos(tAngle + carrierAngle),
+                    };
+                }
+                function H(p, z) { return { x: p.x, y: p.y, z }; }
+                function face(pts, col, stroke) { drawFace(pts, col, stroke || null, 0, cx, cy); }
+                if (isFireTractor) {
+                    const b1 = rr(0, 0), b2 = rr(bodyL, 0), b3 = rr(bodyL, bodyW), b4 = rr(0, bodyW);
+                    face([H(b1,dZ),H(b2,dZ),H(b3,dZ),H(b4,dZ)], bc);
+                    if (vt(0,-1)) face([H(b1,dZ),H(b2,dZ),H(b2,dZ+bodyH),H(b1,dZ+bodyH)], bs);
+                    if (vt(1, 0)) face([H(b2,dZ),H(b3,dZ),H(b3,dZ+bodyH),H(b2,dZ+bodyH)], bd);
+                    if (vt(0, 1)) face([H(b3,dZ),H(b4,dZ),H(b4,dZ+bodyH),H(b3,dZ+bodyH)], bs);
+                    if (vt(-1,0)) face([H(b4,dZ),H(b1,dZ),H(b1,dZ+bodyH),H(b4,dZ+bodyH)], bd);
+                    face([H(b1,dZ+bodyH),H(b2,dZ+bodyH),H(b3,dZ+bodyH),H(b4,dZ+bodyH)], bs);
+                    const eqZ = dZ+bodyH, eqW = 0.2, eqL = 0.25, eqH = 0.18, eqX = bodyL-eqW-0.02;
+                    const eq1=rr(eqX,bodyW*0.1), eq2=rr(eqX+eqW,bodyW*0.1);
+                    const eq3=rr(eqX+eqW,bodyW*0.1+eqL), eq4=rr(eqX,bodyW*0.1+eqL);
+                    face([H(eq1,eqZ),H(eq2,eqZ),H(eq3,eqZ),H(eq4,eqZ)], '#aa0000');
+                    if (vt(0,-1)) face([H(eq1,eqZ),H(eq2,eqZ),H(eq2,eqZ+eqH),H(eq1,eqZ+eqH)], '#ee0000');
+                    if (vt(1, 0)) face([H(eq2,eqZ),H(eq3,eqZ),H(eq3,eqZ+eqH),H(eq2,eqZ+eqH)], '#880000');
+                    if (vt(0, 1)) face([H(eq3,eqZ),H(eq4,eqZ),H(eq4,eqZ+eqH),H(eq3,eqZ+eqH)], '#aa0000');
+                    if (vt(-1,0)) face([H(eq4,eqZ),H(eq1,eqZ),H(eq1,eqZ+eqH),H(eq4,eqZ+eqH)], '#880000');
+                    face([H(eq1,eqZ+eqH),H(eq2,eqZ+eqH),H(eq3,eqZ+eqH),H(eq4,eqZ+eqH)], '#cc0000');
+                }
+                const cZ = isFireTractor ? dZ+bodyH : dZ;
+                const cc1=rr(0,0), cc2=rr(cabL,0), cc3=rr(cabL,bodyW), cc4=rr(0,bodyW);
+                face([H(cc1,cZ),H(cc2,cZ),H(cc3,cZ),H(cc4,cZ)], cc);
+                if (vt(0,-1)) face([H(cc1,cZ),H(cc2,cZ),H(cc2,cZ+cabH),H(cc1,cZ+cabH)], cs);
+                if (vt(1, 0)) face([H(cc2,cZ),H(cc3,cZ),H(cc3,cZ+cabH),H(cc2,cZ+cabH)], bd);
+                if (vt(0, 1)) face([H(cc3,cZ),H(cc4,cZ),H(cc4,cZ+cabH),H(cc3,cZ+cabH)], cc);
+                if (vt(-1,0)) face([H(cc4,cZ),H(cc1,cZ),H(cc1,cZ+cabH),H(cc4,cZ+cabH)], bd);
+                face([H(cc1,cZ+cabH),H(cc2,cZ+cabH),H(cc3,cZ+cabH),H(cc4,cZ+cabH)], ct);
+                [0.15, bodyL-0.15].forEach(ax => {
+                    if (vt(0,-1)) { const w1=rr(ax-wW*0.5,0), w2=rr(ax+wW*0.5,0); face([H(w1,dZ),H(w2,dZ),H(w2,dZ+wH),H(w1,dZ+wH)],'#222'); }
+                    if (vt(0, 1)) { const w1=rr(ax-wW*0.5,bodyW), w2=rr(ax+wW*0.5,bodyW); face([H(w1,dZ),H(w2,dZ),H(w2,dZ+wH),H(w1,dZ+wH)],'#222'); }
                 });
+            }
 
-                // Tower
-                const ix = 2.6,
-                    iy = 1.0,
-                    iw = 1.5,
-                    il = 4.5,
-                    ih = 2.5;
-                const i1 = r(ix, iy),
-                    i2 = r(ix + iw, iy),
-                    i3 = r(ix + iw, iy + il),
-                    i4 = r(ix, iy + il);
-                if (visible(0, -1)) face([H(i1, deckZ), H(i2, deckZ), H(i2, deckZ + ih), H(i1, deckZ + ih)], '#555');
-                if (visible(1, 0)) face([H(i2, deckZ), H(i3, deckZ), H(i3, deckZ + ih), H(i2, deckZ + ih)], '#444');
-                if (visible(0, 1)) face([H(i4, deckZ), H(i3, deckZ), H(i3, deckZ + ih), H(i4, deckZ + ih)], '#333');
-                if (visible(-1, 0)) face([H(i1, deckZ), H(i4, deckZ), H(i4, deckZ + ih), H(i1, deckZ + ih)], '#444');
-                face([H(i1, deckZ + ih), H(i2, deckZ + ih), H(i3, deckZ + ih), H(i4, deckZ + ih)], '#222', '#000');
+            function drawVectorCarrier(cx, cy) {
+                const objX = G.CARRIER.x, objY = G.CARRIER.y;
+                const deckZ = G.CARRIER.zDeck;
+                const angle = G.CARRIER.angle;
+                const cosA = Math.cos(angle), sinA = Math.sin(angle);
+                function r(rx, ry) { return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA }; }
+                function H(p, z) { return { x: p.x, y: p.y, z }; }
+                // Pass 1: Hull (flush alone so deck objects always render on top)
+                SceneRenderer.add(CARRIER_HULL_DEF, { x: objX, y: objY, z: 0, angle });
+                SceneRenderer.flush(cx, cy);
+
+                // Pass 2: Tractors (drawFn) + Tower (depth-sorted together)
+                const ix = 2.6, iy = 1.0, iw = 1.5, il = 4.5, ih = 2.5;
+                const tractorData = [
+                    { tx: ix+0.1, ty: iy-1.2, ta: 0,    bc:'#9a7a00', bs:'#c8a000', bd:'#8a6c00', cc:'#b09000', cs:'#e0b800', ct:'#caa800' },
+                    { tx: ix+0.1, ty: iy-2.4, ta: 0,    bc:'#9a7a00', bs:'#c8a000', bd:'#8a6c00', cc:'#b09000', cs:'#e0b800', ct:'#caa800' },
+                    { tx: ix+0.1, ty: iy-3.8, ta: 0.25, bc:'#888888', bs:'#dddddd', bd:'#666666', cc:'#aaaaaa', cs:'#ffffff', ct:'#eeeeee' },
+                ];
+                tractorData.forEach(t => {
+                    const wx = objX + (t.tx + 0.5) * cosA - (t.ty + 0.35) * sinA;
+                    const wy = objY + (t.tx + 0.5) * sinA + (t.ty + 0.35) * cosA;
+                    SceneRenderer.add(null, {
+                        x: wx, y: wy, z: deckZ,
+                        drawFn: (cx, cy) => drawTractor(objX, objY, angle, deckZ, cx, cy,
+                            t.tx, t.ty, t.ta, t.bc, t.bs, t.bd, t.cc, t.cs, t.ct),
+                    });
+                });
+                const towerWX = objX + (ix + iw / 2) * cosA - (iy + il / 2) * sinA;
+                const towerWY = objY + (ix + iw / 2) * sinA + (iy + il / 2) * cosA;
+                SceneRenderer.add(CARRIER_TOWER_DEF, { x: objX, y: objY, z: 0, angle, depth: towerWX + towerWY });
+                SceneRenderer.flush(cx, cy);
 
                 // Antenna
                 const antB = r(ix + iw * 0.5, iy + il * 0.25);
@@ -3028,129 +2721,6 @@
                 ctx.arc(rHub.x, rHub.y, 2, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Tow tractors
-                function drawTractor(tx, ty, tAngle, bodyCol, bodyColSide, bodyColDark, cabCol, cabColSide, cabColTop) {
-                    const bodyL = 1.0,
-                        bodyW = 0.72,
-                        bodyH = 0.15;
-                    const isFireTractor = cabColTop === '#eeeeee';
-                    const cabStart = 0;
-                    const cabH = isFireTractor ? 0.22 : bodyH + 0.22;
-                    const cabL = isFireTractor ? bodyL * 0.75 : bodyL;
-                    const dZ = deckZ + 0.01,
-                        wW = 0.15,
-                        wH = 0.25;
-                    const cosT = Math.cos(tAngle + angle),
-                        sinT = Math.sin(tAngle + angle);
-                    function vt(lx, ly) {
-                        const wx = lx * cosT - ly * sinT,
-                            wy = lx * sinT + ly * cosT;
-                        return wx + wy > 0;
-                    }
-                    const ox = objX + tx * cosA - ty * sinA;
-                    const oy = objY + tx * sinA + ty * cosA;
-                    function rr(rx, ry) {
-                        return {
-                            x: ox + rx * Math.cos(tAngle + angle) - ry * Math.sin(tAngle + angle),
-                            y: oy + rx * Math.sin(tAngle + angle) + ry * Math.cos(tAngle + angle),
-                        };
-                    }
-                    if (isFireTractor) {
-                        const b1 = rr(0, 0),
-                            b2 = rr(bodyL, 0),
-                            b3 = rr(bodyL, bodyW),
-                            b4 = rr(0, bodyW);
-                        face([H(b1, dZ), H(b2, dZ), H(b3, dZ), H(b4, dZ)], bodyCol);
-                        if (vt(0, -1)) face([H(b1, dZ), H(b2, dZ), H(b2, dZ + bodyH), H(b1, dZ + bodyH)], bodyColSide);
-                        if (vt(1, 0)) face([H(b2, dZ), H(b3, dZ), H(b3, dZ + bodyH), H(b2, dZ + bodyH)], bodyColDark);
-                        if (vt(0, 1)) face([H(b3, dZ), H(b4, dZ), H(b4, dZ + bodyH), H(b3, dZ + bodyH)], bodyColSide);
-                        if (vt(-1, 0)) face([H(b4, dZ), H(b1, dZ), H(b1, dZ + bodyH), H(b4, dZ + bodyH)], bodyColDark);
-                        face([H(b1, dZ + bodyH), H(b2, dZ + bodyH), H(b3, dZ + bodyH), H(b4, dZ + bodyH)], bodyColSide);
-                        const eqZ = dZ + bodyH,
-                            eqW = 0.2,
-                            eqL = 0.25,
-                            eqH = 0.18;
-                        const eqX = bodyL - eqW - 0.02;
-                        const eq1 = rr(eqX, bodyW * 0.1),
-                            eq2 = rr(eqX + eqW, bodyW * 0.1);
-                        const eq3 = rr(eqX + eqW, bodyW * 0.1 + eqL),
-                            eq4 = rr(eqX, bodyW * 0.1 + eqL);
-                        face([H(eq1, eqZ), H(eq2, eqZ), H(eq3, eqZ), H(eq4, eqZ)], '#aa0000');
-                        if (vt(0, -1))
-                            face([H(eq1, eqZ), H(eq2, eqZ), H(eq2, eqZ + eqH), H(eq1, eqZ + eqH)], '#ee0000');
-                        if (vt(1, 0)) face([H(eq2, eqZ), H(eq3, eqZ), H(eq3, eqZ + eqH), H(eq2, eqZ + eqH)], '#880000');
-                        if (vt(0, 1)) face([H(eq3, eqZ), H(eq4, eqZ), H(eq4, eqZ + eqH), H(eq3, eqZ + eqH)], '#aa0000');
-                        if (vt(-1, 0))
-                            face([H(eq4, eqZ), H(eq1, eqZ), H(eq1, eqZ + eqH), H(eq4, eqZ + eqH)], '#880000');
-                        face([H(eq1, eqZ + eqH), H(eq2, eqZ + eqH), H(eq3, eqZ + eqH), H(eq4, eqZ + eqH)], '#cc0000');
-                    }
-                    const cZ = isFireTractor ? dZ + bodyH : dZ;
-                    const cc1 = rr(cabStart, 0),
-                        cc2 = rr(cabStart + cabL, 0);
-                    const cc3 = rr(cabStart + cabL, bodyW),
-                        cc4 = rr(cabStart, bodyW);
-                    face([H(cc1, cZ), H(cc2, cZ), H(cc3, cZ), H(cc4, cZ)], cabCol);
-                    if (vt(0, -1)) face([H(cc1, cZ), H(cc2, cZ), H(cc2, cZ + cabH), H(cc1, cZ + cabH)], cabColSide);
-                    if (vt(1, 0)) face([H(cc2, cZ), H(cc3, cZ), H(cc3, cZ + cabH), H(cc2, cZ + cabH)], bodyColDark);
-                    if (vt(0, 1)) face([H(cc3, cZ), H(cc4, cZ), H(cc4, cZ + cabH), H(cc3, cZ + cabH)], cabCol);
-                    if (vt(-1, 0)) face([H(cc4, cZ), H(cc1, cZ), H(cc1, cZ + cabH), H(cc4, cZ + cabH)], bodyColDark);
-                    face([H(cc1, cZ + cabH), H(cc2, cZ + cabH), H(cc3, cZ + cabH), H(cc4, cZ + cabH)], cabColTop);
-                    [0.15, bodyL - 0.15].forEach(ax => {
-                        if (vt(0, -1)) {
-                            const w1 = rr(ax - wW * 0.5, 0),
-                                w2 = rr(ax + wW * 0.5, 0);
-                            face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222');
-                        }
-                        if (vt(0, 1)) {
-                            const w1 = rr(ax - wW * 0.5, bodyW),
-                                w2 = rr(ax + wW * 0.5, bodyW);
-                            face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222');
-                        }
-                    });
-                }
-
-                const tractors = [
-                    {
-                        tx: ix + 0.1,
-                        ty: iy - 1.2,
-                        ta: 0,
-                        bc: '#9a7a00',
-                        bs: '#c8a000',
-                        bd: '#8a6c00',
-                        cc: '#b09000',
-                        cs: '#e0b800',
-                        ct: '#caa800',
-                    },
-                    {
-                        tx: ix + 0.1,
-                        ty: iy - 2.4,
-                        ta: 0,
-                        bc: '#9a7a00',
-                        bs: '#c8a000',
-                        bd: '#8a6c00',
-                        cc: '#b09000',
-                        cs: '#e0b800',
-                        ct: '#caa800',
-                    },
-                    {
-                        tx: ix + 0.1,
-                        ty: iy - 3.8,
-                        ta: 0.25,
-                        bc: '#888888',
-                        bs: '#dddddd',
-                        bd: '#666666',
-                        cc: '#aaaaaa',
-                        cs: '#ffffff',
-                        ct: '#eeeeee',
-                    },
-                ];
-                tractors.forEach(t => {
-                    const wx = objX + (t.tx + 0.5) * cosA - (t.ty + 0.35) * sinA;
-                    const wy = objY + (t.tx + 0.5) * sinA + (t.ty + 0.35) * cosA;
-                    t.depth = wx + wy;
-                });
-                tractors.sort((a, b) => b.depth - a.depth);
-                tractors.forEach(t => drawTractor(t.tx, t.ty, t.ta, t.bc, t.bs, t.bd, t.cc, t.cs, t.ct));
 
                 drawPadLights(cx, cy, G.CARRIER.zDeck, true);
             }
@@ -3159,74 +2729,14 @@
                 if (!hasCarrier()) return;
                 const angle = G.CARRIER.angle;
                 const deckZ = G.CARRIER.zDeck;
-                parkedHelis.forEach((h, idx) => {
-                    const npc = G.npcHelis.find(n => n.parkedIdx === idx);
-                    // NPC aktiv: mit Live-Position zeichnen
-                    if (npc && npc.state !== NPC_STATE.PARKED) {
-                        if (!isVisible(npc.x, npc.y, 25)) return;
-                        // Winch-Linie zeichnen wenn ausgefahren
-                        if (npc.winch > 0) {
-                            const hP = iso(npc.x, npc.y, npc.z, cx, cy, { stepH, tileW, tileH, canvas });
-                            const wP = iso(npc.x, npc.y, Math.max(getGround(npc.x, npc.y), npc.z - npc.winch), cx, cy, {
-                                stepH,
-                                tileW,
-                                tileH,
-                                canvas,
-                            });
-                            ctx.strokeStyle = '#ddd';
-                            ctx.lineWidth = 1.5;
-                            ctx.setLineDash([3, 3]);
-                            ctx.beginPath();
-                            ctx.moveTo(hP.x, hP.y);
-                            ctx.lineTo(wP.x, wP.y);
-                            ctx.stroke();
-                            ctx.setLineDash([]);
-                        }
-                        drawHeli(
-                            h.type,
-                            npc.x,
-                            npc.y,
-                            npc.z,
-                            npc.angle,
-                            npc.tilt,
-                            0,
-                            npc.rotorPos,
-                            cx,
-                            cy,
-                            ctx,
-                            canvas,
-                            true
-                        );
-                        drawHeli(
-                            h.type,
-                            npc.x,
-                            npc.y,
-                            npc.z,
-                            npc.angle,
-                            npc.tilt,
-                            0,
-                            npc.rotorPos,
-                            cx,
-                            cy,
-                            ctx,
-                            canvas,
-                            false,
-                            1,
-                            '#556b2f',
-                            '#3a4a1f'
-                        );
-                        return;
-                    }
-                    // Statisch geparkt — mit Carrier mitbewegen
+                parkedHelis.forEach((h) => {
                     if (!isVisible(G.CARRIER.x, G.CARRIER.y, 25)) return;
                     const cosA = Math.cos(angle),
                         sinA = Math.sin(angle);
                     const wx = G.CARRIER.x + h.xRel * cosA - h.yRel * sinA;
                     const wy = G.CARRIER.y + h.xRel * sinA + h.yRel * cosA;
                     const totalAng = h.angle + angle;
-                    // NPC im PARKED-State: Rotor dreht schon hoch wenn stateTimer niedrig
-                    const rotorRPM = npc ? npc.rotorRPM : 0;
-                    const rotorPos = npc ? npc.rotorPos : 0;
+                    const rotorPos = 0;
                     drawHeli(
                         h.type,
                         wx,
@@ -3268,43 +2778,13 @@
             }
             // ─── pad / hangar / lights / windsock / lighthouse ───────────────────────────
             function drawHangar(cx, cy) {
-                const hX = G.PAD.xMax - 4,
-                    hY = G.PAD.yMin,
-                    hZ = G.PAD.z;
-                const bFL = iso(hX, hY + 2, hZ, cx, cy, { stepH, tileW, tileH, canvas }),
-                    bFR = iso(hX + 4, hY + 2, hZ, cx, cy, { stepH, tileW, tileH, canvas });
-                const bBL = iso(hX, hY, hZ, cx, cy, { stepH, tileW, tileH, canvas }),
-                    bBR = iso(hX + 4, hY, hZ, cx, cy, { stepH, tileW, tileH, canvas });
-                const tFL = iso(hX, hY + 2, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas }),
-                    tFR = iso(hX + 4, hY + 2, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas });
-                const tBL = iso(hX, hY, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas }),
-                    tBR = iso(hX + 4, hY, hZ + 1.8, cx, cy, { stepH, tileW, tileH, canvas });
-                ctx.fillStyle = '#bbbbbb';
-                ctx.beginPath();
-                ctx.moveTo(bFL.x, bFL.y);
-                ctx.lineTo(bBL.x, bBL.y);
-                ctx.lineTo(tBL.x, tBL.y);
-                ctx.lineTo(tFL.x, tFL.y);
-                ctx.fill();
-                ctx.strokeStyle = '#999';
-                ctx.stroke();
-                ctx.fillStyle = '#999999';
-                ctx.beginPath();
-                ctx.moveTo(bFR.x, bFR.y);
-                ctx.lineTo(bBR.x, bBR.y);
-                ctx.lineTo(tBR.x, tBR.y);
-                ctx.lineTo(tFR.x, tFR.y);
-                ctx.fill();
-                ctx.stroke();
-                ctx.fillStyle = '#dddddd';
-                ctx.beginPath();
-                ctx.moveTo(tFL.x, tFL.y);
-                ctx.lineTo(tFR.x, tFR.y);
-                ctx.lineTo(tBR.x, tBR.y);
-                ctx.lineTo(tBL.x, tBL.y);
-                ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.stroke();
+                SceneRenderer.add(HANGAR_DEF, {
+                    x: G.PAD.xMax - 2,
+                    y: G.PAD.yMin + 1,
+                    z: G.PAD.z,
+                    angle: Math.PI / 2,
+                });
+                SceneRenderer.flush(cx, cy);
                 drawPadLights(cx, cy, G.PAD.z, false);
             }
 
@@ -3391,201 +2871,9 @@
             }
 
             function drawSailboat(sX, sY, angle, cx, cy) {
-                let hullZ = 0.35; // Etwas höherer Freibord
-                function r(rx, ry) {
-                    let nx = rx * Math.cos(angle) - ry * Math.sin(angle);
-                    let ny = rx * Math.sin(angle) + ry * Math.cos(angle);
-                    return { x: sX + nx, y: sY + ny };
-                }
-
-                // Rumpf Punkte (Schmaler gemacht)
-                let bow = r(0, -1.3);
-                let sternL = r(-0.35, 1.1),
-                    sternR = r(0.35, 1.1);
-                let midL = r(-0.45, -0.2),
-                    midR = r(0.45, -0.2);
-
-                // Kiel/Schatten (Dunkelrot für Unterwasserbereich)
-                drawFace(
-                    [
-                        { x: bow.x, y: bow.y, z: 0 },
-                        { x: midR.x, y: midR.y, z: 0 },
-                        { x: sternR.x, y: sternR.y, z: 0 },
-                        { x: sternL.x, y: sternL.y, z: 0 },
-                        { x: midL.x, y: midL.y, z: 0 },
-                    ],
-                    '#822',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-
-                // Wände (Jetzt in klassischem Weiß statt Grau)
-                let waterlineZ = 0.1; // Kleiner roter Streifen an der Wasserlinie
-                // Unterer Rumpf (Rot)
-                drawFace(
-                    [
-                        { x: bow.x, y: bow.y, z: 0 },
-                        { x: midR.x, y: midR.y, z: 0 },
-                        { x: midR.x, y: midR.y, z: waterlineZ },
-                        { x: bow.x, y: bow.y, z: waterlineZ },
-                    ],
-                    '#a33',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: midR.x, y: midR.y, z: 0 },
-                        { x: sternR.x, y: sternR.y, z: 0 },
-                        { x: sternR.x, y: sternR.y, z: waterlineZ },
-                        { x: midR.x, y: midR.y, z: waterlineZ },
-                    ],
-                    '#922',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                // Oberer Rumpf (Weiß)
-                drawFace(
-                    [
-                        { x: bow.x, y: bow.y, z: waterlineZ },
-                        { x: midR.x, y: midR.y, z: waterlineZ },
-                        { x: midR.x, y: midR.y, z: hullZ },
-                        { x: bow.x, y: bow.y, z: hullZ },
-                    ],
-                    '#fff',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: midR.x, y: midR.y, z: waterlineZ },
-                        { x: sternR.x, y: sternR.y, z: waterlineZ },
-                        { x: sternR.x, y: sternR.y, z: hullZ },
-                        { x: midR.x, y: midR.y, z: hullZ },
-                    ],
-                    '#eee',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                // Backbordseite (Schattenseite)
-                drawFace(
-                    [
-                        { x: sternR.x, y: sternR.y, z: 0 },
-                        { x: sternL.x, y: sternL.y, z: 0 },
-                        { x: sternL.x, y: sternL.y, z: hullZ },
-                        { x: sternR.x, y: sternR.y, z: hullZ },
-                    ],
-                    '#ddd',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: bow.x, y: bow.y, z: 0 },
-                        { x: midL.x, y: midL.y, z: 0 },
-                        { x: midL.x, y: midL.y, z: hullZ },
-                        { x: bow.x, y: bow.y, z: hullZ },
-                    ],
-                    '#eee',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-                drawFace(
-                    [
-                        { x: midL.x, y: midL.y, z: 0 },
-                        { x: sternL.x, y: sternL.y, z: 0 },
-                        { x: sternL.x, y: sternL.y, z: hullZ },
-                        { x: midL.x, y: midL.y, z: hullZ },
-                    ],
-                    '#ddd',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-
-                // Deck (Holzoptik)
-                drawFace(
-                    [
-                        { x: bow.x, y: bow.y, z: hullZ },
-                        { x: midR.x, y: midR.y, z: hullZ },
-                        { x: sternR.x, y: sternR.y, z: hullZ },
-                        { x: sternL.x, y: sternL.y, z: hullZ },
-                        { x: midL.x, y: midL.y, z: hullZ },
-                    ],
-                    '#b96',
-                    '#753',
-                    0,
-                    cx,
-                    cy
-                );
-
-                // Mast
-                let mastBase = r(0, 0.3);
-                drawFace(
-                    [
-                        { x: mastBase.x - 0.04, y: mastBase.y - 0.04, z: hullZ },
-                        { x: mastBase.x + 0.04, y: mastBase.y - 0.04, z: hullZ },
-                        { x: mastBase.x + 0.04, y: mastBase.y - 0.04, z: 3.2 },
-                        { x: mastBase.x - 0.04, y: mastBase.y - 0.04, z: 3.2 },
-                    ],
-                    '#ddd',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
-
-                // Segel
-                let sailWind = angle + 0.3;
-                let sailEnd = {
-                    x: mastBase.x + Math.cos(sailWind + Math.PI) * 1.6,
-                    y: mastBase.y + Math.sin(sailWind + Math.PI) * 1.6,
-                };
-                // Hauptsegel
-                drawFace(
-                    [
-                        { x: mastBase.x, y: mastBase.y, z: hullZ + 0.3 },
-                        { x: mastBase.x, y: mastBase.y, z: 3.0 },
-                        { x: sailEnd.x, y: sailEnd.y, z: hullZ + 0.3 },
-                    ],
-                    'rgba(255, 255, 250, 0.95)',
-                    '#eee',
-                    0,
-                    cx,
-                    cy
-                );
-                // Vorsegel
-                drawFace(
-                    [
-                        { x: bow.x, y: bow.y, z: hullZ + 0.1 },
-                        { x: mastBase.x, y: mastBase.y, z: 2.7 },
-                        {
-                            x: mastBase.x + Math.cos(sailWind + Math.PI) * 0.4,
-                            y: mastBase.y + Math.sin(sailWind + Math.PI) * 0.4,
-                            z: hullZ + 0.2,
-                        },
-                    ],
-                    'rgba(245, 245, 245, 0.9)',
-                    null,
-                    0,
-                    cx,
-                    cy
-                );
+                // SAILBOAT_DEF bow faces +x; game convention is bow at -y (angle=0) → offset by -π/2
+                SceneRenderer.add(SAILBOAT_DEF, { x: sX, y: sY, z: 0, angle: angle - Math.PI / 2 });
+                SceneRenderer.flush(cx, cy);
             }
 
             // ─── trees ───────────────────────────────────────────────────────────────────
@@ -3809,34 +3097,11 @@
             function drawLighthouse(cx, cy) {
                 const _lhObj = getObjectByType('lighthouse');
                 if (!_lhObj) return;
-                const lhX = _lhObj.x,
-                    lhY = _lhObj.y;
-                function drawCyl(zB, zT, col, borderCol, radius) {
-                    let r = radius || 1.0;
-                    let topPos = iso(lhX, lhY, zT, cx, cy);
-                    ctx.fillStyle = col;
-                    for (let i = 0; i <= 24; i++) {
-                        let cz = zB + i * ((zT - zB) / 24);
-                        let p = iso(lhX, lhY, cz, cx, cy, { stepH, tileW, tileH, canvas });
-                        ctx.beginPath();
-                        ctx.ellipse(p.x, p.y, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    ctx.fillStyle = borderCol;
-                    ctx.beginPath();
-                    ctx.ellipse(topPos.x, topPos.y, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = col;
-                    ctx.beginPath();
-                    ctx.ellipse(topPos.x, topPos.y, (r * 0.8 * tileW) / 2, (r * 0.8 * tileH) / 2, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                drawCyl(0, 0.4, '#404040', '#606060', 4);
-                drawCyl(0.4, 3, '#d22', '#900');
-                drawCyl(3, 6, '#eee', '#ccc');
-                drawCyl(6, 7, '#d22', '#900');
-                drawCyl(7, 8, '#ff0', '#cc0');
-                let p = iso(lhX, lhY, 8.1, cx, cy, { stepH, tileW, tileH, canvas });
+                const lhX = _lhObj.x, lhY = _lhObj.y;
+                SceneRenderer.add(LIGHTHOUSE_DEF, { x: lhX, y: lhY, z: 0 });
+                SceneRenderer.flush(cx, cy);
+                // Antenna + blinking light (screen-space, drawn after DEF)
+                const p = iso(lhX, lhY, 8.1, cx, cy, { stepH, tileW, tileH, canvas });
                 ctx.fillStyle = '#333';
                 ctx.fillRect(p.x - 2, p.y - 10, 4, 10);
                 if (Math.floor(Date.now() / 300) % 2 === 0) {
@@ -4554,7 +3819,6 @@
                             ) {
                                 triggerCrash('COLLISION WITH PARKED HELI');
                             }
-                            s;
                         }
                     });
                 }
