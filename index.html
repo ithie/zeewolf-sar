@@ -151,6 +151,23 @@
                 margin: 5px;
                 z-index: 1000;
             }
+            #easter-egg {
+                position: absolute;
+                top: 7px;
+                left: 46px;
+                width: 18px;
+                height: 18px;
+                background: #000;
+                border: 1px solid #222;
+                opacity: 0.18;
+                cursor: default;
+                z-index: 1000;
+                transition: opacity 0.4s;
+            }
+            #easter-egg:hover {
+                opacity: 0.75;
+                cursor: pointer;
+            }
             #audio-mute-inactive {
                 display: none;
             }
@@ -323,6 +340,7 @@
                 </g>
             </svg>
         </div>
+        <div id="easter-egg" onclick="launchEasterEgg()"></div>
         <div id="flash-overlay"></div>
         <div id="msg"></div>
 
@@ -388,10 +406,10 @@
         <canvas id="gameCanvas"></canvas>
 
         <script type="module">
-            import { HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF, CARRIER_HULL_DEF, CARRIER_TOWER_DEF,
-                     FUEL_TRUCK_CHASSIS_DEF, FUEL_TRUCK_TANK_DEF, FUEL_TRUCK_CAB_DEF } from '/src/game/defs.ts';
+            import { HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF, CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from '/src/game/defs.ts';
             import { createSceneRenderer } from '/src/game/scene-renderer.ts';
             import { HELI_TYPES, getHeliType } from '/src/game/heli-types.ts';
+            import { createDrawObjects } from '/src/game/draw-objects.ts';
 
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
@@ -401,6 +419,8 @@
                 stepH = 25;
             const isoFn = (wx, wy, wz, cx, cy) => iso(wx, wy, wz, cx, cy, { canvas, tileW, tileH, stepH });
             const SceneRenderer = createSceneRenderer(ctx, isoFn);
+            const { drawFace, drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } =
+                createDrawObjects(ctx, isoFn, tileW, tileH, SceneRenderer);
 
             // ─── state ───────────────────────────────────────────────────────────────────
             // G = single mutable game state object; all functions receive what they need
@@ -455,7 +475,7 @@
                 TREES_MAP: null,
                 PAD: null,
                 START_POS: null,
-                fuelTruck: { state: 'PARKED', x: 0, y: 0, angle: 0, arm: 0, parkX: 0, parkY: 0, parkAngle: 0, t: 0 },
+                fuelTruck: { state: 'PARKED', x: 0, y: 0, angle: 0, arm: 0, parkX: 0, parkY: 0, parkAngle: 0, t: 0, wps: null, wpI: 0 },
             };
 
             // parkedHelis is constant shape — destructure once for readability
@@ -1330,7 +1350,69 @@
                 let inAir = G.heli.z > effectiveGroundH + 0.15;
                 G.heli.inAir = inAir;
 
-                if (inAir || (G.heli.engineOn && lift > 0)) {
+                if (G.heli.type === 'glider') {
+                    G.heli.inAir = true;
+                    const dX = Math.cos(G.heli.angle), dY = Math.sin(G.heli.angle);
+                    const cruiseSpd = 0.10; // constant forward speed
+
+                    // --- Pitch: ↑ pulls up, ↓ pushes down ---
+                    // vz rampt langsam auf (träge), ist aber stark genug zum Steigen
+                    if (G.keys['ArrowUp']) {
+                        G.heli.vz = Math.min(G.heli.vz + 0.003, 0.07);
+                        G.heli.tilt += (0.25 - G.heli.tilt) * 0.04;
+                    } else if (G.keys['ArrowDown']) {
+                        G.heli.vz = Math.max(G.heli.vz - 0.002, -0.07);
+                        G.heli.tilt += (-0.25 - G.heli.tilt) * 0.04;
+                    } else {
+                        G.heli.tilt += (0 - G.heli.tilt) * 0.03;
+                    }
+
+                    // --- Bank: ←→ coordinated turn (träge) ---
+                    let turning = false;
+                    const bankRate = 0.004;
+                    if (G.keys['ArrowLeft']) {
+                        G.heli.angle -= bankRate;
+                        G.heli.roll = Math.min(G.heli.roll + 0.015, 0.65);
+                        turning = true;
+                    }
+                    if (G.keys['ArrowRight']) {
+                        G.heli.angle += bankRate;
+                        G.heli.roll = Math.max(G.heli.roll - 0.015, -0.65);
+                        turning = true;
+                    }
+                    // --- Rudder: A/D – leichtes Gieren ohne starke Querneigung ---
+                    if (G.keys['KeyA']) {
+                        G.heli.angle -= 0.003;
+                        G.heli.roll = Math.min(G.heli.roll + 0.008, 0.20);
+                        turning = true;
+                    }
+                    if (G.keys['KeyD']) {
+                        G.heli.angle += 0.003;
+                        G.heli.roll = Math.max(G.heli.roll - 0.008, -0.20);
+                        turning = true;
+                    }
+                    if (!turning) G.heli.roll *= 0.988;
+
+                    // Constant forward speed, always aligned to heading
+                    G.heli.vx = dX * cruiseSpd;
+                    G.heli.vy = dY * cruiseSpd;
+
+                    // --- Baseline sink rate ---
+                    G.heli.vz -= 0.0015;
+
+                    // --- Ridge lift (westerly wind: air rises on west face of ridges) ---
+                    const dhW = getGround(G.heli.x - 0.5, G.heli.y, G.points, null)
+                              - getGround(G.heli.x + 0.5, G.heli.y, G.points, null);
+                    G.heli.vz += Math.max(0, dhW * 0.08);
+
+                    // --- Thermal: above warm elevated ground (within 8 units) ---
+                    const gBelow = getGround(G.heli.x, G.heli.y, G.points, null);
+                    if (gBelow > 4.0 && G.heli.z - gBelow < 10) G.heli.vz += 0.002;
+
+                    // Clamp vz
+                    G.heli.vz = Math.max(G.heli.vz, -0.08);
+                    G.heli.vz = Math.min(G.heli.vz, 0.10);
+                } else if (inAir || (G.heli.engineOn && lift > 0)) {
                     let spd = Math.hypot(G.heli.vx, G.heli.vy);
                     let aero = Math.max(0.3, 1.0 - spd * 8.0);
                     let mod = G.heli.rotorRPM * (1.0 - G.heli.onboard * 0.03);
@@ -1400,6 +1482,10 @@
                 G.heli.x += G.heli.vx;
                 G.heli.y += G.heli.vy;
                 G.heli.z += G.heli.vz;
+                if (G.heli.type === 'glider' && G.heli.z > 14) {
+                    G.heli.z = 14;
+                    G.heli.vz = Math.min(G.heli.vz, 0);
+                }
 
                 const margin = 2;
                 if (G.heli.x < margin) {
@@ -1418,8 +1504,9 @@
                     G.heli.y = gridSize - margin;
                     G.heli.vy = 0;
                 }
-                if (G.heli.z > 20.0) {
-                    G.heli.z = 20.0;
+                const zMax = 20.0;
+                if (G.heli.z > zMax) {
+                    G.heli.z = zMax;
                     G.heli.vz = 0;
                     if (Math.random() < 0.05) showMsg('MAX ALTITUDE');
                 }
@@ -1429,11 +1516,13 @@
                 }
 
                 // winch
+                if (G.heli.type !== 'glider') {
                 if (G.keys['KeyQ']) G.heli.winch = Math.max(0, G.heli.winch - 0.02);
                 if (G.keys['KeyE']) G.heli.winch = Math.min(5.0, G.heli.winch + 0.02);
+                } // end !glider winch
 
                 // pickup – find nearest unrescued payload in range
-                if (!G.activePayload) {
+                if (G.heli.type !== 'glider' && !G.activePayload) {
                     for (let p of G.payloads) {
                         if (p.rescued || p.hanging || p.npcTarget) continue;
                         let dist = Math.hypot(G.heli.x - p.x, G.heli.y - p.y);
@@ -1449,7 +1538,7 @@
                 }
 
                 // deposit / winch-in
-                if (G.activePayload && G.heli.winch < 0.5) {
+                if (G.heli.type !== 'glider' && G.activePayload && G.heli.winch < 0.5) {
                     let p = G.activePayload;
                     if (p.type === 'person') {
                         if (G.heli.onboard < G.heli.maxLoad) {
@@ -1570,7 +1659,7 @@
                     return;
                 }
                 const { gridSize, objects: nextObjects } = next;
-                const nextPad = (nextObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
+                const nextPad = (nextObjects || []).find(o => o.type === 'pad' || o.type === 'spawn') || { x: 10, y: 10 };
                 G.PAD = { xMin: nextPad.x, xMax: nextPad.x + 7, yMin: nextPad.y, yMax: nextPad.y + 7, z: 0.5 };
                 G.START_POS = { x: nextPad.x + 4, y: nextPad.y + 4 };
                 initGrid(gridSize, G.points);
@@ -1623,6 +1712,7 @@
                 window.campaignHandler
                     .getCampaigns()
                     .forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
+                        if (type === 'glider') return;
                         let sublines = '';
                         campaignSublines.forEach(s => {
                             sublines += `<div class="box-sub">${s}</div>`;
@@ -1647,6 +1737,7 @@
                 window.campaignHandler
                     .getCampaigns()
                     .forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
+                        if (type === 'glider') return;
                         let sublines = '';
                         campaignSublines.forEach(s => {
                             sublines += `<div class="box-sub">${s}</div>`;
@@ -1663,6 +1754,14 @@
                 document.getElementById('campaign-grid').innerHTML = campaigns.join('');
             }
 
+            function launchEasterEgg() {
+                const index = window.campaignHandler.getCampaigns()
+                    .findIndex(c => c.type === 'glider');
+                if (index < 0) return;
+                toCampaignSelect();
+                selectCampaign(String(index));
+            }
+
             function setHover(type, state) {
                 G.menuHover[type] = state;
             }
@@ -1670,13 +1769,15 @@
             function selectCampaign(index) {
                 const campaignHandler = window.campaignHandler;
                 campaignHandler.campaign.setActiveCampaign(index);
-                const { gridSize, objects: selObjects } = campaignHandler.getCurrentMissionData();
-                const selPad = (selObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
+                const { gridSize, objects: selObjects, campaignType } = campaignHandler.getCurrentMissionData();
+                const selPad = (selObjects || []).find(o => o.type === 'pad' || o.type === 'spawn') || { x: 10, y: 10 };
                 G.PAD = { xMin: selPad.x, xMax: selPad.x + 7, yMin: selPad.y, yMax: selPad.y + 7, z: 0.5 };
                 G.START_POS = { x: selPad.x + 4, y: selPad.y + 4 };
                 initGrid(gridSize, G.points);
                 document.getElementById('campaign-grid').innerHTML = '';
                 document.getElementById('campaign-select').style.display = 'none';
+                window.currentCampaignType = campaignType;
+                buildHeliSelect(campaignType);
                 document.getElementById('heli-select').style.display = 'flex';
                 animateHeliPreviews();
             }
@@ -1714,7 +1815,22 @@
                 zstate.crashed = false;
                 zstate.gameStarted = true;
 
-                if (isStartsOnCarrier()) {
+
+                if (G.heli.type === 'glider') {
+                    zstate.introActive = false;
+                    G.heli.x = G.START_POS.x;
+                    G.heli.y = G.START_POS.y;
+                    G.heli.z = getGround(G.START_POS.x, G.START_POS.y, G.points, G.CARRIER) + 5;
+                    G.heli.vx = Math.cos(G.heli.angle) * 0.10;
+                    G.heli.vy = Math.sin(G.heli.angle) * 0.10;
+                    G.heli.vz = 0.0;
+                    G.heli.tilt = 0.0;
+                    G.heli.engineOn = false;
+                    G.heli.rotorRPM = 0;
+                    zstate.cam.x = (G.heli.x - G.heli.y) * (tileW / 2);
+                    zstate.cam.y = (G.heli.x + G.heli.y) * (tileH / 2);
+                    showMsg('SOARING – ↑↓ PITCH  ←→ BANK');
+                } else if (isStartsOnCarrier()) {
                     zstate.introActive = false;
                     zstate.introProgress = 1;
                     G.heli.x = G.CARRIER.x;
@@ -1778,9 +1894,8 @@
                 ft.state = 'PARKED';
                 ft.arm = 0;
                 ft.t = 0;
-                ft.targetX = null;
-                ft.targetY = null;
-                ft.targetAngle = 0;
+                ft.wps = null;
+                ft.wpI = 0;
             }
 
             function updateFuelTruck(G) {
@@ -1788,91 +1903,57 @@
                 const ft = G.fuelTruck;
                 const heli = G.heli;
 
-                // HANGAR-FOOTPRINT auf dem PAD (keine absolute Position, relativ zu PAD):
-                //   X: PAD.xMax-4 .. PAD.xMax   (z.B. 47..51)
-                //   Y: PAD.yMin   .. PAD.yMin+2  (z.B. 69..71)
-                // Kandidaten-Stopppositionen um den Heli: je stopDist Abstand,
-                // finalAngle = Winkel sodass Truck-Nase (+X lokal) zum Heli zeigt.
-                // atan2(0, -stopDist) = PI  → Truck kommt von +X-Seite, schaut in -X
-                // atan2(0, +stopDist) = 0   → Truck kommt von -X-Seite, schaut in +X
-                // atan2(-stopDist, 0) = -PI/2 → kommt von +Y, schaut in -Y
-                // atan2(+stopDist, 0) = +PI/2 → kommt von -Y, schaut in +Y
+                const SPEED = 0.045;
+                const MAX_STEER = 0.025; // turning radius ≈ 1.8 u
+                const STOP_DIST = 3.5;
 
-                function lerpAngle(a, b, t) {
-                    return a + (((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * t;
+                // Hangar bounding box derived from PAD geometry
+                const HB = {
+                    x0: G.PAD.xMax - 4.5, x1: G.PAD.xMax + 0.5,
+                    y0: G.PAD.yMin - 0.5, y1: G.PAD.yMin + 2.5,
+                };
+
+                // Repulsion vector from hangar bounding box.
+                // Returns a directional force pushing the truck away from the hangar.
+                function hangarForce() {
+                    const cx = Math.max(HB.x0, Math.min(HB.x1, ft.x));
+                    const cy = Math.max(HB.y0, Math.min(HB.y1, ft.y));
+                    const dx = ft.x - cx, dy = ft.y - cy;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 0.01 || dist > 3.0) return [0, 0];
+                    const s = Math.min(4.0, 1.5 / dist);
+                    return [dx / dist * s, dy / dist * s];
                 }
 
-                // Bicycle model: steer while moving, no in-place rotation
-                function driveToward(destX, destY, speed, steerRate) {
-                    const dx = destX - ft.x,
-                        dy = destY - ft.y;
+                // Steer truck toward (tx,ty) using potential fields (attraction + hangar repulsion).
+                function navigate(tx, ty) {
+                    const dx = tx - ft.x, dy = ty - ft.y;
                     const dist = Math.hypot(dx, dy);
                     if (dist < 0.01) return 0;
-                    const desired = Math.atan2(dy, dx);
-                    ft.angle = lerpAngle(ft.angle, desired, steerRate);
-                    const step = Math.min(speed, dist);
-                    ft.x += Math.cos(ft.angle) * step;
-                    ft.y += Math.sin(ft.angle) * step;
+                    const [fx, fy] = hangarForce();
+                    const ax = dx / dist + fx;
+                    const ay = dy / dist + fy;
+                    const desired = Math.atan2(ay, ax);
+                    const diff = ((desired - ft.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+                    ft.angle += Math.max(-MAX_STEER, Math.min(MAX_STEER, diff));
+                    ft.x += Math.cos(ft.angle) * SPEED;
+                    ft.y += Math.sin(ft.angle) * SPEED;
                     return dist;
                 }
 
-                // Pick approach stop position once when DRIVING starts
-                if (ft.state === 'DRIVING' && ft.targetX == null) {
-                    const stopDist = 1.6;
-                    const candidates = [
-                        [heli.x + stopDist, heli.y, Math.PI],
-                        [heli.x - stopDist, heli.y, 0],
-                        [heli.x, heli.y + stopDist, -Math.PI / 2],
-                        [heli.x, heli.y - stopDist, Math.PI / 2],
-                    ];
-                    let best = null,
-                        bestScore = Infinity;
-                    for (const [cx, cy, finalAngle] of candidates) {
-                        // avoid hangar footprint
-                        const inHangar =
-                            cx >= G.PAD.xMax - 4.5 &&
-                            cx <= G.PAD.xMax + 0.5 &&
-                            cy >= G.PAD.yMin - 0.5 &&
-                            cy <= G.PAD.yMin + 2.5;
-                        const score = Math.hypot(cx - ft.x, cy - ft.y) + (inHangar ? 9999 : 0);
-                        if (score < bestScore) {
-                            bestScore = score;
-                            best = [cx, cy, finalAngle];
-                        }
-                    }
-                    ft.targetX = best[0];
-                    ft.targetY = best[1];
-                    ft.targetAngle = best[2];
-                }
-
                 if (ft.state === 'DRIVING') {
-                    const dist = driveToward(ft.targetX, ft.targetY, 0.03, 0.12);
-                    if (dist < 0.15) {
-                        ft.x = ft.targetX;
-                        ft.y = ft.targetY;
-                        ft.state = 'ALIGN';
-                    }
-                } else if (ft.state === 'ALIGN') {
-                    ft.angle = lerpAngle(ft.angle, ft.targetAngle, 0.1);
-                    const diff = Math.abs(((ft.targetAngle - ft.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-                    if (diff < 0.05) {
-                        ft.angle = ft.targetAngle;
-                        ft.state = 'ARM_OUT';
-                        ft.t = 0;
+                    if (navigate(heli.x, heli.y) <= STOP_DIST) {
+                        ft.state = 'ARM_OUT'; ft.t = 0;
                     }
                 } else if (ft.state === 'ARM_OUT') {
                     ft.t = Math.min(1, ft.t + 0.016);
                     ft.arm = ft.t;
-                    if (ft.t >= 1) {
-                        ft.state = 'FUELING';
-                        ft.t = 0;
-                    }
+                    if (ft.t >= 1) { ft.state = 'FUELING'; ft.t = 0; }
                 } else if (ft.state === 'FUELING') {
                     if (heli.fuel < 100) {
                         heli.fuel = Math.min(100, heli.fuel + 0.25);
                     } else {
-                        ft.state = 'ARM_IN';
-                        ft.t = 0;
+                        ft.state = 'ARM_IN'; ft.t = 0;
                     }
                     if (heli.onboard > 0) {
                         G.totalRescued += heli.onboard;
@@ -1883,68 +1964,12 @@
                 } else if (ft.state === 'ARM_IN') {
                     ft.t = Math.min(1, ft.t + 0.016);
                     ft.arm = 1 - ft.t;
-                    if (ft.t >= 1) {
-                        ft.state = 'RETURNING';
-                        ft.t = 0;
-                        ft.targetX = null;
-                    }
+                    if (ft.t >= 1) { ft.state = 'RETURNING'; ft.t = 0; }
                 } else if (ft.state === 'RETURNING') {
-                    const dist = driveToward(ft.parkX, ft.parkY, 0.026, 0.12);
-                    if (dist < 0.15) {
-                        ft.x = ft.parkX;
-                        ft.y = ft.parkY;
-                        ft.state = 'PARK_ALIGN';
-                    }
-                } else if (ft.state === 'PARK_ALIGN') {
-                    ft.angle = lerpAngle(ft.angle, ft.parkAngle, 0.08);
-                    const diff = Math.abs(((ft.parkAngle - ft.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-                    if (diff < 0.05) {
-                        ft.angle = ft.parkAngle;
-                        ft.state = 'PARKED';
-                        ft.t = 0;
+                    if (navigate(ft.parkX, ft.parkY) < 2.0) {
+                        ft.state = 'PARKED'; ft.t = 0;
                     }
                 }
-            }
-
-            function drawFuelTruck(tX, tY, angle, cx, cy, armExtend) {
-                const baseZ = G.PAD ? G.PAD.z : 0;
-                const cosA = Math.cos(angle), sinA = Math.sin(angle);
-                // Chassis always drawn first (base layer); tank/cab sort between themselves
-                const tkDepth  = tX + tY + 0.825 * (cosA + sinA);
-                const cabDepth = tX + tY + 1.85  * (cosA + sinA);
-                const chDepth  = Math.min(tkDepth, cabDepth) - 0.01;
-                SceneRenderer.add(FUEL_TRUCK_CHASSIS_DEF, { x: tX, y: tY, z: baseZ, angle, depth: chDepth });
-                SceneRenderer.add(FUEL_TRUCK_TANK_DEF,    { x: tX, y: tY, z: baseZ, angle, depth: tkDepth });
-                SceneRenderer.add(FUEL_TRUCK_CAB_DEF, {
-                    x: tX, y: tY, z: baseZ, angle, depth: cabDepth,
-                    drawFn: (camX, camY) => {
-                        if (armExtend <= 0) return;
-                        // ── Refueling arm — pivot at rear face of tank (local x=0.3, z=0.98) ──
-                        const pivotX = tX + 0.3 * cosA;
-                        const pivotY = tY + 0.3 * sinA;
-                        const pivotZ = baseZ + 0.98;
-                        const pivotIso = iso(pivotX, pivotY, pivotZ, camX, camY, { stepH, tileW, tileH, canvas });
-                        const dx = G.heli.x - pivotX, dy = G.heli.y - pivotY;
-                        const dist = Math.hypot(dx, dy) || 1;
-                        const elbowX = pivotX + (dx / dist) * 0.65 * armExtend;
-                        const elbowY = pivotY + (dy / dist) * 0.65 * armExtend;
-                        const elbowZ = pivotZ + 0.25 * Math.sin(armExtend * Math.PI * 0.7);
-                        const elbowIso = iso(elbowX, elbowY, elbowZ, camX, camY, { stepH, tileW, tileH, canvas });
-                        const nozzleX = elbowX + (dx / dist) * 0.5 * armExtend;
-                        const nozzleY = elbowY + (dy / dist) * 0.5 * armExtend;
-                        const nozzleZ = elbowZ - 0.7 * armExtend;
-                        const nozzleIso = iso(nozzleX, nozzleY, nozzleZ, camX, camY, { stepH, tileW, tileH, canvas });
-                        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                        ctx.strokeStyle = '#777'; ctx.lineWidth = 4;
-                        ctx.beginPath(); ctx.moveTo(pivotIso.x, pivotIso.y); ctx.lineTo(elbowIso.x, elbowIso.y); ctx.stroke();
-                        ctx.strokeStyle = '#aaa'; ctx.lineWidth = 3;
-                        ctx.beginPath(); ctx.moveTo(elbowIso.x, elbowIso.y); ctx.lineTo(nozzleIso.x, nozzleIso.y); ctx.stroke();
-                        ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(elbowIso.x, elbowIso.y, 3, 0, Math.PI * 2); ctx.fill();
-                        const fueling = G.fuelTruck && G.fuelTruck.state === 'FUELING';
-                        ctx.fillStyle = fueling && Math.floor(Date.now() / 200) % 2 ? '#ff8800' : '#444';
-                        ctx.beginPath(); ctx.arc(nozzleIso.x, nozzleIso.y, 4, 0, Math.PI * 2); ctx.fill();
-                    },
-                });
             }
 
             function drawScene() {
@@ -2049,14 +2074,19 @@
                 });
                 if (hasPad() && isVisible(G.PAD.xMin + 3, G.PAD.yMin + 3)) drawHangar();
                 if (hasPad() && G.fuelTruck && isVisible(G.fuelTruck.x, G.fuelTruck.y, 20))
-                    drawFuelTruck(G.fuelTruck.x, G.fuelTruck.y, G.fuelTruck.angle, camX, camY, G.fuelTruck.arm);
+                    drawFuelTruck(G.fuelTruck.x, G.fuelTruck.y, G.fuelTruck.angle, camX, camY, {
+                        z: G.PAD ? G.PAD.z : 0,
+                        armExtend: G.fuelTruck.arm,
+                        armTarget: { x: G.heli.x, y: G.heli.y },
+                        getFuelingState: () => G.fuelTruck.state === 'FUELING',
+                    });
                 SceneRenderer.flush(camX, camY);
                 if (hasPad()) drawPadLights(camX, camY, G.PAD.z, false);
                 if (hasPad() && isVisible(G.PAD.xMin, G.PAD.yMin)) drawWindsock(camX, camY);
 
                 // Test-Bäume
                 G.TREES_MAP.forEach(t => {
-                    if (isVisible(t.x, t.y, 14)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine');
+                    if (isVisible(t.x, t.y, 14)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind);
                 });
 
                 // Vögel
@@ -2076,9 +2106,7 @@
                         G.heli.rotationPos,
                         camX,
                         camY,
-                        ctx,
-                        canvas,
-                        true
+                        { isShadow: true, shadowGetGround: (x, y) => getGround(x, y, G.points, G.CARRIER) }
                     );
                 }
 
@@ -2119,8 +2147,8 @@
 
                 // Heli nur rendern wenn nicht gecrasht
                 if (!zstate.crashed) {
-                    // winch line (only when nothing hanging)
-                    if (!G.activePayload) {
+                    // winch line (only when nothing hanging, not for glider)
+                    if (!G.activePayload && G.heli.type !== 'glider') {
                         let hP = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas });
                         let wP = iso(
                             G.heli.x,
@@ -2153,10 +2181,7 @@
                         G.heli.roll,
                         G.heli.rotationPos,
                         camX,
-                        camY,
-                        ctx,
-                        canvas,
-                        false
+                        camY
                     );
 
                     renderRain();
@@ -2168,8 +2193,18 @@
                     drawPayloadObjects();
                 } // end if (!zstate.crashed)
 
+                // Glider HUD
+                if (!zstate.introActive && G.heli.type === 'glider') {
+                    const agl = Math.max(0, G.heli.z - getGround(G.heli.x, G.heli.y, G.points, null));
+                    ctx.font = 'bold 13px monospace';
+                    ctx.fillStyle = agl < 3 ? '#f44' : '#8ef';
+                    ctx.fillText(`ALT  ${Math.round(agl * 10)}m`, 20, canvas.height - 36);
+                    ctx.fillStyle = '#aaa';
+                    ctx.fillText('↑↓ PITCH   ←→ BANK', 20, canvas.height - 18);
+                }
+
                 // HUD
-                if (!zstate.introActive) {
+                if (!zstate.introActive && G.heli.type !== 'glider') {
                     ctx.font = 'bold 13px monospace';
                     ctx.fillStyle = '#5f5';
                     let hX = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas }).x + 45;
@@ -2244,6 +2279,7 @@
                 requestAnimationFrame(drawScene);
             }
 
+
             // ─── draw all G.payloads ───────────────────────────────────────────────────────
             function drawPayloadObjects() {
                 const { night: isNight } = window.campaignHandler.getCurrentMissionData();
@@ -2290,62 +2326,6 @@
                         ctx.lineTo(p.x, p.y - (payload.type === 'person' ? 5 : 0));
                         ctx.stroke();
                     }
-                });
-            }
-
-            // ─── draw carrier ────────────────────────────────────────────────────────────
-            // ─── drawTractor ─────────────────────────────────────────────────────────────
-            function drawTractor(objX, objY, carrierAngle, deckZ, cx, cy, tx, ty, tAngle, bc, bs, bd, cc, cs, ct) {
-                const cosA = Math.cos(carrierAngle), sinA = Math.sin(carrierAngle);
-                const bodyL = 1.0, bodyW = 0.72, bodyH = 0.15;
-                const isFireTractor = ct === '#eeeeee';
-                const cabH = isFireTractor ? 0.22 : bodyH + 0.22;
-                const cabL = isFireTractor ? bodyL * 0.75 : bodyL;
-                const dZ = deckZ + 0.01, wW = 0.15, wH = 0.25;
-                const cosT = Math.cos(tAngle + carrierAngle), sinT = Math.sin(tAngle + carrierAngle);
-                function vt(lx, ly) {
-                    const wx = lx * cosT - ly * sinT, wy = lx * sinT + ly * cosT;
-                    return wx + wy > 0;
-                }
-                const ox = objX + tx * cosA - ty * sinA;
-                const oy = objY + tx * sinA + ty * cosA;
-                function rr(rx, ry) {
-                    return {
-                        x: ox + rx * Math.cos(tAngle + carrierAngle) - ry * Math.sin(tAngle + carrierAngle),
-                        y: oy + rx * Math.sin(tAngle + carrierAngle) + ry * Math.cos(tAngle + carrierAngle),
-                    };
-                }
-                function H(p, z) { return { x: p.x, y: p.y, z }; }
-                function face(pts, col, stroke) { drawFace(pts, col, stroke || null, 0, cx, cy); }
-                if (isFireTractor) {
-                    const b1 = rr(0, 0), b2 = rr(bodyL, 0), b3 = rr(bodyL, bodyW), b4 = rr(0, bodyW);
-                    face([H(b1,dZ),H(b2,dZ),H(b3,dZ),H(b4,dZ)], bc);
-                    if (vt(0,-1)) face([H(b1,dZ),H(b2,dZ),H(b2,dZ+bodyH),H(b1,dZ+bodyH)], bs);
-                    if (vt(1, 0)) face([H(b2,dZ),H(b3,dZ),H(b3,dZ+bodyH),H(b2,dZ+bodyH)], bd);
-                    if (vt(0, 1)) face([H(b3,dZ),H(b4,dZ),H(b4,dZ+bodyH),H(b3,dZ+bodyH)], bs);
-                    if (vt(-1,0)) face([H(b4,dZ),H(b1,dZ),H(b1,dZ+bodyH),H(b4,dZ+bodyH)], bd);
-                    face([H(b1,dZ+bodyH),H(b2,dZ+bodyH),H(b3,dZ+bodyH),H(b4,dZ+bodyH)], bs);
-                    const eqZ = dZ+bodyH, eqW = 0.2, eqL = 0.25, eqH = 0.18, eqX = bodyL-eqW-0.02;
-                    const eq1=rr(eqX,bodyW*0.1), eq2=rr(eqX+eqW,bodyW*0.1);
-                    const eq3=rr(eqX+eqW,bodyW*0.1+eqL), eq4=rr(eqX,bodyW*0.1+eqL);
-                    face([H(eq1,eqZ),H(eq2,eqZ),H(eq3,eqZ),H(eq4,eqZ)], '#aa0000');
-                    if (vt(0,-1)) face([H(eq1,eqZ),H(eq2,eqZ),H(eq2,eqZ+eqH),H(eq1,eqZ+eqH)], '#ee0000');
-                    if (vt(1, 0)) face([H(eq2,eqZ),H(eq3,eqZ),H(eq3,eqZ+eqH),H(eq2,eqZ+eqH)], '#880000');
-                    if (vt(0, 1)) face([H(eq3,eqZ),H(eq4,eqZ),H(eq4,eqZ+eqH),H(eq3,eqZ+eqH)], '#aa0000');
-                    if (vt(-1,0)) face([H(eq4,eqZ),H(eq1,eqZ),H(eq1,eqZ+eqH),H(eq4,eqZ+eqH)], '#880000');
-                    face([H(eq1,eqZ+eqH),H(eq2,eqZ+eqH),H(eq3,eqZ+eqH),H(eq4,eqZ+eqH)], '#cc0000');
-                }
-                const cZ = isFireTractor ? dZ+bodyH : dZ;
-                const cc1=rr(0,0), cc2=rr(cabL,0), cc3=rr(cabL,bodyW), cc4=rr(0,bodyW);
-                face([H(cc1,cZ),H(cc2,cZ),H(cc3,cZ),H(cc4,cZ)], cc);
-                if (vt(0,-1)) face([H(cc1,cZ),H(cc2,cZ),H(cc2,cZ+cabH),H(cc1,cZ+cabH)], cs);
-                if (vt(1, 0)) face([H(cc2,cZ),H(cc3,cZ),H(cc3,cZ+cabH),H(cc2,cZ+cabH)], bd);
-                if (vt(0, 1)) face([H(cc3,cZ),H(cc4,cZ),H(cc4,cZ+cabH),H(cc3,cZ+cabH)], cc);
-                if (vt(-1,0)) face([H(cc4,cZ),H(cc1,cZ),H(cc1,cZ+cabH),H(cc4,cZ+cabH)], bd);
-                face([H(cc1,cZ+cabH),H(cc2,cZ+cabH),H(cc3,cZ+cabH),H(cc4,cZ+cabH)], ct);
-                [0.15, bodyL-0.15].forEach(ax => {
-                    if (vt(0,-1)) { const w1=rr(ax-wW*0.5,0), w2=rr(ax+wW*0.5,0); face([H(w1,dZ),H(w2,dZ),H(w2,dZ+wH),H(w1,dZ+wH)],'#222'); }
-                    if (vt(0, 1)) { const w1=rr(ax-wW*0.5,bodyW), w2=rr(ax+wW*0.5,bodyW); face([H(w1,dZ),H(w2,dZ),H(w2,dZ+wH),H(w1,dZ+wH)],'#222'); }
                 });
             }
 
@@ -2445,43 +2425,18 @@
                     const wy = G.CARRIER.y + h.xRel * sinA + h.yRel * cosA;
                     const totalAng = h.angle + angle;
                     const rotorPos = 0;
-                    drawHeli(
-                        h.type,
-                        wx,
-                        wy,
-                        deckZ + 0.1,
-                        totalAng,
-                        0,
-                        0,
-                        rotorPos,
-                        cx,
-                        cy,
-                        ctx,
-                        canvas,
-                        true,
-                        1,
-                        '#556b2f',
-                        '#3a4a1f',
-                        deckZ + 0.1
-                    );
-                    drawHeli(
-                        h.type,
-                        wx,
-                        wy,
-                        deckZ + 0.1,
-                        totalAng,
-                        0,
-                        0,
-                        rotorPos,
-                        cx,
-                        cy,
-                        ctx,
-                        canvas,
-                        false,
-                        1,
-                        '#556b2f',
-                        '#3a4a1f'
-                    );
+                    drawHeli(h.type, wx, wy, deckZ + 0.1, totalAng, 0, 0, rotorPos, cx, cy, {
+                        isShadow: true,
+                        scaleOverride: 1,
+                        fillColor: '#556b2f',
+                        strokeColor: '#3a4a1f',
+                        shadowGetGround: () => deckZ + 0.1,
+                    });
+                    drawHeli(h.type, wx, wy, deckZ + 0.1, totalAng, 0, 0, rotorPos, cx, cy, {
+                        scaleOverride: 1,
+                        fillColor: '#556b2f',
+                        strokeColor: '#3a4a1f',
+                    });
                 });
             }
             // ─── pad / hangar / lights / windsock / lighthouse ───────────────────────────
@@ -2582,196 +2537,6 @@
                 SceneRenderer.flush(cx, cy);
             }
 
-            // ─── trees ───────────────────────────────────────────────────────────────────
-            function drawTree(tX, tY, cx, cy, scale = 1.0, gz = 0, type = 'pine') {
-                if (gz < 0.05) return;
-                const z0 = gz;
-                const trunkH = 0.5 * scale;
-                const trunkR = 0.08 * scale;
-
-                // Windwiegen
-                const windStrength = Math.hypot(G.wind.x, G.wind.y);
-                const swayPhase = G.wind.phase + tX * 0.3 + tY * 0.17;
-                const swayX = Math.cos(swayPhase) * windStrength * 18 * scale;
-                const swayY = Math.sin(swayPhase) * windStrength * 10 * scale;
-
-                // Stamm (alle Typen außer bush)
-                if (type !== 'bush') {
-                    ctx.fillStyle = type === 'dead' ? '#7a5a3a' : '#5a3a1a';
-                    for (let i = 0; i <= 6; i++) {
-                        const cz = z0 + i * (trunkH / 6);
-                        const p = iso(tX, tY, cz, cx, cy, { stepH, tileW, tileH, canvas });
-                        ctx.beginPath();
-                        ctx.ellipse(p.x, p.y, (trunkR * tileW) / 2, (trunkR * tileH) / 2, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-
-                if (type === 'pine') {
-                    const layers = [
-                        {
-                            zBase: z0 + trunkH * 0.3,
-                            zTop: z0 + trunkH * 0.3 + 1.4 * scale,
-                            rBase: 0.9 * scale,
-                            color: '#1a4a1a',
-                            shadow: '#0f2f0f',
-                            sway: 0.3,
-                        },
-                        {
-                            zBase: z0 + trunkH * 0.3 + 0.7 * scale,
-                            zTop: z0 + trunkH * 0.3 + 1.9 * scale,
-                            rBase: 0.65 * scale,
-                            color: '#1e5a1e',
-                            shadow: '#133513',
-                            sway: 0.65,
-                        },
-                        {
-                            zBase: z0 + trunkH * 0.3 + 1.3 * scale,
-                            zTop: z0 + trunkH * 0.3 + 2.3 * scale,
-                            rBase: 0.4 * scale,
-                            color: '#246024',
-                            shadow: '#163a16',
-                            sway: 1.0,
-                        },
-                    ];
-                    layers.forEach(l => {
-                        for (let i = 10; i >= 0; i--) {
-                            const t = i / 10;
-                            const cz = l.zBase + t * (l.zTop - l.zBase);
-                            const r = l.rBase * (1 - t);
-                            if (r <= 0) continue;
-                            const p = iso(tX, tY, cz, cx, cy, { stepH, tileW, tileH, canvas });
-                            const ox = swayX * l.sway * (1 - t * 0.5);
-                            const oy = swayY * l.sway * (1 - t * 0.5);
-                            ctx.fillStyle = l.shadow;
-                            ctx.beginPath();
-                            ctx.ellipse(
-                                p.x + ox + 2,
-                                p.y + oy + 1,
-                                (r * tileW) / 2,
-                                (r * tileH) / 2,
-                                0,
-                                0,
-                                Math.PI * 2
-                            );
-                            ctx.fill();
-                            ctx.fillStyle = l.color;
-                            ctx.beginPath();
-                            ctx.ellipse(p.x + ox, p.y + oy, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
-                            ctx.fill();
-                        }
-                    });
-                } else if (type === 'oak') {
-                    // Laubbaum: runde unregelmäßige Krone
-                    const crownZ = z0 + trunkH + 0.5 * scale;
-                    const crownR = 0.75 * scale;
-                    const sw = swayX * 0.8,
-                        sh = swayY * 0.8;
-                    // Mehrere überlappende Kugeln für organische Form
-                    [
-                        { dx: 0, dz: 0, r: crownR, col: '#2a5a10', scol: '#1a3a08' },
-                        { dx: -0.25 * scale, dz: 0.3 * scale, r: crownR * 0.75, col: '#336614', scol: '#1e4a0a' },
-                        { dx: 0.3 * scale, dz: 0.2 * scale, r: crownR * 0.7, col: '#2e6012', scol: '#1c4208' },
-                        { dx: -0.1 * scale, dz: 0.6 * scale, r: crownR * 0.55, col: '#3a7018', scol: '#234a0e' },
-                        { dx: 0.15 * scale, dz: 0.55 * scale, r: crownR * 0.5, col: '#4a8020', scol: '#2a5010' },
-                    ].forEach(blob => {
-                        const p = iso(tX + blob.dx * 0.3, tY, crownZ + blob.dz, cx, cy, {
-                            stepH,
-                            tileW,
-                            tileH,
-                            canvas,
-                        });
-                        const ox = sw + blob.dx * 10;
-                        const oy = sh;
-                        ctx.fillStyle = blob.scol;
-                        ctx.beginPath();
-                        ctx.ellipse(
-                            p.x + ox + 3,
-                            p.y + oy + 2,
-                            (blob.r * tileW) / 2,
-                            (blob.r * tileH) / 2,
-                            0,
-                            0,
-                            Math.PI * 2
-                        );
-                        ctx.fill();
-                        ctx.fillStyle = blob.col;
-                        ctx.beginPath();
-                        ctx.ellipse(p.x + ox, p.y + oy, (blob.r * tileW) / 2, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                    });
-                } else if (type === 'bush') {
-                    // Busch: flach, kein Stamm, breit
-                    const bz = z0 + 0.15 * scale;
-                    [
-                        { dx: 0, r: 0.65 * scale, col: '#1a4a0a', dz: 0 },
-                        { dx: -0.2 * scale, r: 0.5 * scale, col: '#2a6014', dz: 0.1 },
-                        { dx: 0.25 * scale, r: 0.45 * scale, col: '#266010', dz: 0.08 },
-                        { dx: 0, r: 0.38 * scale, col: '#347018', dz: 0.2 },
-                    ].forEach(blob => {
-                        const p = iso(tX + blob.dx * 0.4, tY, bz + blob.dz * scale, cx, cy, {
-                            stepH,
-                            tileW,
-                            tileH,
-                            canvas,
-                        });
-                        const ox = swayX * 0.4,
-                            oy = swayY * 0.4;
-                        ctx.fillStyle = blob.col;
-                        ctx.beginPath();
-                        ctx.ellipse(
-                            p.x + ox,
-                            p.y + oy,
-                            ((blob.r * tileW) / 2) * 1.3,
-                            (blob.r * tileH) / 2,
-                            0,
-                            0,
-                            Math.PI * 2
-                        );
-                        ctx.fill();
-                    });
-                } else if (type === 'dead') {
-                    // Kahler Baum: Stamm + verzweigte Äste
-                    const topZ = z0 + trunkH + 0.9 * scale;
-                    const ptop = iso(tX, tY, topZ, cx, cy, { stepH, tileW, tileH, canvas });
-                    const pbase = iso(tX, tY, z0 + trunkH, cx, cy, { stepH, tileW, tileH, canvas });
-                    ctx.strokeStyle = '#8a6a4a';
-                    ctx.lineWidth = Math.max(1.5, tileW * 0.06 * scale);
-                    ctx.beginPath();
-                    ctx.moveTo(pbase.x, pbase.y);
-                    ctx.lineTo(ptop.x, ptop.y);
-                    ctx.stroke();
-                    // Äste
-                    ctx.lineWidth = Math.max(0.8, tileW * 0.03 * scale);
-                    ctx.strokeStyle = '#7a5a3a';
-                    [
-                        { ax: -0.35, az: 0.45, bx: -0.6, bz: 0.65 },
-                        { ax: 0.3, az: 0.5, bx: 0.55, bz: 0.68 },
-                        { ax: -0.2, az: 0.72, bx: -0.38, bz: 0.88 },
-                        { ax: 0.22, az: 0.75, bx: 0.4, bz: 0.9 },
-                        { ax: 0, az: 0.85, bx: -0.15, bz: 1.0 },
-                    ].forEach(br => {
-                        const pa = iso(tX + br.ax * 0.3 * scale, tY, z0 + trunkH + br.az * scale, cx, cy, {
-                            stepH,
-                            tileW,
-                            tileH,
-                            canvas,
-                        });
-                        const pb = iso(tX + br.bx * 0.35 * scale, tY, z0 + trunkH + br.bz * scale, cx, cy, {
-                            stepH,
-                            tileW,
-                            tileH,
-                            canvas,
-                        });
-                        // Leichtes Wiegen
-                        const sw = swayX * 0.5 * (br.bz - 0.3);
-                        ctx.beginPath();
-                        ctx.moveTo(pa.x, pa.y);
-                        ctx.lineTo(pb.x + sw, pb.y);
-                        ctx.stroke();
-                    });
-                }
-            }
 
             // Beflockung aus Missionsdaten laden
             // G.TREES_MAP initialized in G object
@@ -2845,354 +2610,6 @@
             }
 
             // ─── person ──────────────────────────────────────────────────────────────────
-            function drawPerson(pX, pY, pZ, angle, isWaving, cx, cy) {
-                let base = iso(pX, pY, pZ, cx, cy, { stepH, tileW, tileH, canvas });
-                const headR = 2.5,
-                    torsoW = 5,
-                    torsoH = 7,
-                    legW = 2,
-                    legH = 6;
-                let drawX = base.x,
-                    drawY = base.y;
-                ctx.fillStyle = '#3b4a6b';
-                ctx.fillRect(drawX - torsoW / 2, drawY - legH, legW, legH);
-                ctx.fillRect(drawX + torsoW / 2 - legW, drawY - legH, legW, legH);
-                let torsoY = drawY - legH - torsoH;
-                ctx.fillStyle = '#5a786e';
-                ctx.fillRect(drawX - torsoW / 2, torsoY, torsoW, torsoH);
-                ctx.fillStyle = '#f2d0a4';
-                ctx.beginPath();
-                ctx.arc(drawX, torsoY - headR + 1, headR, 0, Math.PI * 2);
-                ctx.fill();
-                if (isWaving) {
-                    ctx.strokeStyle = '#f2d0a4';
-                    ctx.lineWidth = 1.5;
-                    ctx.lineCap = 'round';
-                    let shoulderX = drawX + torsoW / 2,
-                        shoulderY = torsoY + 2;
-                    let waveOffset = Math.sin(Date.now() * 0.015) * 3;
-                    ctx.beginPath();
-                    ctx.moveTo(shoulderX, shoulderY);
-                    ctx.lineTo(shoulderX + 4 + waveOffset, shoulderY - 5);
-                    ctx.stroke();
-                }
-            }
-
-            const drawHeli = (
-                type,
-                hX,
-                hY,
-                hZ,
-                hAngle,
-                hTilt,
-                hRoll,
-                hRotor,
-                camX,
-                camY,
-                targetCtx,
-                targetCanvas,
-                isShadow = false,
-                scaleOverride = 0,
-                fillColor = '#ff6600',
-                strokeColor = '#dd3300',
-                shadowZ = null
-            ) => {
-                const cosA = Math.cos(hAngle),
-                    sinA = Math.sin(hAngle);
-                let s = getHeliType(type).scale;
-                if (scaleOverride > 0) s = scaleOverride * getHeliType(type).scale;
-
-                function p(lx, ly, lz) {
-                    lx *= s;
-                    ly *= s;
-                    lz *= s;
-                    lz += ly * hRoll * 0.5 + lx * hTilt * 0.5;
-                    let rx = lx * cosA - ly * sinA + hX;
-                    let ry = lx * sinA + ly * cosA + hY;
-                    let rz = hZ + lz;
-                    if (isShadow) {
-                        if (shadowZ !== null) {
-                            rz = shadowZ;
-                        } else {
-                            let g = getGround(rx, ry, G.points, G.CARRIER);
-                            rz = g > -5 ? g : 0;
-                        }
-                    }
-                    return iso(rx, ry, rz, camX, camY, { stepH, tileW, tileH, canvas: targetCanvas });
-                }
-                targetCtx.lineJoin = 'round';
-                targetCtx.lineCap = 'round';
-
-                if (type === 'dolphin') {
-                    if (isShadow) {
-                        targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - getGround(hX, hY)) * 0.08)})`;
-                        let sN = p(1.2, 0, 0),
-                            sT = p(-1.8, 0, 0),
-                            sL = p(0, 0.4, 0),
-                            sR = p(0, -0.4, 0);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(sN.x, sN.y);
-                        targetCtx.lineTo(sR.x, sR.y);
-                        targetCtx.lineTo(sT.x, sT.y);
-                        targetCtx.lineTo(sL.x, sL.y);
-                        targetCtx.fill();
-                        return;
-                    }
-                    targetCtx.fillStyle = fillColor;
-                    targetCtx.strokeStyle = strokeColor;
-                    targetCtx.lineWidth = 1;
-                    let nose = p(1.4, 0, 0.2),
-                        tailBase = p(-0.8, 0, 0.5),
-                        lSide = p(0, 0.4, 0.4),
-                        rSide = p(0, -0.4, 0.4);
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(nose.x, nose.y);
-                    targetCtx.lineTo(rSide.x, rSide.y);
-                    targetCtx.lineTo(tailBase.x, tailBase.y);
-                    targetCtx.lineTo(lSide.x, lSide.y);
-                    targetCtx.closePath();
-                    targetCtx.fill();
-                    targetCtx.fillStyle = '#112';
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(p(1.2, 0, 0.25).x, p(1.2, 0, 0.25).y);
-                    targetCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y);
-                    targetCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y);
-                    targetCtx.fill();
-                    let tTop = p(-1.8, 0, 1.2),
-                        tBack = p(-2.0, 0, 0.4);
-                    targetCtx.fillStyle = fillColor;
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(tailBase.x, tailBase.y);
-                    targetCtx.lineTo(tTop.x, tTop.y);
-                    targetCtx.lineTo(tBack.x, tBack.y);
-                    targetCtx.fill();
-                    targetCtx.fillStyle = '#333';
-                    targetCtx.beginPath();
-                    targetCtx.arc(p(-1.7, 0, 0.8).x, p(-1.7, 0, 0.8).y, 3 * s, 0, 7);
-                    targetCtx.fill();
-                    targetCtx.strokeStyle = 'rgba(220,245,255,0.5)';
-                    targetCtx.lineWidth = 2;
-                    let hub = p(0, 0, 0.7);
-                    for (let i = 0; i < 4; i++) {
-                        let a = hRotor + i * (Math.PI / 2),
-                            end = p(Math.cos(a) * 1.8, Math.sin(a) * 1.8, 0.8);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(hub.x, hub.y);
-                        targetCtx.lineTo(end.x, end.y);
-                        targetCtx.stroke();
-                    }
-                } else if (type === 'jayhawk') {
-                    if (isShadow) {
-                        targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - getGround(hX, hY)) * 0.08)})`;
-                        let sN = p(1.3, 0, 0),
-                            sT = p(-2.8, 0, 0),
-                            sL = p(0, 0.5, 0),
-                            sR = p(0, -0.5, 0);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(sN.x, sN.y);
-                        targetCtx.lineTo(sR.x, sR.y);
-                        targetCtx.lineTo(sT.x, sT.y);
-                        targetCtx.lineTo(sL.x, sL.y);
-                        targetCtx.fill();
-                        return;
-                    }
-                    let stabL = p(-2.4, 0.6, 0.3),
-                        stabR = p(-2.4, -0.6, 0.3);
-                    targetCtx.lineWidth = 4 * s;
-                    targetCtx.strokeStyle = '#222';
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(stabL.x, stabL.y);
-                    targetCtx.lineTo(stabR.x, stabR.y);
-                    targetCtx.stroke();
-                    targetCtx.fillStyle = fillColor;
-                    targetCtx.strokeStyle = strokeColor;
-                    targetCtx.lineWidth = 1;
-                    let n = p(1.3, 0, 0.3),
-                        tailBoomStart = p(-1.1, 0, 0.6);
-                    let bodyFL = p(0.4, 0.45, 0.4),
-                        bodyFR = p(0.4, -0.45, 0.4);
-                    let bodyBL = p(-1.0, 0.45, 0.4),
-                        bodyBR = p(-1.0, -0.45, 0.4);
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(n.x, n.y);
-                    targetCtx.lineTo(bodyFR.x, bodyFR.y);
-                    targetCtx.lineTo(bodyBR.x, bodyBR.y);
-                    targetCtx.lineTo(tailBoomStart.x, tailBoomStart.y);
-                    targetCtx.lineTo(bodyBL.x, bodyBL.y);
-                    targetCtx.lineTo(bodyFL.x, bodyFL.y);
-                    targetCtx.fill();
-                    targetCtx.stroke();
-                    targetCtx.fillStyle = '#111';
-                    let dL1 = p(0.3, 0.47, 0.35),
-                        dL2 = p(-0.6, 0.47, 0.35);
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(dL1.x, dL1.y);
-                    targetCtx.lineTo(dL2.x, dL2.y);
-                    targetCtx.lineTo(p(-0.6, 0.3, 0.6).x, p(-0.6, 0.3, 0.6).y);
-                    targetCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y);
-                    targetCtx.fill();
-                    let dR1 = p(0.3, -0.47, 0.35),
-                        dR2 = p(-0.6, -0.47, 0.35);
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(dR1.x, dR1.y);
-                    targetCtx.lineTo(dR2.x, dR2.y);
-                    targetCtx.lineTo(p(-0.6, -0.3, 0.6).x, p(-0.6, -0.3, 0.6).y);
-                    targetCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y);
-                    targetCtx.fill();
-                    targetCtx.fillStyle = '#111';
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(n.x, n.y);
-                    targetCtx.lineTo(p(0.6, 0.4, 0.6).x, p(0.6, 0.4, 0.6).y);
-                    targetCtx.lineTo(p(0.6, -0.4, 0.6).x, p(0.6, -0.4, 0.6).y);
-                    targetCtx.fill();
-                    targetCtx.fillStyle = '#eee';
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(p(0.6, 0, 0.7).x, p(0.6, 0, 0.7).y);
-                    targetCtx.lineTo(p(-0.8, 0.35, 0.7).x, p(-0.8, 0.35, 0.7).y);
-                    targetCtx.lineTo(p(-0.8, -0.35, 0.7).x, p(-0.8, -0.35, 0.7).y);
-                    targetCtx.fill();
-                    targetCtx.fillStyle = fillColor;
-                    let finBase = p(-2.4, 0, 0.6),
-                        finTop = p(-2.9, 0, 1.3),
-                        finBack = p(-3.0, 0, 0.6);
-                    targetCtx.lineWidth = 6 * s;
-                    targetCtx.strokeStyle = fillColor;
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(tailBoomStart.x, tailBoomStart.y);
-                    targetCtx.lineTo(finBase.x, finBase.y);
-                    targetCtx.stroke();
-                    targetCtx.lineWidth = 1;
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(finBase.x, finBase.y);
-                    targetCtx.lineTo(finTop.x, finTop.y);
-                    targetCtx.lineTo(finBack.x, finBack.y);
-                    targetCtx.fill();
-                    targetCtx.strokeStyle = 'rgba(220,245,255,0.5)';
-                    targetCtx.lineWidth = 3 * s;
-                    let hub = p(0, 0, 0.8);
-                    for (let i = 0; i < 4; i++) {
-                        let a = hRotor + i * (Math.PI / 2),
-                            end = p(Math.cos(a) * 2.6, Math.sin(a) * 2.6, 0.85);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(hub.x, hub.y);
-                        targetCtx.lineTo(end.x, end.y);
-                        targetCtx.stroke();
-                    }
-                } else if (type === 'chinook') {
-                    if (isShadow) {
-                        targetCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - getGround(hX, hY)) * 0.08)})`;
-                        let sN = p(2.5, 0, 0),
-                            sT = p(-2.8, 0, 0),
-                            sL = p(0, 0.8, 0),
-                            sR = p(0, -0.8, 0);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(sN.x, sN.y);
-                        targetCtx.lineTo(sR.x, sR.y);
-                        targetCtx.lineTo(sT.x, sT.y);
-                        targetCtx.lineTo(sL.x, sL.y);
-                        targetCtx.fill();
-                        return;
-                    }
-                    const wf = (lx, ly, lz) => ({
-                        x: lx * s * cosA - ly * s * sinA + hX,
-                        y: lx * s * sinA + ly * s * cosA + hY,
-                        z: hZ + (lz * s + ly * s * hRoll * 0.5 + lx * s * hTilt * 0.5),
-                    });
-                    let rB1 = wf(1.8, 0.3, 0.15),
-                        rB2 = wf(1.8, -0.3, 0.15),
-                        rB3 = wf(-2.0, -0.3, 0.15),
-                        rB4 = wf(-2.0, 0.3, 0.15);
-                    let rM1 = wf(1.8, 0.6, 0.5),
-                        rM2 = wf(1.8, -0.6, 0.5),
-                        rM3 = wf(-2.0, -0.6, 0.5),
-                        rM4 = wf(-2.0, 0.6, 0.5);
-                    let rT1 = wf(1.8, 0.3, 0.85),
-                        rT2 = wf(1.8, -0.3, 0.85),
-                        rT3 = wf(-2.0, -0.3, 0.85),
-                        rT4 = wf(-2.0, 0.3, 0.85);
-                    let tailTop = wf(-2.6, 0, 1.1),
-                        tailLow = wf(-2.6, 0, 0.4);
-                    drawFace([rB1, rB2, rB3, rB4], '#d50', null, 0, camX, camY);
-                    drawFace([rB1, rM1, rM4, rB4], '#f60', null, 0, camX, camY);
-                    drawFace([rM1, rT1, rT4, rM4], '#ff7711', null, 0, camX, camY);
-                    drawFace([rB2, rM2, rM3, rB3], '#c40', null, 0, camX, camY);
-                    drawFace([rM2, rT2, rT3, rM3], '#d50', null, 0, camX, camY);
-                    drawFace([rT1, rT2, rT3, rT4], '#f60', '#d50', 0, camX, camY);
-                    drawFace([rT4, rT3, tailTop], '#f60', '#d50', 0, camX, camY);
-                    drawFace([rM4, rT4, tailTop, tailLow], '#ff7711', null, 0, camX, camY);
-                    drawFace([rM3, rT3, tailTop, tailLow], '#d50', null, 0, camX, camY);
-                    let nTip = wf(2.8, 0, 0.45);
-                    drawFace([nTip, rM2, rT2, rT1, rM1], fillColor, strokeColor, 0, camX, camY);
-                    targetCtx.fillStyle = '#111';
-                    let w1 = p(2.7, 0, 0.45),
-                        w2 = p(2.0, 0.45, 0.7),
-                        w3 = p(2.0, -0.45, 0.7);
-                    targetCtx.beginPath();
-                    targetCtx.moveTo(w1.x, w1.y);
-                    targetCtx.lineTo(w2.x, w2.y);
-                    targetCtx.lineTo(w3.x, w3.y);
-                    targetCtx.fill();
-                    let vT = wf(1.5, 0, 1.15);
-                    drawFace([wf(1.8, 0.3, 0.85), wf(1.8, -0.3, 0.85), vT], '#f60', '#d50', 0, camX, camY);
-                    drawFace([wf(1.8, -0.3, 0.85), wf(1.2, -0.3, 0.85), vT], '#d50', '#d50', 0, camX, camY);
-                    drawFace([wf(1.2, -0.3, 0.85), wf(1.2, 0.3, 0.85), vT], '#f60', '#d50', 0, camX, camY);
-                    drawFace([wf(1.2, 0.3, 0.85), wf(1.8, 0.3, 0.85), vT], '#ff7711', '#d50', 0, camX, camY);
-                    let hTop = wf(-2.3, 0, 1.8);
-                    drawFace([wf(-1.9, 0.3, 1.0), wf(-1.9, -0.3, 1.0), hTop], '#f60', '#d50', 0, camX, camY);
-                    drawFace([wf(-1.9, -0.3, 1.0), wf(-2.5, -0.15, 1.1), hTop], '#d50', '#d50', 0, camX, camY);
-                    drawFace([wf(-2.5, -0.15, 1.1), wf(-2.5, 0.15, 1.1), hTop], '#c40', '#d50', 0, camX, camY);
-                    drawFace([wf(-2.5, 0.15, 1.1), wf(-1.9, 0.3, 1.0), hTop], '#ff7711', '#d50', 0, camX, camY);
-                    targetCtx.strokeStyle = 'rgba(220,245,255,0.6)';
-                    targetCtx.lineWidth = 3 * s;
-                    let rF = p(1.5, 0, 1.15);
-                    for (let i = 0; i < 3; i++) {
-                        let a = hRotor + i * ((Math.PI * 2) / 3),
-                            end = p(1.5 + Math.cos(a) * 3.4, Math.sin(a) * 3.4, 1.15);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(rF.x, rF.y);
-                        targetCtx.lineTo(end.x, end.y);
-                        targetCtx.stroke();
-                    }
-                    let rR = p(-2.3, 0, 1.8);
-                    for (let i = 0; i < 3; i++) {
-                        let a = -hRotor + i * ((Math.PI * 2) / 3),
-                            end = p(-2.3 + Math.cos(a) * 3.4, Math.sin(a) * 3.4, 1.8);
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(rR.x, rR.y);
-                        targetCtx.lineTo(end.x, end.y);
-                        targetCtx.stroke();
-                    }
-                }
-            };
-
-            function drawFace(points, color, strokeColor, zOffset, cX, cY) {
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                let first = iso(points[0].x, points[0].y, points[0].z + zOffset, cX, cY, {
-                    stepH,
-                    tileW,
-                    tileH,
-                    canvas,
-                });
-                ctx.moveTo(first.x, first.y);
-                for (let i = 1; i < points.length; i++) {
-                    let p = iso(points[i].x, points[i].y, points[i].z + zOffset, cX, cY, {
-                        stepH,
-                        tileW,
-                        tileH,
-                        canvas,
-                    });
-                    ctx.lineTo(p.x, p.y);
-                }
-                ctx.closePath();
-                ctx.fill();
-                if (strokeColor) {
-                    ctx.strokeStyle = strokeColor;
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                }
-            }
-
             function rotatePoint(x, y, rad) {
                 return { x: x * Math.cos(rad) - y * Math.sin(rad), y: x * Math.sin(rad) + y * Math.cos(rad) };
             }
@@ -3751,22 +3168,12 @@
                 c.height = 300;
                 cx.clearRect(0, 0, 800, 300);
                 const t = Date.now() * 0.001;
-                drawHeli(
-                    'dolphin',
-                    1.5,
-                    1.5,
-                    0.8,
-                    t * 0.5,
-                    Math.sin(t) * 0.1,
-                    Math.cos(t) * 0.1,
-                    t * 12,
-                    0,
-                    0,
-                    cx,
-                    c,
-                    false,
-                    3
-                );
+                const offIso = (wx, wy, wz, camX, camY) => iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
+                drawHeli('dolphin', 1.5, 1.5, 0.8, t * 0.5, Math.sin(t) * 0.1, Math.cos(t) * 0.1, t * 12, 0, 0, {
+                    targetCtx: cx,
+                    targetIso: offIso,
+                    scaleOverride: 3,
+                });
                 if (document.getElementById('splash').style.display !== 'none') requestAnimationFrame(drawMenuHeli);
             }
 
@@ -3785,17 +3192,31 @@
                         c.width = 300;
                         c.height = 200;
                         cx.clearRect(0, 0, 300, 200);
-                        drawHeli(ht.id, 0, 0, 0, G.menuAngles[ht.id], 0, 0, 0, 0, 0, cx, c, false, ht.previewScale);
+                        const offIso = (wx, wy, wz, camX, camY) => iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
+                        drawHeli(ht.id, 0, 0, 0, G.menuAngles[ht.id], 0, 0, 0, 0, 0, {
+                            targetCtx: cx,
+                            targetIso: offIso,
+                            scaleOverride: ht.previewScale,
+                        });
                     }
                 });
                 requestAnimationFrame(animateHeliPreviews);
             }
 
-            // Generate heli select buttons from HELI_TYPES
-            (function buildHeliSelect() {
+            // Generate heli select buttons from HELI_TYPES (rebuilt per campaign)
+            function buildHeliSelect(campaignType) {
                 const container = document.getElementById('heli-options');
                 if (!container) return;
-                HELI_TYPES.forEach(ht => {
+                container.innerHTML = '';
+                const isGlider = campaignType === 'glider';
+                const types = isGlider
+                    ? HELI_TYPES.filter(ht => ht.id === 'glider')
+                    : HELI_TYPES.filter(ht => ht.id !== 'glider');
+                container.style.gridTemplateColumns = types.length === 1 ? '1fr' : '1fr 1fr 1fr';
+                container.style.width = types.length === 1 ? '350px' : '900px';
+                document.querySelector('#heli-select .subtitle').textContent =
+                    isGlider ? 'SELECT AIRCRAFT' : 'SELECT AIRFRAME';
+                types.forEach(ht => {
                     const div = document.createElement('div');
                     div.className = 'grid-box';
                     div.setAttribute('onclick', `startGame('${ht.id}')`);
@@ -3807,7 +3228,8 @@
                         <div class="box-sub" style="color: #aaa">${ht.selectCap}</div>`;
                     container.appendChild(div);
                 });
-            })();
+            }
+            buildHeliSelect('normal'); // initial build for splash screen background
 
             window.onkeydown = e => (G.keys[e.code] = true);
             window.onkeyup = e => (G.keys[e.code] = false);
@@ -3821,6 +3243,7 @@
                 drawMenuHeli();
             };
 
+            window.launchEasterEgg = launchEasterEgg;
             window.toCampaignSelect = toCampaignSelect;
             window.returnToBase = returnToBase;
             window.selectCampaign = selectCampaign;

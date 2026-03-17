@@ -3,7 +3,7 @@
 // The game logic must not contain any `if (type === 'jayhawk')` etc.
 // Import HELI_TYPES and use getHeliType(id) instead.
 
-import { JAYHAWK_DEF, DOLPHIN_DEF, CHINOOK_DEF } from './defs';
+import { JAYHAWK_DEF, DOLPHIN_DEF, CHINOOK_DEF, GLIDER_DEF } from './defs';
 import type { DEF } from './defs';
 
 export interface HeliType {
@@ -98,6 +98,27 @@ export const HELI_TYPES: HeliType[] = [
         selectLabel: 'CH-47 CHINOOK',
         selectSub: 'Tandem / Ultra Heavy',
         selectCap: 'Cap: 20 (Heavy Lift)',
+    },
+    {
+        id: 'glider',
+        label: 'ASK-21',
+        def: GLIDER_DEF,
+        maxLoad: 0,
+        accel: 0,
+        friction: 0.9995,
+        tiltSpeed: 0.025,
+        fuelRate: 0,
+        liftPower: 0,
+        cargoResist: 0,
+        scale: 1.0,
+        previewScale: 2.0,
+        collisionBox: { xMin: -1.65, xMax: 1.0, yMin: -3.0, yMax: 3.0, zMax: 0.40 },
+        rotorOffsets: [],
+        extraRotorDebris: false,
+        canCarryCargo: false,
+        selectLabel: 'ASK-21 GLIDER',
+        selectSub: 'Motorlos / Thermisch',
+        selectCap: '✈ Easteregg',
     },
 ];
 

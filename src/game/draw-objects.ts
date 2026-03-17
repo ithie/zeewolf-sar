@@ -1,0 +1,797 @@
+// ─── Draw Objects ─────────────────────────────────────────────────────────────
+// Shared draw functions for all game objects.
+// Factory pattern mirrors createSceneRenderer: call once with rendering context,
+// get back a bundle of draw functions that close over ctx, iso, tileW, tileH.
+//
+// Rules:
+//   - draw* functions call iso() and draw directly to ctx (or targetCtx for
+//     drawHeli with off-screen override).
+//   - No SceneRenderer.flush() inside — caller is responsible.
+//   - No global state (G, window.*) — pass what you need as arguments.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { IsoFn, SceneRenderer } from './scene-renderer';
+import { getHeliType } from './heli-types';
+import {
+    FUEL_TRUCK_CHASSIS_DEF,
+    FUEL_TRUCK_TANK_DEF,
+    FUEL_TRUCK_CAB_DEF,
+} from './defs';
+
+export interface WindState {
+    x: number;
+    y: number;
+    phase: number;
+}
+
+export interface DrawHeliOpts {
+    /** Override rendering context (e.g. off-screen canvas). Defaults to factory ctx. */
+    targetCtx?: CanvasRenderingContext2D;
+    /** Override iso function (must match targetCtx canvas). Defaults to factory iso. */
+    targetIso?: IsoFn;
+    isShadow?: boolean;
+    /** Multiply heli type's base scale. */
+    scaleOverride?: number;
+    fillColor?: string;
+    strokeColor?: string;
+    /** Called per shadow vertex to get ground z. If omitted, shadow uses hZ. */
+    shadowGetGround?: (x: number, y: number) => number;
+}
+
+export interface DrawFuelTruckOpts {
+    /** Base z-offset (e.g. pad height). Defaults to 0. */
+    z?: number;
+    /** 0–1 extension. 0 = arm hidden. */
+    armExtend?: number;
+    /** If set, arm points toward this world position. If null, arm extends backward. */
+    armTarget?: { x: number; y: number } | null;
+    /** Returns true when fueling active (triggers nozzle blink). */
+    getFuelingState?: () => boolean;
+}
+
+export function createDrawObjects(
+    ctx: CanvasRenderingContext2D,
+    iso: IsoFn,
+    tileW: number,
+    tileH: number,
+    SceneRenderer: SceneRenderer,
+) {
+    // ── internal helper ────────────────────────────────────────────────────────
+    function _drawFace(
+        drawCtx: CanvasRenderingContext2D,
+        isoFn: IsoFn,
+        points: { x: number; y: number; z: number }[],
+        color: string,
+        strokeColor: string | null,
+        zOffset: number,
+        cX: number,
+        cY: number,
+    ) {
+        drawCtx.fillStyle = color;
+        drawCtx.beginPath();
+        const first = isoFn(points[0].x, points[0].y, points[0].z + zOffset, cX, cY);
+        drawCtx.moveTo(first.x, first.y);
+        for (let i = 1; i < points.length; i++) {
+            const p = isoFn(points[i].x, points[i].y, points[i].z + zOffset, cX, cY);
+            drawCtx.lineTo(p.x, p.y);
+        }
+        drawCtx.closePath();
+        drawCtx.fill();
+        if (strokeColor) {
+            drawCtx.strokeStyle = strokeColor;
+            drawCtx.lineWidth = 1;
+            drawCtx.stroke();
+        }
+    }
+
+    // Public drawFace — uses factory ctx/iso. Used by drawTractor.
+    function drawFace(
+        points: { x: number; y: number; z: number }[],
+        color: string,
+        strokeColor: string | null,
+        zOffset: number,
+        cX: number,
+        cY: number,
+    ) {
+        _drawFace(ctx, iso, points, color, strokeColor, zOffset, cX, cY);
+    }
+
+    // ── drawTree ───────────────────────────────────────────────────────────────
+    function drawTree(
+        tX: number,
+        tY: number,
+        cx: number,
+        cy: number,
+        scale = 1.0,
+        gz = 0,
+        type = 'pine',
+        wind: WindState = { x: 0, y: 0, phase: 0 },
+    ) {
+        if (gz < 0.05) gz = 0.05;
+        const z0 = gz;
+        const trunkH = 0.5 * scale;
+        const trunkR = 0.08 * scale;
+        const windStrength = Math.hypot(wind.x, wind.y);
+        const swayPhase = wind.phase + tX * 0.3 + tY * 0.17;
+        const swayX = Math.cos(swayPhase) * windStrength * 18 * scale;
+        const swayY = Math.sin(swayPhase) * windStrength * 10 * scale;
+
+        if (type !== 'bush') {
+            ctx.fillStyle = type === 'dead' ? '#7a5a3a' : '#5a3a1a';
+            for (let i = 0; i <= 6; i++) {
+                const cz = z0 + i * (trunkH / 6);
+                const p = iso(tX, tY, cz, cx, cy);
+                ctx.beginPath();
+                ctx.ellipse(p.x, p.y, (trunkR * tileW) / 2, (trunkR * tileH) / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (type === 'pine') {
+            const layers = [
+                { zBase: z0 + trunkH * 0.3, zTop: z0 + trunkH * 0.3 + 1.4 * scale, rBase: 0.9 * scale, color: '#1a4a1a', shadow: '#0f2f0f', sway: 0.3 },
+                { zBase: z0 + trunkH * 0.3 + 0.7 * scale, zTop: z0 + trunkH * 0.3 + 1.9 * scale, rBase: 0.65 * scale, color: '#1e5a1e', shadow: '#133513', sway: 0.65 },
+                { zBase: z0 + trunkH * 0.3 + 1.3 * scale, zTop: z0 + trunkH * 0.3 + 2.3 * scale, rBase: 0.4 * scale, color: '#246024', shadow: '#163a16', sway: 1.0 },
+            ];
+            layers.forEach(l => {
+                for (let i = 10; i >= 0; i--) {
+                    const t = i / 10;
+                    const cz = l.zBase + t * (l.zTop - l.zBase);
+                    const r = l.rBase * (1 - t);
+                    if (r <= 0) continue;
+                    const p = iso(tX, tY, cz, cx, cy);
+                    const ox = swayX * l.sway * (1 - t * 0.5);
+                    const oy = swayY * l.sway * (1 - t * 0.5);
+                    ctx.fillStyle = l.shadow;
+                    ctx.beginPath();
+                    ctx.ellipse(p.x + ox + 2, p.y + oy + 1, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = l.color;
+                    ctx.beginPath();
+                    ctx.ellipse(p.x + ox, p.y + oy, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        } else if (type === 'oak') {
+            const crownZ = z0 + trunkH + 0.5 * scale;
+            const crownR = 0.75 * scale;
+            const sw = swayX * 0.8, sh = swayY * 0.8;
+            [
+                { dx: 0, dz: 0, r: crownR, col: '#2a5a10', scol: '#1a3a08' },
+                { dx: -0.25 * scale, dz: 0.3 * scale, r: crownR * 0.75, col: '#336614', scol: '#1e4a0a' },
+                { dx: 0.3 * scale, dz: 0.2 * scale, r: crownR * 0.7, col: '#2e6012', scol: '#1c4208' },
+                { dx: -0.1 * scale, dz: 0.6 * scale, r: crownR * 0.55, col: '#3a7018', scol: '#234a0e' },
+                { dx: 0.15 * scale, dz: 0.55 * scale, r: crownR * 0.5, col: '#4a8020', scol: '#2a5010' },
+            ].forEach(blob => {
+                const p = iso(tX + blob.dx * 0.3, tY, crownZ + blob.dz, cx, cy);
+                const ox = sw + blob.dx * 10, oy = sh;
+                ctx.fillStyle = blob.scol;
+                ctx.beginPath();
+                ctx.ellipse(p.x + ox + 3, p.y + oy + 2, (blob.r * tileW) / 2, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = blob.col;
+                ctx.beginPath();
+                ctx.ellipse(p.x + ox, p.y + oy, (blob.r * tileW) / 2, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        } else if (type === 'bush') {
+            const bz = z0 + 0.15 * scale;
+            [
+                { dx: 0, r: 0.65 * scale, col: '#1a4a0a', dz: 0 },
+                { dx: -0.2 * scale, r: 0.5 * scale, col: '#2a6014', dz: 0.1 },
+                { dx: 0.25 * scale, r: 0.45 * scale, col: '#266010', dz: 0.08 },
+                { dx: 0, r: 0.38 * scale, col: '#347018', dz: 0.2 },
+            ].forEach(blob => {
+                const p = iso(tX + blob.dx * 0.4, tY, bz + blob.dz * scale, cx, cy);
+                const ox = swayX * 0.4, oy = swayY * 0.4;
+                ctx.fillStyle = blob.col;
+                ctx.beginPath();
+                ctx.ellipse(p.x + ox, p.y + oy, ((blob.r * tileW) / 2) * 1.3, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        } else if (type === 'dead') {
+            const topZ = z0 + trunkH + 0.9 * scale;
+            const ptop = iso(tX, tY, topZ, cx, cy);
+            const pbase = iso(tX, tY, z0 + trunkH, cx, cy);
+            ctx.strokeStyle = '#8a6a4a';
+            ctx.lineWidth = Math.max(1.5, tileW * 0.06 * scale);
+            ctx.beginPath();
+            ctx.moveTo(pbase.x, pbase.y);
+            ctx.lineTo(ptop.x, ptop.y);
+            ctx.stroke();
+            ctx.lineWidth = Math.max(0.8, tileW * 0.03 * scale);
+            ctx.strokeStyle = '#7a5a3a';
+            [
+                { ax: -0.35, az: 0.45, bx: -0.6, bz: 0.65 },
+                { ax: 0.3, az: 0.5, bx: 0.55, bz: 0.68 },
+                { ax: -0.2, az: 0.72, bx: -0.38, bz: 0.88 },
+                { ax: 0.22, az: 0.75, bx: 0.4, bz: 0.9 },
+                { ax: 0, az: 0.85, bx: -0.15, bz: 1.0 },
+            ].forEach(br => {
+                const pa = iso(tX + br.ax * 0.3 * scale, tY, z0 + trunkH + br.az * scale, cx, cy);
+                const pb = iso(tX + br.bx * 0.35 * scale, tY, z0 + trunkH + br.bz * scale, cx, cy);
+                const sw2 = swayX * 0.5 * (br.bz - 0.3);
+                ctx.beginPath();
+                ctx.moveTo(pa.x, pa.y);
+                ctx.lineTo(pb.x + sw2, pb.y);
+                ctx.stroke();
+            });
+        }
+    }
+
+    // ── drawPerson ─────────────────────────────────────────────────────────────
+    function drawPerson(
+        pX: number,
+        pY: number,
+        pZ: number,
+        _angle: number,
+        isWaving: boolean,
+        cx: number,
+        cy: number,
+        outfit?: string,
+    ) {
+        const base = iso(pX, pY, pZ, cx, cy);
+        const headR = 2.5, torsoW = 5, torsoH = 7, legW = 2, legH = 6;
+        const isRescuer = outfit === 'rescuer';
+        const colorShirt = isRescuer ? '#ff6600' : '#5a786e';
+        const colorPants = isRescuer ? '#ff6600' : '#3b4a6b';
+        const colorArm = isRescuer ? '#ff6600' : '#f2d0a4';
+        const drawX = base.x, drawY = base.y;
+
+        ctx.fillStyle = colorPants;
+        ctx.fillRect(drawX - torsoW / 2, drawY - legH, legW, legH);
+        ctx.fillRect(drawX + torsoW / 2 - legW, drawY - legH, legW, legH);
+        const torsoY = drawY - legH - torsoH;
+        ctx.fillStyle = colorShirt;
+        ctx.fillRect(drawX - torsoW / 2, torsoY, torsoW, torsoH);
+        const headY = torsoY - headR + 1;
+        ctx.fillStyle = isRescuer ? '#ffffff' : '#f2d0a4';
+        ctx.beginPath();
+        ctx.arc(drawX, headY, headR, 0, Math.PI * 2);
+        ctx.fill();
+        if (isRescuer) {
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(drawX, headY, headR, Math.PI * 0.9, Math.PI * 0.1, false);
+            ctx.stroke();
+        }
+        if (isWaving) {
+            const waveOffset = Math.sin(Date.now() * 0.015) * 3;
+            const shoulderX = drawX + torsoW / 2, shoulderY = torsoY + 2;
+            ctx.strokeStyle = colorArm;
+            ctx.lineWidth = 1.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(shoulderX, shoulderY);
+            ctx.lineTo(shoulderX + 4 + waveOffset, shoulderY - 5);
+            ctx.stroke();
+        }
+    }
+
+    // ── drawTractor ────────────────────────────────────────────────────────────
+    // objX/objY: carrier or platform origin in world space
+    // objAngle: orientation of the carrier/platform
+    // deckZ: z of the deck surface
+    // tx/ty: tractor position relative to platform origin (in platform-local space)
+    // tAngle: tractor heading relative to platform (added to objAngle)
+    // bc/bs/bd/cc/cs/ct: body/cab color variants (top, side, dark, cab top/side/top)
+    function drawTractor(
+        objX: number,
+        objY: number,
+        objAngle: number,
+        deckZ: number,
+        cx: number,
+        cy: number,
+        tx: number,
+        ty: number,
+        tAngle: number,
+        bc: string,
+        bs: string,
+        bd: string,
+        cc: string,
+        cs: string,
+        ct: string,
+    ) {
+        const cosA = Math.cos(objAngle), sinA = Math.sin(objAngle);
+        const bodyL = 1.0, bodyW = 0.72, bodyH = 0.15;
+        const isFireTractor = ct === '#eeeeee';
+        const cabH = isFireTractor ? 0.22 : bodyH + 0.22;
+        const cabL = isFireTractor ? bodyL * 0.75 : bodyL;
+        const dZ = deckZ + 0.01, wW = 0.15, wH = 0.25;
+        const cosT = Math.cos(tAngle + objAngle), sinT = Math.sin(tAngle + objAngle);
+        function vt(lx: number, ly: number) {
+            return (lx * cosT - ly * sinT) + (lx * sinT + ly * cosT) > 0;
+        }
+        const ox = objX + tx * cosA - ty * sinA;
+        const oy = objY + tx * sinA + ty * cosA;
+        function rr(rx: number, ry: number) {
+            return { x: ox + rx * cosT - ry * sinT, y: oy + rx * sinT + ry * cosT };
+        }
+        function H(p: { x: number; y: number }, z: number) { return { x: p.x, y: p.y, z }; }
+        function face(pts: { x: number; y: number; z: number }[], col: string, stroke?: string) {
+            drawFace(pts, col, stroke ?? null, 0, cx, cy);
+        }
+
+        if (isFireTractor) {
+            const b1 = rr(0, 0), b2 = rr(bodyL, 0), b3 = rr(bodyL, bodyW), b4 = rr(0, bodyW);
+            face([H(b1, dZ), H(b2, dZ), H(b3, dZ), H(b4, dZ)], bc);
+            if (vt(0, -1)) face([H(b1, dZ), H(b2, dZ), H(b2, dZ + bodyH), H(b1, dZ + bodyH)], bs);
+            if (vt(1, 0))  face([H(b2, dZ), H(b3, dZ), H(b3, dZ + bodyH), H(b2, dZ + bodyH)], bd);
+            if (vt(0, 1))  face([H(b3, dZ), H(b4, dZ), H(b4, dZ + bodyH), H(b3, dZ + bodyH)], bs);
+            if (vt(-1, 0)) face([H(b4, dZ), H(b1, dZ), H(b1, dZ + bodyH), H(b4, dZ + bodyH)], bd);
+            face([H(b1, dZ + bodyH), H(b2, dZ + bodyH), H(b3, dZ + bodyH), H(b4, dZ + bodyH)], bs);
+            const eqZ = dZ + bodyH, eqW = 0.2, eqL = 0.25, eqH = 0.18, eqX = bodyL - eqW - 0.02;
+            const eq1 = rr(eqX, bodyW * 0.1), eq2 = rr(eqX + eqW, bodyW * 0.1);
+            const eq3 = rr(eqX + eqW, bodyW * 0.1 + eqL), eq4 = rr(eqX, bodyW * 0.1 + eqL);
+            face([H(eq1, eqZ), H(eq2, eqZ), H(eq3, eqZ), H(eq4, eqZ)], '#aa0000');
+            if (vt(0, -1)) face([H(eq1, eqZ), H(eq2, eqZ), H(eq2, eqZ + eqH), H(eq1, eqZ + eqH)], '#ee0000');
+            if (vt(1, 0))  face([H(eq2, eqZ), H(eq3, eqZ), H(eq3, eqZ + eqH), H(eq2, eqZ + eqH)], '#880000');
+            if (vt(0, 1))  face([H(eq3, eqZ), H(eq4, eqZ), H(eq4, eqZ + eqH), H(eq3, eqZ + eqH)], '#aa0000');
+            if (vt(-1, 0)) face([H(eq4, eqZ), H(eq1, eqZ), H(eq1, eqZ + eqH), H(eq4, eqZ + eqH)], '#880000');
+            face([H(eq1, eqZ + eqH), H(eq2, eqZ + eqH), H(eq3, eqZ + eqH), H(eq4, eqZ + eqH)], '#cc0000');
+        }
+        const cZ = isFireTractor ? dZ + bodyH : dZ;
+        const cc1 = rr(0, 0), cc2 = rr(cabL, 0), cc3 = rr(cabL, bodyW), cc4 = rr(0, bodyW);
+        face([H(cc1, cZ), H(cc2, cZ), H(cc3, cZ), H(cc4, cZ)], cc);
+        if (vt(0, -1)) face([H(cc1, cZ), H(cc2, cZ), H(cc2, cZ + cabH), H(cc1, cZ + cabH)], cs);
+        if (vt(1, 0))  face([H(cc2, cZ), H(cc3, cZ), H(cc3, cZ + cabH), H(cc2, cZ + cabH)], bd);
+        if (vt(0, 1))  face([H(cc3, cZ), H(cc4, cZ), H(cc4, cZ + cabH), H(cc3, cZ + cabH)], cc);
+        if (vt(-1, 0)) face([H(cc4, cZ), H(cc1, cZ), H(cc1, cZ + cabH), H(cc4, cZ + cabH)], bd);
+        face([H(cc1, cZ + cabH), H(cc2, cZ + cabH), H(cc3, cZ + cabH), H(cc4, cZ + cabH)], ct);
+        [0.15, bodyL - 0.15].forEach(ax => {
+            if (vt(0, -1)) { const w1 = rr(ax - wW * 0.5, 0), w2 = rr(ax + wW * 0.5, 0); face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222'); }
+            if (vt(0, 1))  { const w1 = rr(ax - wW * 0.5, bodyW), w2 = rr(ax + wW * 0.5, bodyW); face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222'); }
+        });
+    }
+
+    // ── drawFuelTruck ──────────────────────────────────────────────────────────
+    // Does NOT call SceneRenderer.flush() — caller is responsible.
+    function drawFuelTruck(
+        tX: number,
+        tY: number,
+        angle: number,
+        cx: number,
+        cy: number,
+        opts: DrawFuelTruckOpts = {},
+    ) {
+        const { z = 0, armExtend = 0, armTarget = null, getFuelingState } = opts;
+        const cosA = Math.cos(angle), sinA = Math.sin(angle);
+        const tkDepth  = tX + tY + 0.825 * (cosA + sinA);
+        const cabDepth = tX + tY + 1.85  * (cosA + sinA);
+        const chDepth  = Math.min(tkDepth, cabDepth) - 0.01;
+        const pivotWX = tX + 0.3 * cosA;
+        const pivotWY = tY + 0.3 * sinA;
+
+        SceneRenderer.add(FUEL_TRUCK_CHASSIS_DEF, { x: tX, y: tY, z, angle, depth: chDepth });
+        SceneRenderer.add(FUEL_TRUCK_TANK_DEF,    { x: tX, y: tY, z, angle, depth: tkDepth });
+        SceneRenderer.add(FUEL_TRUCK_CAB_DEF, {
+            x: tX, y: tY, z, angle, depth: cabDepth,
+            drawFn: (camX, camY) => {
+                if (armExtend <= 0) return;
+                const pivotZ = z + 0.98;
+                const pivotIso = iso(pivotWX, pivotWY, pivotZ, camX, camY);
+
+                let elbowWX: number, elbowWY: number;
+                if (armTarget) {
+                    const dx = armTarget.x - pivotWX, dy = armTarget.y - pivotWY;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    elbowWX = pivotWX + (dx / dist) * 0.65 * armExtend;
+                    elbowWY = pivotWY + (dy / dist) * 0.65 * armExtend;
+                } else {
+                    elbowWX = pivotWX - cosA * 0.65 * armExtend;
+                    elbowWY = pivotWY - sinA * 0.65 * armExtend;
+                }
+                const elbowZ = pivotZ + 0.25 * Math.sin(armExtend * Math.PI * 0.7);
+                const elbowIso = iso(elbowWX, elbowWY, elbowZ, camX, camY);
+
+                let nozzleWX: number, nozzleWY: number;
+                if (armTarget) {
+                    const dx = armTarget.x - pivotWX, dy = armTarget.y - pivotWY;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    nozzleWX = elbowWX + (dx / dist) * 0.5 * armExtend;
+                    nozzleWY = elbowWY + (dy / dist) * 0.5 * armExtend;
+                } else {
+                    nozzleWX = elbowWX - cosA * 0.5 * armExtend;
+                    nozzleWY = elbowWY - sinA * 0.5 * armExtend;
+                }
+                const nozzleZ = elbowZ - 0.7 * armExtend;
+                const nozzleIso = iso(nozzleWX, nozzleWY, nozzleZ, camX, camY);
+
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#777';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(pivotIso.x, pivotIso.y);
+                ctx.lineTo(elbowIso.x, elbowIso.y);
+                ctx.stroke();
+                ctx.strokeStyle = '#aaa';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(elbowIso.x, elbowIso.y);
+                ctx.lineTo(nozzleIso.x, nozzleIso.y);
+                ctx.stroke();
+                ctx.fillStyle = '#555';
+                ctx.beginPath();
+                ctx.arc(elbowIso.x, elbowIso.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                const fueling = getFuelingState ? getFuelingState() : false;
+                ctx.fillStyle = fueling && Math.floor(Date.now() / 200) % 2 ? '#ff8800' : '#444';
+                ctx.beginPath();
+                ctx.arc(nozzleIso.x, nozzleIso.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            },
+        });
+    }
+
+    // ── drawHeli ───────────────────────────────────────────────────────────────
+    function drawHeli(
+        type: string,
+        hX: number,
+        hY: number,
+        hZ: number,
+        hAngle: number,
+        hTilt: number,
+        hRoll: number,
+        hRotor: number,
+        camX: number,
+        camY: number,
+        opts: DrawHeliOpts = {},
+    ) {
+        const {
+            targetCtx: tCtx,
+            targetIso: tIso,
+            isShadow = false,
+            scaleOverride = 0,
+            fillColor = '#ff6600',
+            strokeColor = '#dd3300',
+            shadowGetGround,
+        } = opts;
+
+        const actualCtx = tCtx ?? ctx;
+        const actualIso = tIso ?? iso;
+
+        const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
+        let s = getHeliType(type).scale;
+        if (scaleOverride > 0) s = scaleOverride * getHeliType(type).scale;
+
+        function p(lx: number, ly: number, lz: number) {
+            lx *= s; ly *= s; lz *= s;
+            lz += ly * hRoll * 0.5 + lx * hTilt * 0.5;
+            const rx = lx * cosA - ly * sinA + hX;
+            const ry = lx * sinA + ly * cosA + hY;
+            let rz = hZ + lz;
+            if (isShadow) {
+                if (shadowGetGround) {
+                    const g = shadowGetGround(rx, ry);
+                    rz = g > -5 ? g : 0;
+                } else {
+                    rz = hZ;
+                }
+            }
+            return actualIso(rx, ry, rz, camX, camY);
+        }
+
+        function faceFn(
+            pts: { x: number; y: number; z: number }[],
+            color: string,
+            stroke: string | null,
+            zOffset: number,
+            cX: number,
+            cY: number,
+        ) {
+            _drawFace(actualCtx, actualIso, pts, color, stroke, zOffset, cX, cY);
+        }
+
+        actualCtx.lineJoin = 'round';
+        actualCtx.lineCap = 'round';
+
+        if (type === 'dolphin') {
+            if (isShadow) {
+                const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
+                actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
+                const sN = p(1.2, 0, 0), sT = p(-1.8, 0, 0), sL = p(0, 0.4, 0), sR = p(0, -0.4, 0);
+                actualCtx.beginPath();
+                actualCtx.moveTo(sN.x, sN.y);
+                actualCtx.lineTo(sR.x, sR.y);
+                actualCtx.lineTo(sT.x, sT.y);
+                actualCtx.lineTo(sL.x, sL.y);
+                actualCtx.fill();
+                return;
+            }
+            actualCtx.fillStyle = fillColor;
+            actualCtx.strokeStyle = strokeColor;
+            actualCtx.lineWidth = 1;
+            const nose = p(1.4, 0, 0.2), tailBase = p(-0.8, 0, 0.5);
+            const lSide = p(0, 0.4, 0.4), rSide = p(0, -0.4, 0.4);
+            actualCtx.beginPath();
+            actualCtx.moveTo(nose.x, nose.y);
+            actualCtx.lineTo(rSide.x, rSide.y);
+            actualCtx.lineTo(tailBase.x, tailBase.y);
+            actualCtx.lineTo(lSide.x, lSide.y);
+            actualCtx.closePath();
+            actualCtx.fill();
+            actualCtx.fillStyle = '#112';
+            actualCtx.beginPath();
+            actualCtx.moveTo(p(1.2, 0, 0.25).x, p(1.2, 0, 0.25).y);
+            actualCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y);
+            actualCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y);
+            actualCtx.fill();
+            const tTop = p(-1.8, 0, 1.2), tBack = p(-2.0, 0, 0.4);
+            actualCtx.fillStyle = fillColor;
+            actualCtx.beginPath();
+            actualCtx.moveTo(tailBase.x, tailBase.y);
+            actualCtx.lineTo(tTop.x, tTop.y);
+            actualCtx.lineTo(tBack.x, tBack.y);
+            actualCtx.fill();
+            // Fenestron (detailed — 8 spinning blades)
+            const fenCenter = p(-1.7, 0.01, 0.82);
+            const fenR = 5.5 * s;
+            actualCtx.fillStyle = '#1a1a1a';
+            actualCtx.beginPath();
+            actualCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
+            actualCtx.fill();
+            actualCtx.strokeStyle = 'rgba(210,235,255,0.7)';
+            actualCtx.lineWidth = 1.2 * s;
+            actualCtx.lineCap = 'round';
+            for (let i = 0; i < 8; i++) {
+                const a = hRotor * 2.0 + i * (Math.PI / 4);
+                actualCtx.beginPath();
+                actualCtx.moveTo(fenCenter.x + Math.cos(a) * fenR * 0.25, fenCenter.y + Math.sin(a) * fenR * 0.25);
+                actualCtx.lineTo(fenCenter.x + Math.cos(a) * fenR * 0.88, fenCenter.y + Math.sin(a) * fenR * 0.88);
+                actualCtx.stroke();
+            }
+            actualCtx.fillStyle = '#444';
+            actualCtx.beginPath();
+            actualCtx.arc(fenCenter.x, fenCenter.y, 1.8 * s, 0, Math.PI * 2);
+            actualCtx.fill();
+            actualCtx.strokeStyle = fillColor;
+            actualCtx.lineWidth = 1.5 * s;
+            actualCtx.beginPath();
+            actualCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
+            actualCtx.stroke();
+            // Main rotor
+            actualCtx.strokeStyle = 'rgba(220,245,255,0.5)';
+            actualCtx.lineWidth = 2;
+            const hub = p(0, 0, 0.7);
+            for (let i = 0; i < 4; i++) {
+                const a = hRotor + i * (Math.PI / 2);
+                const end = p(Math.cos(a) * 1.8, Math.sin(a) * 1.8, 0.8);
+                actualCtx.beginPath();
+                actualCtx.moveTo(hub.x, hub.y);
+                actualCtx.lineTo(end.x, end.y);
+                actualCtx.stroke();
+            }
+        } else if (type === 'jayhawk') {
+            if (isShadow) {
+                const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
+                actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
+                const sN = p(1.3, 0, 0), sT = p(-2.8, 0, 0), sL = p(0, 0.5, 0), sR = p(0, -0.5, 0);
+                actualCtx.beginPath();
+                actualCtx.moveTo(sN.x, sN.y);
+                actualCtx.lineTo(sR.x, sR.y);
+                actualCtx.lineTo(sT.x, sT.y);
+                actualCtx.lineTo(sL.x, sL.y);
+                actualCtx.fill();
+                return;
+            }
+            // Horizontal stabilizer
+            const stabL = p(-2.4, 0.6, 0.3), stabR = p(-2.4, -0.6, 0.3);
+            actualCtx.fillStyle = '#111';
+            actualCtx.lineWidth = 4 * s;
+            actualCtx.strokeStyle = '#222';
+            actualCtx.beginPath();
+            actualCtx.moveTo(stabL.x, stabL.y);
+            actualCtx.lineTo(stabR.x, stabR.y);
+            actualCtx.stroke();
+            // Main body
+            actualCtx.fillStyle = fillColor;
+            actualCtx.strokeStyle = strokeColor;
+            actualCtx.lineWidth = 1;
+            const n = p(1.3, 0, 0.3), tailBoomStart = p(-1.1, 0, 0.6);
+            const bodyFL = p(0.4, 0.45, 0.4), bodyFR = p(0.4, -0.45, 0.4);
+            const bodyBL = p(-1.0, 0.45, 0.4), bodyBR = p(-1.0, -0.45, 0.4);
+            actualCtx.beginPath();
+            actualCtx.moveTo(n.x, n.y);
+            actualCtx.lineTo(bodyFR.x, bodyFR.y);
+            actualCtx.lineTo(bodyBR.x, bodyBR.y);
+            actualCtx.lineTo(tailBoomStart.x, tailBoomStart.y);
+            actualCtx.lineTo(bodyBL.x, bodyBL.y);
+            actualCtx.lineTo(bodyFL.x, bodyFL.y);
+            actualCtx.fill();
+            actualCtx.stroke();
+            // Windows
+            actualCtx.fillStyle = '#111';
+            actualCtx.beginPath();
+            actualCtx.moveTo(p(0.3, 0.47, 0.35).x, p(0.3, 0.47, 0.35).y);
+            actualCtx.lineTo(p(-0.6, 0.47, 0.35).x, p(-0.6, 0.47, 0.35).y);
+            actualCtx.lineTo(p(-0.6, 0.3, 0.6).x, p(-0.6, 0.3, 0.6).y);
+            actualCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y);
+            actualCtx.fill();
+            actualCtx.beginPath();
+            actualCtx.moveTo(p(0.3, -0.47, 0.35).x, p(0.3, -0.47, 0.35).y);
+            actualCtx.lineTo(p(-0.6, -0.47, 0.35).x, p(-0.6, -0.47, 0.35).y);
+            actualCtx.lineTo(p(-0.6, -0.3, 0.6).x, p(-0.6, -0.3, 0.6).y);
+            actualCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y);
+            actualCtx.fill();
+            // Nose intake + roof sensor pod
+            actualCtx.fillStyle = '#111';
+            actualCtx.beginPath();
+            actualCtx.moveTo(n.x, n.y);
+            actualCtx.lineTo(p(0.6, 0.4, 0.6).x, p(0.6, 0.4, 0.6).y);
+            actualCtx.lineTo(p(0.6, -0.4, 0.6).x, p(0.6, -0.4, 0.6).y);
+            actualCtx.fill();
+            actualCtx.fillStyle = '#eee';
+            actualCtx.beginPath();
+            actualCtx.moveTo(p(0.6, 0, 0.7).x, p(0.6, 0, 0.7).y);
+            actualCtx.lineTo(p(-0.8, 0.35, 0.7).x, p(-0.8, 0.35, 0.7).y);
+            actualCtx.lineTo(p(-0.8, -0.35, 0.7).x, p(-0.8, -0.35, 0.7).y);
+            actualCtx.fill();
+            // Tail boom + vertical fin
+            actualCtx.fillStyle = fillColor;
+            const finBase = p(-2.4, 0, 0.6), finTop = p(-2.9, 0, 1.3), finBack = p(-3.0, 0, 0.6);
+            actualCtx.lineWidth = 6 * s;
+            actualCtx.strokeStyle = fillColor;
+            actualCtx.beginPath();
+            actualCtx.moveTo(tailBoomStart.x, tailBoomStart.y);
+            actualCtx.lineTo(finBase.x, finBase.y);
+            actualCtx.stroke();
+            actualCtx.lineWidth = 1;
+            actualCtx.beginPath();
+            actualCtx.moveTo(finBase.x, finBase.y);
+            actualCtx.lineTo(finTop.x, finTop.y);
+            actualCtx.lineTo(finBack.x, finBack.y);
+            actualCtx.fill();
+            // Tail rotor
+            actualCtx.strokeStyle = 'rgba(220,245,255,0.55)';
+            actualCtx.lineWidth = 2 * s;
+            actualCtx.lineCap = 'round';
+            const trHub = p(-2.95, 0.08, 0.95);
+            for (let i = 0; i < 4; i++) {
+                const a = hRotor * 1.5 + i * (Math.PI / 2);
+                const trEnd = p(-2.95 + Math.sin(a) * 0.55, 0.08, 0.95 + Math.cos(a) * 0.55);
+                actualCtx.beginPath();
+                actualCtx.moveTo(trHub.x, trHub.y);
+                actualCtx.lineTo(trEnd.x, trEnd.y);
+                actualCtx.stroke();
+            }
+            // Main rotor
+            actualCtx.strokeStyle = 'rgba(220,245,255,0.5)';
+            actualCtx.lineWidth = 3 * s;
+            const hub = p(0, 0, 0.8);
+            for (let i = 0; i < 4; i++) {
+                const a = hRotor + i * (Math.PI / 2);
+                const end = p(Math.cos(a) * 2.6, Math.sin(a) * 2.6, 0.85);
+                actualCtx.beginPath();
+                actualCtx.moveTo(hub.x, hub.y);
+                actualCtx.lineTo(end.x, end.y);
+                actualCtx.stroke();
+            }
+        } else if (type === 'chinook') {
+            if (isShadow) {
+                const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
+                actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
+                const sN = p(2.5, 0, 0), sT = p(-2.8, 0, 0), sL = p(0, 0.8, 0), sR = p(0, -0.8, 0);
+                actualCtx.beginPath();
+                actualCtx.moveTo(sN.x, sN.y);
+                actualCtx.lineTo(sR.x, sR.y);
+                actualCtx.lineTo(sT.x, sT.y);
+                actualCtx.lineTo(sL.x, sL.y);
+                actualCtx.fill();
+                return;
+            }
+            const wf = (lx: number, ly: number, lz: number) => ({
+                x: lx * s * cosA - ly * s * sinA + hX,
+                y: lx * s * sinA + ly * s * cosA + hY,
+                z: hZ + (lz * s + ly * s * hRoll * 0.5 + lx * s * hTilt * 0.5),
+            });
+            const rB1 = wf(1.8, 0.3, 0.15), rB2 = wf(1.8, -0.3, 0.15);
+            const rB3 = wf(-2.0, -0.3, 0.15), rB4 = wf(-2.0, 0.3, 0.15);
+            const rM1 = wf(1.8, 0.6, 0.5), rM2 = wf(1.8, -0.6, 0.5);
+            const rM3 = wf(-2.0, -0.6, 0.5), rM4 = wf(-2.0, 0.6, 0.5);
+            const rT1 = wf(1.8, 0.3, 0.85), rT2 = wf(1.8, -0.3, 0.85);
+            const rT3 = wf(-2.0, -0.3, 0.85), rT4 = wf(-2.0, 0.3, 0.85);
+            const tailTop = wf(-2.6, 0, 1.1), tailLow = wf(-2.6, 0, 0.4);
+            faceFn([rB1, rB2, rB3, rB4], '#d50', null, 0, camX, camY);
+            faceFn([rB1, rM1, rM4, rB4], '#f60', null, 0, camX, camY);
+            faceFn([rM1, rT1, rT4, rM4], '#ff7711', null, 0, camX, camY);
+            faceFn([rB2, rM2, rM3, rB3], '#c40', null, 0, camX, camY);
+            faceFn([rM2, rT2, rT3, rM3], '#d50', null, 0, camX, camY);
+            faceFn([rT1, rT2, rT3, rT4], '#f60', '#d50', 0, camX, camY);
+            faceFn([rT4, rT3, tailTop], '#f60', '#d50', 0, camX, camY);
+            faceFn([rM4, rT4, tailTop, tailLow], '#ff7711', null, 0, camX, camY);
+            faceFn([rM3, rT3, tailTop, tailLow], '#d50', null, 0, camX, camY);
+            const nTip = wf(2.8, 0, 0.45);
+            faceFn([nTip, rM2, rT2, rT1, rM1], fillColor, strokeColor, 0, camX, camY);
+            // Cockpit windows
+            faceFn([wf(2.6, 0, 0.5), wf(2.2, -0.35, 0.6), wf(2.2, 0.35, 0.6)], '#111', null, 0, camX, camY);
+            faceFn([wf(1.5, 0.31, 0.6), wf(1.0, 0.31, 0.6), wf(1.0, 0.31, 0.75), wf(1.5, 0.31, 0.75)], '#111', null, 0, camX, camY);
+            faceFn([wf(1.5, -0.31, 0.6), wf(1.0, -0.31, 0.6), wf(1.0, -0.31, 0.75), wf(1.5, -0.31, 0.75)], '#111', null, 0, camX, camY);
+            // Forward pylon
+            const vT = wf(1.5, 0, 1.15);
+            faceFn([wf(1.8, 0.3, 0.85), wf(1.8, -0.3, 0.85), vT], '#f60', '#d50', 0, camX, camY);
+            faceFn([wf(1.8, -0.3, 0.85), wf(1.2, -0.3, 0.85), vT], '#d50', '#d50', 0, camX, camY);
+            faceFn([wf(1.2, -0.3, 0.85), wf(1.2, 0.3, 0.85), vT], '#f60', '#d50', 0, camX, camY);
+            faceFn([wf(1.2, 0.3, 0.85), wf(1.8, 0.3, 0.85), vT], '#ff7711', '#d50', 0, camX, camY);
+            // Rear pylon
+            const hTop = wf(-2.3, 0, 1.8);
+            faceFn([wf(-1.9, 0.3, 1.0), wf(-1.9, -0.3, 1.0), hTop], '#f60', '#d50', 0, camX, camY);
+            faceFn([wf(-1.9, -0.3, 1.0), wf(-2.5, -0.15, 1.1), hTop], '#d50', '#d50', 0, camX, camY);
+            faceFn([wf(-2.5, -0.15, 1.1), wf(-2.5, 0.15, 1.1), hTop], '#c40', '#d50', 0, camX, camY);
+            faceFn([wf(-2.5, 0.15, 1.1), wf(-1.9, 0.3, 1.0), hTop], '#ff7711', '#d50', 0, camX, camY);
+            // Rotors
+            actualCtx.strokeStyle = 'rgba(220,245,255,0.6)';
+            actualCtx.lineWidth = 3 * s;
+            const rF = p(1.5, 0, 1.15);
+            for (let i = 0; i < 3; i++) {
+                const a = hRotor + i * ((Math.PI * 2) / 3);
+                const end = p(1.5 + Math.cos(a) * 3.4, Math.sin(a) * 3.4, 1.15);
+                actualCtx.beginPath();
+                actualCtx.moveTo(rF.x, rF.y);
+                actualCtx.lineTo(end.x, end.y);
+                actualCtx.stroke();
+            }
+            const rR = p(-2.3, 0, 1.8);
+            for (let i = 0; i < 3; i++) {
+                const a = -hRotor + i * ((Math.PI * 2) / 3);
+                const end = p(-2.3 + Math.cos(a) * 3.4, Math.sin(a) * 3.4, 1.8);
+                actualCtx.beginPath();
+                actualCtx.moveTo(rR.x, rR.y);
+                actualCtx.lineTo(end.x, end.y);
+                actualCtx.stroke();
+            }
+        } else if (type === 'glider') {
+            if (isShadow) {
+                const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
+                actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.3 - (hZ - groundZ) * 0.05)})`;
+
+                // Helper: project local coords to screen at ground level (z=0)
+                const ps = (lx: number, ly: number) => p(lx, ly, 0);
+
+                // Fuselage
+                const fuse = [ps(1.0,0), ps(0.55,-0.10), ps(-1.2,-0.06), ps(-1.65,0), ps(-1.2,0.06), ps(0.55,0.10)];
+                actualCtx.beginPath();
+                actualCtx.moveTo(fuse[0].x, fuse[0].y);
+                for (let i = 1; i < fuse.length; i++) actualCtx.lineTo(fuse[i].x, fuse[i].y);
+                actualCtx.closePath();
+                actualCtx.fill();
+
+                // Main wings
+                const wing = [ps(0.36,-3.0), ps(0.03,-3.0), ps(0.03,3.0), ps(0.36,3.0)];
+                actualCtx.beginPath();
+                actualCtx.moveTo(wing[0].x, wing[0].y);
+                for (let i = 1; i < wing.length; i++) actualCtx.lineTo(wing[i].x, wing[i].y);
+                actualCtx.closePath();
+                actualCtx.fill();
+
+                // Horizontal stabiliser
+                const hstab = [ps(-1.35,-0.65), ps(-1.55,-0.65), ps(-1.55,0.65), ps(-1.35,0.65)];
+                actualCtx.beginPath();
+                actualCtx.moveTo(hstab[0].x, hstab[0].y);
+                for (let i = 1; i < hstab.length; i++) actualCtx.lineTo(hstab[i].x, hstab[i].y);
+                actualCtx.closePath();
+                actualCtx.fill();
+            } else {
+                const wf = (lx: number, ly: number, lz: number) => ({
+                    x: lx * s * cosA - ly * s * sinA + hX,
+                    y: lx * s * sinA + ly * s * cosA + hY,
+                    z: hZ + (lz * s + ly * s * hRoll * 0.5 + lx * s * hTilt * 0.5),
+                });
+                const gliderFaces: { verts: [number, number, number][]; color: string }[] = [
+                    { verts: [[-1.40, 0.04,0.20],[-1.65, 0.04,0.20],[-1.65, 0.04,0.50],[-1.40, 0.04,0.32]], color: '#cc3300' },
+                    { verts: [[-1.35,-0.65,0.24],[-1.35, 0.65,0.24],[-1.55, 0.65,0.24],[-1.55,-0.65,0.24]], color: '#dddddd' },
+                    { verts: [[ 0.36,-0.10,0.27],[ 0.03,-0.10,0.27],[ 0.03,-3.0, 0.28],[ 0.36,-3.0, 0.28]], color: '#e0e0e0' },
+                    { verts: [[ 1.0,  0,   0.20],[ 0.55,-0.10,0.26],[-1.2, -0.06,0.26],[-1.65, 0,  0.22],[-1.2, 0.06,0.26],[ 0.55, 0.10,0.26]], color: '#f2f2f2' },
+                    { verts: [[ 0.36, 0.10,0.27],[ 0.36, 3.0, 0.28],[ 0.03, 3.0, 0.28],[ 0.03, 0.10,0.27]], color: '#e0e0e0' },
+                    { verts: [[ 0.70, 0.07,0.26],[ 0.70,-0.07,0.26],[-0.16,-0.07,0.36],[-0.16, 0.07,0.36]], color: '#112244' },
+                ];
+                for (const face of gliderFaces) {
+                    faceFn(face.verts.map(([lx, ly, lz]) => wf(lx, ly, lz)), face.color, null, 0, camX, camY);
+                }
+            }
+        }
+    }
+
+    return { drawFace, drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli };
+}

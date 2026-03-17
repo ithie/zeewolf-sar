@@ -2,6 +2,7 @@ import { CampaignExport } from '@/shared/types';
 import Tutorial from './campaigns/tutorial.json';
 import AddCamp from './campaigns/addCamp.json';
 import ArchipelDemo from './campaigns/archipeldemo.json';
+import Glider from './campaigns/glider.json';
 import { decompressTerrain } from '../shared/utils';
 import ZsynthPlayer from '../tracker/ZsynthPlayer';
 import SoundTutorial from './music/clike.json';
@@ -51,6 +52,7 @@ const campaignHandler = () => {
         Tutorial as unknown as CampaignExport,
         ArchipelDemo as unknown as CampaignExport,
         AddCamp as unknown as CampaignExport,
+        Glider as unknown as CampaignExport,
     ];
 
     const campaignState = {
@@ -88,7 +90,7 @@ const campaignHandler = () => {
 
     const getCurrentMissionData = () => {
         const missionData = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
-        return { ...missionData };
+        return { ...missionData, campaignType: campaigns[campaignState.activeCampaign].type };
     };
 
     const getTerrain = () => {
