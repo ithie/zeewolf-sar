@@ -3,8 +3,11 @@
     "private": true,
     "version": "0.0.0",
     "type": "module",
+    "main": "workbench/dist/main/index.cjs",
     "scripts": {
-        "dev": "vite",
+        "dev": "concurrently -k -n VITE,ELECTRON -c cyan,yellow \"vite\" \"node workbench/build.mjs && electron .\"",
+        "dev:vite": "vite",
+        "workbench:build": "node workbench/build.mjs",
         "build:game": "vite build --mode game",
         "build:editor": "vite build --mode editor",
         "build": "npm run build:game && npm run build:editor",
@@ -14,7 +17,10 @@
     },
     "devDependencies": {
         "@types/node": "^25.3.0",
+        "concurrently": "^9.0.0",
+        "electron": "^33.0.0",
         "gh-pages": "^6.3.0",
+        "monaco-editor": "^0.52.0",
         "typescript": "~5.9.3",
         "vite": "^7.3.1"
     }

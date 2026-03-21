@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zeewolf Workbench</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #1e1e1e;
+      --bg2:         #252526;
+      --bg3:         #2d2d2d;
+      --bg4:         #3c3c3c;
+      --accent:      #0e639c;
+      --accent2:     #1177bb;
+      --text:        #cccccc;
+      --text-dim:    #858585;
+      --text-bright: #ffffff;
+      --border:      #3c3c3c;
+      --tab-active:  #1e1e1e;
+      --tab-inactive:#2d2d2d;
+      --tree-hover:  #2a2d2e;
+      --tree-active: #094771;
+      --success:     #4ec9b0;
+      --warning:     #ce9178;
+      --error:       #f44747;
+      --handle:      4px;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Toolbar ─────────────────────────────────────────────────────────── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 10px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #git-branch {
+      font-weight: 600;
+      color: var(--success);
+      min-width: 100px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar-sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+
+    #toolbar button {
+      background: var(--bg4);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #toolbar button:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
+    #toolbar button:active { background: var(--accent2); }
+    #toolbar button:disabled { opacity: 0.4; cursor: default; }
+
+    #commit-msg {
+      flex: 1;
+      min-width: 0;
+      max-width: 360px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      padding: 3px 8px;
+      font-size: 12px;
+      outline: none;
+    }
+    #commit-msg:focus { border-color: var(--accent2); }
+    #commit-msg::placeholder { color: var(--text-dim); }
+
+    #git-status {
+      flex: 1;
+      color: var(--text-dim);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #git-status.ok   { color: var(--success); }
+    #git-status.err  { color: var(--error); }
+
+    /* ── Root layout ─────────────────────────────────────────────────────── */
+    #root {
+      display: flex;
+      width: 100%;
+      height: calc(100vh - 36px);
+      overflow: hidden;
+    }
+
+    /* ── Left panel ──────────────────────────────────────────────────────── */
+    #left-panel {
+      display: flex;
+      flex-direction: column;
+      width: 55%;
+      min-width: 300px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* ── Tab bar ─────────────────────────────────────────────────────────── */
+    #tab-bar {
+      display: flex;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      padding: 6px 18px;
+      background: var(--tab-inactive);
+      color: var(--text-dim);
+      border: none;
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: color 0.1s;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--bg4); }
+    .tab-btn.active {
+      background: var(--tab-active);
+      color: var(--text-bright);
+      border-bottom: 2px solid var(--accent2);
+    }
+
+    /* ── Tab panes ───────────────────────────────────────────────────────── */
+    #tab-content { flex: 1; overflow: hidden; position: relative; }
+
+    .tab-pane { display: none; width: 100%; height: 100%; }
+    .tab-pane.active { display: flex; }
+
+    /* Code tab: file-tree + editor side by side */
+    #tab-code { flex-direction: row; }
+
+    #file-tree-panel {
+      width: 220px;
+      min-width: 120px;
+      max-width: 420px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex-shrink: 0;
+    }
+    #file-tree-panel::-webkit-scrollbar { width: 6px; }
+    #file-tree-panel::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    .tree-header {
+      padding: 6px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .tree-refresh {
+      background: none; border: none; color: var(--text-dim);
+      cursor: pointer; font-size: 13px; padding: 0 2px;
+    }
+    .tree-refresh:hover { color: var(--text); }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      border-radius: 2px;
+    }
+    .tree-item:hover { background: var(--tree-hover); }
+    .tree-item.active { background: var(--tree-active); color: #fff; }
+
+    .tree-icon { font-size: 12px; flex-shrink: 0; }
+    .tree-name { overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+    .tree-children { }
+
+    #editor-container {
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Tracker / Editor tabs */
+    #tab-tracker, #tab-editor {
+      width: 100%; height: 100%;
+    }
+    #tab-tracker iframe, #tab-editor iframe {
+      width: 100%; height: 100%;
+      border: none;
+    }
+
+    /* ── Horizontal resize handle (left / right) ─────────────────────────── */
+    #resize-h {
+      width: var(--handle);
+      cursor: col-resize;
+      background: var(--border);
+      flex-shrink: 0;
+      transition: background 0.15s;
+      z-index: 10;
+    }
+    #resize-h:hover, #resize-h.dragging { background: var(--accent2); }
+
+    /* ── Right panel ─────────────────────────────────────────────────────── */
+    #right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .view-pane {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .pane-label {
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .view-pane iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: #000;
+    }
+
+    #game-pane   { height: 60%; }
+    #model-pane  { height: 40%; }
+
+    /* ── Vertical resize handle (game / modelviewer) ─────────────────────── */
+    #resize-v {
+      height: var(--handle);
+      cursor: row-resize;
+      background: var(--border);
+      flex-shrink: 0;
+      transition: background 0.15s;
+      z-index: 10;
+    }
+    #resize-v:hover, #resize-v.dragging { background: var(--accent2); }
+
+    /* ── Auto-save indicator ─────────────────────────────────────────────── */
+    #autosave-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: transparent;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #autosave-dot.dirty   { background: var(--warning); }
+    #autosave-dot.saving  { background: var(--accent2); }
+    #autosave-dot.saved   { background: var(--success); }
+
+    /* ── Overlay blocker during resize ──────────────────────────────────── */
+    #iframe-blocker {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      cursor: inherit;
+    }
+    #iframe-blocker.active { display: block; }
+  </style>
+
+  <!-- Monaco AMD loader (served locally from port 3001) -->
+  <script>
+    var require = { paths: { 'vs': 'http://localhost:3001/monaco' } };
+  </script>
+  <script src="http://localhost:3001/monaco/loader.js"></script>
+</head>
+<body>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <span id="git-branch">⎇ …</span>
+    <div class="toolbar-sep"></div>
+    <button id="btn-pull">↓ Pull</button>
+    <input id="commit-msg" type="text" placeholder="Commit message…" autocomplete="off" spellcheck="false">
+    <button id="btn-commit">✓ Commit</button>
+    <button id="btn-push">↑ Push</button>
+    <div class="toolbar-sep"></div>
+    <div id="autosave-dot" title="Auto-save status"></div>
+    <span id="git-status"></span>
+  </div>
+
+  <!-- Iframe overlay to prevent drag-capture by iframes -->
+  <div id="iframe-blocker"></div>
+
+  <!-- Root layout -->
+  <div id="root">
+
+    <!-- Left panel -->
+    <div id="left-panel">
+
+      <div id="tab-bar">
+        <button class="tab-btn active" data-tab="code">Code</button>
+        <button class="tab-btn" data-tab="tracker">Tracker</button>
+        <button class="tab-btn" data-tab="editor">Editor</button>
+      </div>
+
+      <div id="tab-content">
+
+        <!-- Code tab -->
+        <div id="tab-code" class="tab-pane active">
+          <div id="file-tree-panel">
+            <div class="tree-header">
+              Explorer
+              <button class="tree-refresh" id="btn-refresh-tree" title="Refresh">↺</button>
+            </div>
+            <div id="file-tree"></div>
+          </div>
+          <div id="editor-container"></div>
+        </div>
+
+        <!-- Tracker tab -->
+        <div id="tab-tracker" class="tab-pane">
+          <iframe src="http://localhost:5173/tracker.html" id="iframe-tracker" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+        </div>
+
+        <!-- Editor tab -->
+        <div id="tab-editor" class="tab-pane">
+          <iframe src="http://localhost:5173/editor.html" id="iframe-editor" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Horizontal resize handle -->
+    <div id="resize-h"></div>
+
+    <!-- Right panel -->
+    <div id="right-panel">
+
+      <div id="game-pane" class="view-pane">
+        <div class="pane-label">Game</div>
+        <iframe src="http://localhost:5173/" id="iframe-game"></iframe>
+      </div>
+
+      <!-- Vertical resize handle -->
+      <div id="resize-v"></div>
+
+      <div id="model-pane" class="view-pane">
+        <div class="pane-label">Model Viewer</div>
+        <iframe src="http://localhost:5173/modelviewer.html" id="iframe-model"></iframe>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  // ── Globals ──────────────────────────────────────────────────────────────
+  const wb = window.workbench;
+  let editor = null;
+  let currentFilePath = null;
+  let isDirty = false;
+  let autoSaveTimer = null;
+
+  // ── Auto-save dot ─────────────────────────────────────────────────────────
+  function setDot(state) {
+    const dot = document.getElementById('autosave-dot');
+    dot.className = state;
+  }
+
+  // ── Git status display ────────────────────────────────────────────────────
+  let statusTimer = null;
+  function showStatus(msg, type = '') {
+    const el = document.getElementById('git-status');
+    el.textContent = msg;
+    el.className = type;
+    clearTimeout(statusTimer);
+    if (msg) statusTimer = setTimeout(() => { el.textContent = ''; el.className = ''; }, 6000);
+  }
+
+  function setButtonsBusy(busy) {
+    ['btn-pull', 'btn-commit', 'btn-push'].forEach(id => {
+      document.getElementById(id).disabled = busy;
+    });
+  }
+
+  // ── Git toolbar ───────────────────────────────────────────────────────────
+  async function refreshBranch() {
+    try {
+      const branch = await wb.git.getBranch();
+      document.getElementById('git-branch').textContent = '⎇ ' + branch;
+    } catch (e) {
+      document.getElementById('git-branch').textContent = '⎇ ?';
+    }
+  }
+
+  document.getElementById('btn-pull').addEventListener('click', async () => {
+    setButtonsBusy(true);
+    showStatus('Pulling…');
+    try {
+      const out = await wb.git.pull();
+      showStatus(out || 'Already up to date.', 'ok');
+      await refreshBranch();
+    } catch (e) {
+      showStatus(String(e), 'err');
+    }
+    setButtonsBusy(false);
+  });
+
+  document.getElementById('btn-commit').addEventListener('click', async () => {
+    const msg = document.getElementById('commit-msg').value.trim();
+    if (!msg) { showStatus('Enter a commit message first.', 'err'); return; }
+    await saveCurrentFile();
+    setButtonsBusy(true);
+    showStatus('Committing…');
+    try {
+      const out = await wb.git.commit(msg);
+      showStatus(out, 'ok');
+      document.getElementById('commit-msg').value = '';
+    } catch (e) {
+      showStatus(String(e), 'err');
+    }
+    setButtonsBusy(false);
+  });
+
+  document.getElementById('btn-push').addEventListener('click', async () => {
+    setButtonsBusy(true);
+    showStatus('Pushing…');
+    try {
+      const out = await wb.git.push();
+      showStatus(out || 'Pushed.', 'ok');
+    } catch (e) {
+      showStatus(String(e), 'err');
+    }
+    setButtonsBusy(false);
+  });
+
+  // ── File save ─────────────────────────────────────────────────────────────
+  async function saveCurrentFile() {
+    if (!currentFilePath || !editor || !isDirty) return;
+    setDot('saving');
+    try {
+      await wb.writeFile(currentFilePath, editor.getValue());
+      isDirty = false;
+      setDot('saved');
+      setTimeout(() => setDot(''), 1500);
+    } catch (e) {
+      showStatus('Save failed: ' + e, 'err');
+      setDot('');
+    }
+  }
+
+  function scheduleAutoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => saveCurrentFile(), 2000);
+  }
+
+  // ── Language detection ────────────────────────────────────────────────────
+  const LANG_MAP = {
+    ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript',
+    html: 'html', css: 'css', json: 'json', md: 'markdown',
+    txt: 'plaintext', mjs: 'javascript', cjs: 'javascript',
+  };
+
+  function langForPath(filePath) {
+    const ext = filePath.split('.').pop() || '';
+    return LANG_MAP[ext] || 'plaintext';
+  }
+
+  // ── Open file ─────────────────────────────────────────────────────────────
+  async function openFile(filePath) {
+    if (editor && currentFilePath === filePath) return;
+    await saveCurrentFile();
+
+    // Highlight active item
+    document.querySelectorAll('.tree-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.path === filePath);
+    });
+
+    try {
+      const content = await wb.readFile(filePath);
+      currentFilePath = filePath;
+      const model = monaco.editor.createModel(
+        content,
+        langForPath(filePath),
+        monaco.Uri.file(filePath)
+      );
+      // Dispose old model if different
+      const old = editor.getModel();
+      editor.setModel(model);
+      if (old && old !== model) old.dispose();
+      isDirty = false;
+      setDot('');
+    } catch (e) {
+      showStatus('Could not open ' + filePath + ': ' + e, 'err');
+    }
+  }
+
+  // ── File tree ─────────────────────────────────────────────────────────────
+  async function buildTree(container, dirPath, depth) {
+    let entries;
+    try {
+      entries = await wb.readDir(dirPath);
+    } catch (e) {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = dirPath ? dirPath + '/' + entry.name : entry.name;
+      const item = document.createElement('div');
+      item.className = 'tree-item';
+      item.dataset.path = fullPath;
+      item.style.paddingLeft = (8 + depth * 14) + 'px';
+
+      const icon = document.createElement('span');
+      icon.className = 'tree-icon';
+
+      const name = document.createElement('span');
+      name.className = 'tree-name';
+      name.textContent = entry.name;
+
+      item.appendChild(icon);
+      item.appendChild(name);
+      container.appendChild(item);
+
+      if (entry.isDir) {
+        icon.textContent = '▶';
+        const children = document.createElement('div');
+        children.className = 'tree-children';
+        children.style.display = 'none';
+        container.appendChild(children);
+
+        item.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const expanded = children.style.display !== 'none';
+          if (expanded) {
+            children.style.display = 'none';
+            icon.textContent = '▶';
+          } else {
+            if (!children.hasChildNodes()) {
+              await buildTree(children, fullPath, depth + 1);
+            }
+            children.style.display = '';
+            icon.textContent = '▼';
+          }
+        });
+      } else {
+        icon.textContent = '·';
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openFile(fullPath);
+        });
+      }
+    }
+  }
+
+  async function refreshTree() {
+    const tree = document.getElementById('file-tree');
+    tree.innerHTML = '';
+    await buildTree(tree, '', 0);
+  }
+
+  document.getElementById('btn-refresh-tree').addEventListener('click', refreshTree);
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tab = btn.dataset.tab;
+
+      // Auto-save before leaving Code tab
+      if (document.querySelector('.tab-btn.active').dataset.tab === 'code') {
+        await saveCurrentFile();
+      }
+
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+
+      if (tab === 'code' && editor) {
+        editor.layout();
+      }
+    });
+  });
+
+  // ── Horizontal resize (left / right panels) ───────────────────────────────
+  (function () {
+    const handle = document.getElementById('resize-h');
+    const left   = document.getElementById('left-panel');
+    const root   = document.getElementById('root');
+    const blocker = document.getElementById('iframe-blocker');
+    let dragging = false, startX = 0, startW = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      dragging = true;
+      startX = e.clientX;
+      startW = left.offsetWidth;
+      handle.classList.add('dragging');
+      blocker.classList.add('active');
+      blocker.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const totalW = root.offsetWidth;
+      const newW = Math.max(300, Math.min(totalW - 300, startW + (e.clientX - startX)));
+      left.style.width = newW + 'px';
+      if (editor) editor.layout();
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('dragging');
+      blocker.classList.remove('active');
+    });
+  })();
+
+  // ── Vertical resize (game / modelviewer) ──────────────────────────────────
+  (function () {
+    const handle  = document.getElementById('resize-v');
+    const gamePan = document.getElementById('game-pane');
+    const modPan  = document.getElementById('model-pane');
+    const right   = document.getElementById('right-panel');
+    const blocker = document.getElementById('iframe-blocker');
+    let dragging = false, startY = 0, startH = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      dragging = true;
+      startY = e.clientY;
+      startH = gamePan.offsetHeight;
+      handle.classList.add('dragging');
+      blocker.classList.add('active');
+      blocker.style.cursor = 'row-resize';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const totalH = right.offsetHeight;
+      const handleH = handle.offsetHeight;
+      const newH = Math.max(80, Math.min(totalH - handleH - 80, startH + (e.clientY - startY)));
+      gamePan.style.height = newH + 'px';
+      modPan.style.height  = (totalH - handleH - newH) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('dragging');
+      blocker.classList.remove('active');
+    });
+  })();
+
+  // ── Monaco init ───────────────────────────────────────────────────────────
+  require(['vs/editor/editor.main'], function () {
+
+    // TypeScript compiler options matching the project tsconfig
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      target:                     monaco.languages.typescript.ScriptTarget.ES2022,
+      module:                     monaco.languages.typescript.ModuleKind.ESNext,
+      moduleResolution:           monaco.languages.typescript.ModuleResolutionKind.Bundler,
+      strict:                     true,
+      noUnusedLocals:             true,
+      noUnusedParameters:         true,
+      noFallthroughCasesInSwitch: true,
+      esModuleInterop:            true,
+      allowImportingTsExtensions: true,
+      isolatedModules:            true,
+      allowJs:                    true,
+      checkJs:                    false,
+    });
+
+    editor = monaco.editor.create(document.getElementById('editor-container'), {
+      theme:              'vs-dark',
+      fontSize:           13,
+      fontFamily:         "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+      fontLigatures:      true,
+      lineNumbers:        'on',
+      minimap:            { enabled: true, scale: 1 },
+      scrollBeyondLastLine: false,
+      automaticLayout:    true,
+      tabSize:            4,
+      insertSpaces:       true,
+      wordWrap:           'off',
+      renderWhitespace:   'selection',
+      smoothScrolling:    true,
+      cursorBlinking:     'smooth',
+      bracketPairColorization: { enabled: true },
+    });
+
+    // Mark dirty on change → schedule auto-save
+    editor.onDidChangeModelContent(() => {
+      if (!isDirty) { isDirty = true; setDot('dirty'); }
+      scheduleAutoSave();
+    });
+
+    // Ctrl+S / Cmd+S → immediate save
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      () => saveCurrentFile()
+    );
+
+    // Init: load file tree and git branch
+    refreshBranch();
+    refreshTree();
+  });
+  </script>
+</body>
+</html>

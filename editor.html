@@ -8,6 +8,40 @@
     <body>
         <div id="sidebar">
             <div class="sidebar-header"><strong>ZEEWOLF OPS</strong></div>
+
+            <!-- File management -->
+            <div style="padding: 8px; background: #0a0a0a; border-bottom: 1px solid #2a2a2a; display: flex; flex-direction: column; gap: 6px; font-size: 11px; font-family: monospace;">
+                <div style="color: #ff6600; font-weight: bold; font-size: 10px; letter-spacing: 0.05em;">📁 KAMPAGNENDATEI</div>
+                <select id="campaign-select" style="width: 100%; background: #000; color: #5f5; border: 1px solid #444; font-family: monospace; font-size: 11px; padding: 3px;">
+                    <option value="">-- Keine Datei --</option>
+                </select>
+                <div style="display: flex; gap: 4px;">
+                    <button id="btn-campaign-load" style="flex: 1; background: #000; color: #5f5; border: 1px solid #5f5; padding: 5px; cursor: pointer; font-family: monospace; font-size: 11px;">LADEN</button>
+                    <button id="btn-campaign-save" style="flex: 1; background: #003300; color: #5f5; border: 1px solid #5f5; padding: 5px; cursor: pointer; font-family: monospace; font-size: 11px;">SPEICHERN</button>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                    <input id="new-campaign-name" type="text" placeholder="neuer Name..." style="flex: 1; background: #000; color: #5f5; border: 1px solid #333; font-family: monospace; font-size: 11px; padding: 4px; min-width: 0;">
+                    <button id="btn-campaign-new" style="background: #330000; color: #f66; border: 1px solid #633; padding: 5px 8px; cursor: pointer; font-family: monospace; font-size: 11px;">NEU</button>
+                </div>
+            </div>
+
+            <div style="padding: 8px; border-bottom: 1px solid #2a2a2a; display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 12px; color: var(--accent); margin-bottom: 4px; font-weight: bold">
+                    KAMPAGNEN INFO (HAUPTMENÜ)
+                </div>
+                <label style="font-size: 10px; color: #aaa">Titel:</label>
+                <input
+                    type="text"
+                    id="c_title"
+                    value="OPERATION ZEEWOLF"
+                    style="width: 100%; margin-bottom: 6px; background: #000; color: var(--accent); border: 1px solid #444"
+                />
+                <label style="font-size: 10px; color: #aaa">Sublines (1 pro Zeile):</label>
+                <textarea id="c_sublines" style="height: 50px; margin-bottom: 4px">
+Sichere den Archipel.
+Viel Glück, Pilot.</textarea>
+            </div>
+
             <div id="mission-list"></div>
             <button class="primary" id="btn-add-mission">➕ Mission hinzufügen</button>
             <button
@@ -26,24 +60,7 @@
                 📋 Level duplizieren
             </button>
 
-            <hr style="width: 100%; border-color: #333; margin: 20px 0" />
-
-            <div style="font-size: 12px; color: var(--accent); margin-bottom: 10px; font-weight: bold">
-                KAMPAGNEN INFO (HAUPTMENÜ)
-            </div>
-            <label style="font-size: 10px; color: #aaa">Titel:</label>
-            <input
-                type="text"
-                id="c_title"
-                value="OPERATION ZEEWOLF"
-                style="width: 100%; margin-bottom: 10px; background: #000; color: var(--accent); border: 1px solid #444"
-            />
-            <label style="font-size: 10px; color: #aaa">Sublines (1 pro Zeile):</label>
-            <textarea id="c_sublines" style="height: 50px; margin-bottom: 15px">
-Sichere den Archipel.
-Viel Glück, Pilot.</textarea
-            >
-
+            <div style="display:none">
             <button
                 id="btn-export-campaign"
                 style="
@@ -76,6 +93,7 @@ Viel Glück, Pilot.</textarea
                 ⬇️ IMPORT DATA
             </button>
             <textarea id="output" placeholder="JSON Code hier einfügen..."></textarea>
+            </div>
         </div>
 
         <div id="main-content">
@@ -408,6 +426,94 @@ Viel Glück, Pilot.</textarea
             </div>
         </div>
 
+        <script>
+        (function () {
+            const API = 'http://localhost:3001';
+            const DIR  = 'src/game/campaigns';
+
+            async function refreshList() {
+                try {
+                    const res   = await fetch(`${API}/api/list/${DIR}`);
+                    const files = await res.json();
+                    const sel   = document.getElementById('campaign-select');
+                    const cur   = sel.value;
+                    sel.innerHTML = '<option value="">-- Keine Datei --</option>';
+                    files.forEach(f => {
+                        const o = document.createElement('option');
+                        o.value = f;
+                        o.textContent = f.replace(/\.json$/, '');
+                        sel.appendChild(o);
+                    });
+                    if (cur && files.includes(cur)) sel.value = cur;
+                } catch { /* API noch nicht bereit */ }
+            }
+
+            async function loadCampaign(filename) {
+                const res  = await fetch(`${API}/api/load/${DIR}/${filename}`);
+                const json = await res.text();
+                document.getElementById('output').value = json;
+                document.getElementById('btn-import-campaign').click();
+                document.getElementById('campaign-select').value = filename;
+            }
+
+            async function saveCampaign(filename) {
+                // Suppress the "Kampagne exportiert!" alert during programmatic export
+                const origAlert = window.alert;
+                window.alert = () => {};
+                document.getElementById('btn-export-campaign').click();
+                window.alert = origAlert;
+
+                const json = document.getElementById('output').value;
+                if (!json) return;
+                await fetch(`${API}/api/save/${DIR}/${encodeURIComponent(filename)}`,
+                    { method: 'POST', body: json });
+                await refreshList();
+                document.getElementById('campaign-select').value = filename;
+                const btn = document.getElementById('btn-campaign-save');
+                const orig = btn.textContent;
+                btn.textContent = 'OK ✓';
+                setTimeout(() => { btn.textContent = orig; }, 1500);
+            }
+
+            document.getElementById('btn-campaign-load').addEventListener('click', async () => {
+                const sel = document.getElementById('campaign-select');
+                if (!sel.value) return;
+                await loadCampaign(sel.value);
+            });
+
+            document.getElementById('btn-campaign-save').addEventListener('click', async () => {
+                const sel = document.getElementById('campaign-select');
+                if (!sel.value) { alert('Bitte zuerst eine Datei auswählen oder neue erstellen!'); return; }
+                await saveCampaign(sel.value);
+            });
+
+            document.getElementById('btn-campaign-new').addEventListener('click', async () => {
+                const input = document.getElementById('new-campaign-name');
+                const name  = input.value.trim().replace(/[^a-z0-9_\-äöüÄÖÜ]/gi, '_');
+                if (!name) { alert('Bitte einen Namen eingeben!'); return; }
+                const filename = name + '.json';
+
+                // 1) Save current editor state as new file
+                await saveCampaign(filename);
+
+                // 2) Auto-register import + array entry in src/game/main.ts
+                const regRes = await fetch(`${API}/api/register-campaign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename }),
+                });
+                const regData = await regRes.json();
+                if (regData.ok && !regData.skipped) {
+                    console.log(`[workbench] Kampagne "${regData.ident}" in main.ts registriert — Vite reload läuft.`);
+                }
+
+                input.value = '';
+                document.getElementById('campaign-select').value = filename;
+            });
+
+            refreshList();
+        })();
+        </script>
         <script type="module" src="/src/editor/main.ts"></script>
     </body>
 </html>

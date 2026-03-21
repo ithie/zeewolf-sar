@@ -39,6 +39,7 @@
         <div id="ui">
             <h2>SAR MODEL VIEWER</h2>
             <p>• Drag to pan camera</p>
+            <p>• Scroll wheel to zoom</p>
             <p>• Click MiniMap to teleport</p>
             <p>• C — toggle collision boxes</p>
         </div>
@@ -64,6 +65,7 @@
             let isDragging = false;
             let lastMouse = { x: 0, y: 0 };
             let showCollision = true;
+            let zoom = 1.0;
 
             window.addEventListener('keydown', e => {
                 if (e.key === 'c' || e.key === 'C') showCollision = !showCollision;
@@ -117,6 +119,12 @@
             });
 
             window.addEventListener('mouseup', () => (isDragging = false));
+
+            canvas.addEventListener('wheel', e => {
+                e.preventDefault();
+                zoom *= e.deltaY > 0 ? 0.9 : 1.1;
+                zoom = Math.max(0.2, Math.min(4.0, zoom));
+            }, { passive: false });
             window.addEventListener('mousemove', e => {
                 let mapX = canvas.width - MAP_SIZE - MAP_MARGIN;
                 let mapY = canvas.height - MAP_SIZE - MAP_MARGIN;
@@ -145,8 +153,8 @@
 
             function iso(vx, vy, h, cx, cy) {
                 return {
-                    x: canvas.width / 2 + (vx - vy) * (tileW / 2) - cx,
-                    y: canvas.height / 2 + (vx + vy) * (tileH / 2) - h * stepH - cy,
+                    x: canvas.width / 2 + (vx - vy) * (tileW * zoom / 2) - cx,
+                    y: canvas.height / 2 + (vx + vy) * (tileH * zoom / 2) - h * stepH * zoom - cy,
                 };
             }
 
