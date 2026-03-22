@@ -56,6 +56,15 @@ const ZsynthPlayer = {
         B1: 61.74,
         Bb1: 58.27,
         A1: 55.0,
+        Ab1: 51.91,
+        G1: 49.0,
+        Gb1: 46.25,
+        F1: 43.65,
+        E1: 41.2,
+        Eb1: 38.89,
+        D1: 36.71,
+        Db1: 34.65,
+        C1: 32.7,
     } as Record<string, number>,
 
     init: (songList: Record<string, SongData>): void => {
@@ -86,11 +95,11 @@ const ZsynthPlayer = {
         }
 
         const stepMap: Record<number, Array<{ trackId: string; note: string }>> = {};
-        for (const noteKey in songData.activeData) {
-            const parts = noteKey.split('-');
-            const step = parseInt(parts[parts.length - 1]);
-            const trackId = parts[0];
-            const note = parts.slice(1, -1).join('-');
+        for (const key in songData.activeData) {
+            const sepIdx = key.lastIndexOf('-');
+            const trackId = key.substring(0, sepIdx);
+            const step = parseInt(key.substring(sepIdx + 1));
+            const note = songData.activeData[key] as string;
             if (!stepMap[step]) stepMap[step] = [];
             stepMap[step].push({ trackId, note });
         }

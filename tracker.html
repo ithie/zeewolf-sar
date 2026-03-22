@@ -5,19 +5,20 @@
         <title>ZEEWOLF ZSynth Composer v4.0</title>
         <style>
             :root {
-                --bg: #050505;
-                --panel: #1a1a1a;
-                --accent: #ff6600;
-                --text: #5f5;
-                --grid-off: #222;
-                --drum-on: #55f;
-                --synth-on: #ff6600;
-                --active-step: #ffff00;
+                --bg: #1e1e1e;
+                --panel: #252526;
+                --border: #3e3e42;
+                --text: #cccccc;
+                --drum-on: #4a90d9;
+                --synth-on: #e8a838;
+                --grid-off: #2d2d30;
+                --active-step: rgba(255,255,255,0.15);
             }
             body {
                 background: var(--bg);
                 color: var(--text);
-                font-family: monospace;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                font-size: 12px;
                 margin: 0;
                 padding-bottom: 50px;
                 display: flex;
@@ -28,135 +29,133 @@
             .btn-container {
                 position: sticky;
                 top: 0;
-                background: rgba(5, 5, 5, 0.95);
-                padding: 15px;
+                background: var(--panel);
+                padding: 8px 12px;
                 z-index: 1000;
-                border-bottom: 1px solid var(--accent);
+                border-bottom: 1px solid var(--border);
                 width: 100%;
-                text-align: center;
+                box-sizing: border-box;
                 display: flex;
-                justify-content: center;
+                justify-content: flex-start;
                 align-items: center;
-                gap: 10px;
+                gap: 6px;
                 flex-wrap: wrap;
             }
             .sequencer-scroll {
                 width: 98%;
                 overflow-x: auto;
-                margin-top: 20px;
-                border: 1px solid #333;
+                margin-top: 12px;
+                border: 1px solid var(--border);
+                border-radius: 4px;
             }
             .track-container {
                 background: var(--panel);
-                border-bottom: 1px solid #444;
-                padding: 10px;
+                border-bottom: 1px solid var(--border);
+                padding: 8px;
                 min-width: 2550px;
                 display: flex;
             }
             .track-controls {
-                width: 280px;
+                width: 150px;
+                flex-shrink: 0;
                 position: sticky;
                 left: 0;
                 background: var(--panel);
                 z-index: 10;
                 padding-right: 10px;
-                border-right: 1px solid #444;
+                border-right: 1px solid var(--border);
                 display: flex;
                 flex-direction: column;
-                gap: 5px;
+                gap: 4px;
                 font-size: 11px;
             }
-            .grid {
+            /* ── Drum grid (unchanged single-row toggle) ── */
+            .drum-grid {
                 display: grid;
-                grid-template-columns: 80px repeat(64, 35px);
+                grid-template-columns: repeat(64, 52px);
                 gap: 2px;
                 padding-left: 10px;
+                align-items: center;
             }
             .cell {
                 height: 22px;
                 background: var(--grid-off);
                 border: 1px solid #111;
+                border-radius: 2px;
                 cursor: pointer;
             }
-            .cell.active-drum {
-                background: var(--drum-on);
-                box-shadow: 0 0 8px var(--drum-on);
-            }
-            .cell.active-synth {
-                background: var(--synth-on);
-                box-shadow: 0 0 8px var(--synth-on);
-            }
+            .cell.active-drum { background: var(--drum-on); }
             .cell.playing {
-                border: 2px solid var(--active-step);
-                box-sizing: border-box;
+                outline: 2px solid rgba(255,255,255,0.6);
+                outline-offset: -2px;
             }
-            .cell:nth-child(16n + 2) {
-                border-left: 3px solid #777;
-            }
-            .cell:nth-child(4n + 2) {
-                border-left: 2px solid #444;
-            }
+            .cell:nth-child(16n + 2) { border-left: 3px solid #555; }
+            .cell:nth-child(4n + 2)  { border-left: 2px solid #3a3a3a; }
             .label {
                 font-size: 10px;
                 text-align: right;
                 padding-right: 8px;
                 line-height: 22px;
-                background: #000;
-                color: #aaa;
+                color: #888;
             }
-            button,
-            input,
-            select {
-                background: #000;
-                color: var(--text);
-                border: 1px solid var(--text);
-                padding: 3px 8px;
-                cursor: pointer;
-                font-family: monospace;
+
+            /* ── Synth grid (one row of note selects) ── */
+            .synth-grid {
+                display: flex;
+                gap: 2px;
+                padding-left: 10px;
+                align-items: center;
+            }
+            .step-note {
+                width: 52px;
                 font-size: 11px;
+                flex-shrink: 0;
             }
-            button:hover {
-                background: var(--text);
-                color: #000;
+            .step-note.has-note {
+                background-color: rgba(232, 168, 56, 0.18);
+                color: var(--synth-on);
+                font-weight: bold;
             }
+            .step-note.playing {
+                outline: 2px solid rgba(255,255,255,0.6);
+                outline-offset: -1px;
+            }
+            /* Beat dividers via nth-child */
+            .step-note:nth-child(4n+1) { border-left: 2px solid #444; }
+            .step-note:nth-child(16n+1) { border-left: 3px solid #666; }
             .vol-slider {
                 width: 60px;
                 vertical-align: middle;
             }
             textarea {
-                background: #000;
-                color: #8af;
-                border: 1px solid #333;
+                background: var(--panel);
+                color: var(--text);
+                border: 1px solid var(--border);
                 width: 95%;
                 height: 150px;
                 margin-top: 20px;
-                font-size: 10px;
+                font-size: 11px;
                 padding: 10px;
                 box-sizing: border-box;
+                border-radius: 4px;
+            }
+            #step-display {
+                font-variant-numeric: tabular-nums;
+                color: var(--text);
+                opacity: 0.7;
+                font-size: 11px;
+                min-width: 60px;
             }
         </style>
     </head>
     <body>
         <div class="btn-container">
-            <strong style="color: var(--accent)">ZEEWOLF COMPOSER v4.0</strong>
-            <button id="btn-play">PLAY</button>
-            <button id="btn-stop">STOP</button>
-            <button id="btn-export" style="display:none">EXPORT</button>
-            <button id="btn-import" style="display:none">IMPORT</button>
-            <span>BPM: <input type="number" id="bpm" value="110" style="width: 55px" /></span>
-            <span id="step-display" style="color: var(--active-step); min-width: 80px">STEP: 1</span>
-
-            <!-- File management row -->
-            <div style="width: 100%; height: 0; border-top: 1px solid #2a2a2a; margin: 4px 0;"></div>
-            <span style="color: var(--accent); font-size: 11px;">SONG:</span>
-            <select id="song-select" title="Song auswählen">
-                <option value="">-- Kein Song --</option>
-            </select>
-            <button id="btn-song-load">LADEN</button>
-            <button id="btn-song-save">SPEICHERN</button>
-            <span style="color: #333; margin: 0 2px">|</span>
-            <input id="new-song-name" type="text" placeholder="Neuer Song-Name..." style="width: 160px;">
-            <button id="btn-song-new">NEU ✦</button>
+            <button id="btn-play">▶ Play</button>
+            <button id="btn-stop">■ Stop</button>
+            <button id="btn-export" style="display:none">Export</button>
+            <button id="btn-import" style="display:none">Import</button>
+            <label style="display:flex;align-items:center;gap:4px">BPM <input type="number" id="bpm" value="110" style="width:55px" /></label>
+            <span id="step-display">Step 1</span>
         </div>
 
         <div id="sequencer-root" class="sequencer-scroll"></div>
@@ -164,76 +163,14 @@
         <textarea id="io-field" placeholder="JSON hier einfügen..." style="display:none"></textarea>
 
         <script>
-        (function () {
-            const API = 'http://localhost:3001';
-            const DIR  = 'src/game/music';
-
-            async function refreshList() {
-                try {
-                    const res   = await fetch(`${API}/api/list/${DIR}`);
-                    const files = await res.json();
-                    const sel   = document.getElementById('song-select');
-                    const cur   = sel.value;
-                    sel.innerHTML = '<option value="">-- Kein Song --</option>';
-                    files.forEach(f => {
-                        const o = document.createElement('option');
-                        o.value = f;
-                        o.textContent = f.replace(/\.json$/, '');
-                        sel.appendChild(o);
-                    });
-                    if (cur && files.includes(cur)) sel.value = cur;
-                } catch { /* API noch nicht bereit */ }
-            }
-
-            async function loadSong(filename) {
-                const res  = await fetch(`${API}/api/load/${DIR}/${filename}`);
-                const json = await res.text();
-                document.getElementById('io-field').value = json;
-                document.getElementById('btn-import').click();
-                document.getElementById('song-select').value = filename;
-            }
-
-            async function saveSong(filename) {
-                document.getElementById('btn-export').click();
-                const json = document.getElementById('io-field').value;
-                if (!json) return;
-                await fetch(`${API}/api/save/${DIR}/${encodeURIComponent(filename)}`,
-                    { method: 'POST', body: json });
-                await refreshList();
-                document.getElementById('song-select').value = filename;
-                const btn = document.getElementById('btn-song-save');
-                const orig = btn.textContent;
-                btn.textContent = 'OK ✓';
-                setTimeout(() => { btn.textContent = orig; }, 1500);
-            }
-
-            document.getElementById('btn-song-load').addEventListener('click', async () => {
-                const sel = document.getElementById('song-select');
-                if (!sel.value) return;
-                await loadSong(sel.value);
-            });
-
-            document.getElementById('btn-song-save').addEventListener('click', async () => {
-                const sel = document.getElementById('song-select');
-                if (!sel.value) { alert('Bitte zuerst einen Song auswählen oder neu anlegen!'); return; }
-                await saveSong(sel.value);
-            });
-
-            document.getElementById('btn-song-new').addEventListener('click', async () => {
-                const input = document.getElementById('new-song-name');
-                const name  = input.value.trim().replace(/[^a-z0-9_\-]/gi, '_');
-                if (!name) { alert('Bitte einen Song-Namen eingeben!'); return; }
-                const filename = name + '.json';
-                // Reset to empty song, then save
-                document.getElementById('io-field').value =
-                    '{"bpm":"110","activeData":{},"config":{}}';
-                document.getElementById('btn-import').click();
-                await saveSong(filename);
-                input.value = '';
-            });
-
-            refreshList();
-        })();
+        window.trackerImport = function(content) {
+            document.getElementById('io-field').value = content;
+            document.getElementById('btn-import').click();
+        };
+        window.trackerExport = function() {
+            document.getElementById('btn-export').click();
+            return document.getElementById('io-field').value;
+        };
         </script>
         <script type="module" src="/src/tracker/main.ts"></script>
     </body>

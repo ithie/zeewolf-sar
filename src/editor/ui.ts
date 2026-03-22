@@ -1,7 +1,24 @@
 import { state, createEmptyMission, getCurrentMission } from './state';
-import { drawMap, drawPreview, generatePreviewBase64 } from './render';
+import { drawMap, generatePreviewBase64 } from './render';
 import { compressTerrain, decompressTerrain, compressFoliage, decompressFoliage } from '../shared/utils';
 import { Mission } from '@/shared/types';
+
+// Notify the Electron workbench parent frame that editor state has changed
+const notifyWorkbench = () => {
+    if (window.parent !== window) window.parent.postMessage({ type: 'editor-state-changed' }, '*');
+};
+
+// Broadcast current mission to the preview window via BroadcastChannel
+const previewChannel = new BroadcastChannel('zeewolf-editor');
+const broadcastPreview = () => {
+    const m = getCurrentMission();
+    if (!m) return;
+    previewChannel.postMessage({ type: 'mission-update', mission: m });
+};
+// Re-broadcast when the preview window signals it's ready
+previewChannel.onmessage = e => {
+    if (e.data.type === 'preview-ready') broadcastPreview();
+};
 
 const getEl = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const getInput = (id: string) => getEl<HTMLInputElement>(id);
@@ -10,7 +27,7 @@ const getInput = (id: string) => getEl<HTMLInputElement>(id);
 export const renderPayloadList = () => {
     const m = getCurrentMission();
     const container = getEl('payload-list');
-    if (!container || !m) return;
+    if (!container || !m) { notifyWorkbench(); return; }
     container.innerHTML = '';
     const payloads = m.payloads || [];
     if (payloads.length === 0) {
@@ -51,6 +68,7 @@ export const renderPayloadList = () => {
         row.append(label, npcLabel, btnDel);
         container.appendChild(row);
     });
+    notifyWorkbench();
 };
 
 // ── Object-Liste (Carrier / Boats / Lighthouse) ───────────────────────────────
@@ -78,6 +96,7 @@ export const renderObjectList = () => {
         row.append(label, btnDel);
         container.appendChild(row);
     });
+    notifyWorkbench();
 };
 
 // ── Foliage-Liste ─────────────────────────────────────────────────────────────
@@ -100,6 +119,7 @@ export const renderFoliageList = () => {
     container.innerHTML = Object.entries(counts)
         .map(([type, n]) => `${icons[type] || '🌲'} ${type}: <strong style="color:#5f5">${n}</strong>`)
         .join(' &nbsp;|&nbsp; ');
+    notifyWorkbench();
 };
 export const syncToData = () => {
     const m = getCurrentMission();
@@ -118,7 +138,8 @@ export const syncToData = () => {
     (m as any).npcHeliType = npcType !== 'random' ? npcType : undefined;
     renderMissionList();
     drawMap();
-    drawPreview();
+    broadcastPreview();
+    notifyWorkbench();
 };
 
 // Sync vessel form fields back into the currently-selected object
@@ -133,7 +154,7 @@ const syncVesselFromUI = (kind: 'carrier' | 'boat') => {
     obj.radius = parseFloat((document.getElementById(`m_${prefix}_radius`) as HTMLInputElement)?.value) || 40;
     obj.angle = parseInt((document.getElementById(`m_${prefix}_angle`) as HTMLInputElement)?.value) || 0;
     drawMap();
-    drawPreview();
+    broadcastPreview();
 };
 
 // ── Load mission into UI ───────────────────────────────────────────────────────
@@ -162,7 +183,8 @@ export const loadMission = (idx: number) => {
     renderObjectList();
     renderFoliageList();
     drawMap();
-    drawPreview();
+    broadcastPreview();
+    notifyWorkbench();
 };
 
 // ── Mission list UI ───────────────────────────────────────────────────────────
@@ -200,6 +222,7 @@ const renderMissionList = () => {
         div.onclick = () => loadMission(i);
         container.appendChild(div);
     });
+    notifyWorkbench();
 };
 
 const moveM = (i: number, dir: number) => {
@@ -476,7 +499,7 @@ export const initUI = () => {
             (m as any).foliage = [];
             renderFoliageList();
             drawMap();
-            drawPreview();
+            broadcastPreview();
         };
     }
 
@@ -530,7 +553,7 @@ export const initUI = () => {
         m.gridSize = newSize;
         clampCamera();
         drawMap();
-        drawPreview();
+        broadcastPreview();
     };
 
     const safeClick = (id: string, fn: () => void) => {
@@ -817,7 +840,7 @@ export const initUI = () => {
     window.addEventListener('mouseup', () => {
         if (state.isDrawing) {
             state.isDrawing = false;
-            drawPreview();
+            broadcastPreview();
         }
         if (state.isEditorDragging) {
             state.isEditorDragging = false;
@@ -845,49 +868,7 @@ export const initUI = () => {
         }
     };
 
-    // Preview canvas interactions
-    const prevCanvas = getEl<HTMLCanvasElement>('previewCanvas');
-    prevCanvas.onmousedown = e => {
-        state.isPrevDragging = true;
-        state.lastMX = e.clientX;
-        state.lastMY = e.clientY;
-    };
-    window.addEventListener('mouseup', () => {
-        state.isPrevDragging = false;
-    });
-    window.addEventListener('mousemove', e => {
-        if (state.isPrevDragging) {
-            state.prevPanX += e.clientX - state.lastMX;
-            state.prevPanY += e.clientY - state.lastMY;
-            state.lastMX = e.clientX;
-            state.lastMY = e.clientY;
-            drawPreview();
-        }
-    });
-    prevCanvas.ondblclick = () => {
-        state.prevZoom = 1.0;
-        state.prevPanX = 0;
-        state.prevPanY = 0;
-        drawPreview();
-    };
-    prevCanvas.onwheel = e => {
-        e.preventDefault();
-        const rect = prevCanvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left,
-            my = e.clientY - rect.top;
-        if (my > 300) return;
-        const oldZoom = state.prevZoom;
-        state.prevZoom = Math.max(1.0, Math.min(state.prevZoom * (e.deltaY < 0 ? 1.2 : 0.83), 20.0));
-        if (state.prevZoom === 1.0) {
-            state.prevPanX = 0;
-            state.prevPanY = 0;
-        } else {
-            const r = state.prevZoom / oldZoom;
-            state.prevPanX = mx - 250 - (mx - (250 + state.prevPanX)) * r;
-            state.prevPanY = my - 30 - (my - (30 + state.prevPanY)) * r;
-        }
-        drawPreview();
-    };
+    // Preview canvas interactions are handled in editor-preview.html / preview-main.ts
 
     // ── Export ─────────────────────────────────────────────────────────────────
     getEl('btn-export-campaign').onclick = () => {

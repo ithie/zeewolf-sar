@@ -7,6 +7,7 @@
     "scripts": {
         "dev": "concurrently -k -n VITE,ELECTRON -c cyan,yellow \"vite\" \"node workbench/build.mjs && electron .\"",
         "dev:vite": "vite",
+        "postinstall": "node workbench/rename-electron.mjs",
         "workbench:build": "node workbench/build.mjs",
         "build:game": "vite build --mode game",
         "build:editor": "vite build --mode editor",

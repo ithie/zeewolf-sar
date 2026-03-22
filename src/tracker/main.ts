@@ -1,7 +1,8 @@
 import ZsynthPlayer from './ZsynthPlayer';
 import { SongData, TRACK_DEFS, NOTES, INSTRUMENTS, STEPS } from './types';
 
-let activeData: Record<string, boolean> = {};
+// Internal format: key = `${trackId}-${step}`, value = note name (synths) or drum label (drums)
+let activeData: Record<string, string> = {};
 
 // Knob-State: trackId -> { attack, release, detune }
 const knobValues: Record<string, { attack: number; release: number; detune: number }> = {};
@@ -20,77 +21,53 @@ function drawKnob(canvas: HTMLCanvasElement, value: number, min: number, max: nu
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Track (Hintergrund)
     const startAngle = Math.PI * 0.75;
     const endAngle = Math.PI * 2.25;
     ctx.beginPath();
     ctx.arc(cx, cy - 4, r, startAngle, endAngle);
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = '#4a4a4a';
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Filled arc
     const t = (value - min) / (max - min);
     const fillEnd = startAngle + t * (endAngle - startAngle);
     ctx.beginPath();
     ctx.arc(cx, cy - 4, r, startAngle, fillEnd);
-    ctx.strokeStyle = '#ff6600';
+    ctx.strokeStyle = '#4a90d9';
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Zeiger
     const angle = startAngle + t * (endAngle - startAngle);
     ctx.beginPath();
     ctx.moveTo(cx, cy - 4);
     ctx.lineTo(cx + Math.cos(angle) * (r - 2), cy - 4 + Math.sin(angle) * (r - 2));
-    ctx.strokeStyle = '#fff';
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Label
-    ctx.fillStyle = '#888';
-    ctx.font = '8px monospace';
+    ctx.fillStyle = '#999';
+    ctx.font = '8px -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(label, cx, canvas.height - 1);
 
-    // Wert
-    ctx.fillStyle = '#ff6600';
-    ctx.font = '7px monospace';
+    ctx.fillStyle = '#ccc';
+    ctx.font = '7px -apple-system, sans-serif';
     ctx.fillText(value.toFixed(2), cx, cy + 8);
 }
 
-function makeKnob(
-    trackId: string,
-    key: string,
-    label: string,
-    min: number,
-    max: number,
-    initVal: number
-): HTMLCanvasElement {
+function makeKnob(trackId: string, key: string, label: string, min: number, max: number, initVal: number): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     canvas.width = 42;
     canvas.height = 42;
     canvas.style.cursor = 'ns-resize';
     canvas.title = label;
 
-    if (!knobValues[trackId]) {
-        knobValues[trackId] = { attack: 0.02, release: 0.3, detune: 0 };
-    }
+    if (!knobValues[trackId]) knobValues[trackId] = { attack: 0.02, release: 0.3, detune: 0 };
     (knobValues[trackId] as any)[key] = initVal;
-
     drawKnob(canvas, initVal, min, max, label);
 
-    let startY = 0;
-    let startVal = initVal;
-    let dragging = false;
-
-    canvas.addEventListener('mousedown', e => {
-        dragging = true;
-        startY = e.clientY;
-        startVal = (knobValues[trackId] as any)[key];
-        e.preventDefault();
-    });
-
+    let startY = 0, startVal = initVal, dragging = false;
+    canvas.addEventListener('mousedown', e => { dragging = true; startY = e.clientY; startVal = (knobValues[trackId] as any)[key]; e.preventDefault(); });
     window.addEventListener('mousemove', e => {
         if (!dragging) return;
         const delta = (startY - e.clientY) / 150;
@@ -98,34 +75,26 @@ function makeKnob(
         (knobValues[trackId] as any)[key] = newVal;
         drawKnob(canvas, newVal, min, max, label);
     });
-
-    window.addEventListener('mouseup', () => {
-        dragging = false;
-    });
-
-    // Doppelklick = Reset
-    canvas.addEventListener('dblclick', () => {
-        (knobValues[trackId] as any)[key] = initVal;
-        drawKnob(canvas, initVal, min, max, label);
-    });
-
+    window.addEventListener('mouseup', () => { dragging = false; });
+    canvas.addEventListener('dblclick', () => { (knobValues[trackId] as any)[key] = initVal; drawKnob(canvas, initVal, min, max, label); });
     return canvas;
 }
+
+// Note options HTML (shared across all synth selects)
+const NOTE_OPTIONS = NOTES.map(n => `<option value="${n}">${n}</option>`).join('');
 
 const Main = {
     init: () => {
         Main.buildUI();
         Main.setupEventListeners();
-        ZsynthPlayer.onStep = (step: number) => {
-            Main.updateVisualStep(step);
-        };
+        ZsynthPlayer.onStep = (step: number) => Main.updateVisualStep(step);
     },
 
     updateVisualStep: (step: number) => {
-        document.querySelectorAll('.cell.playing').forEach(c => c.classList.remove('playing'));
+        document.querySelectorAll('.playing').forEach(c => c.classList.remove('playing'));
         document.querySelectorAll(`[data-step="${step}"]`).forEach(c => c.classList.add('playing'));
         const display = document.getElementById('step-display');
-        if (display) display.innerText = `STEP: ${step + 1}`;
+        if (display) display.innerText = `Step ${step + 1}`;
     },
 
     setupEventListeners: () => {
@@ -138,121 +107,123 @@ const Main = {
     buildUI: () => {
         const root = document.getElementById('sequencer-root');
         if (!root) return;
-
         root.innerHTML = '';
+
         TRACK_DEFS.forEach(track => {
             const container = document.createElement('div');
             container.className = 'track-container';
 
-            let html = `
-                <div class="track-controls" id="ctrl-${track.id}">
-                    <div style="display:flex; justify-content:space-between; align-items:center">
-                        <strong>${track.label}</strong>
-                        <input type="range" class="vol-slider" id="${track.id}-vol" min="0" max="100" value="80">
-                    </div>`;
-
-            if (track.type === 'synth') {
-                html += `
+            // ── Controls sidebar ───────────────────────────────────────────────
+            const ctrl = document.createElement('div');
+            ctrl.className = 'track-controls';
+            ctrl.id = `ctrl-${track.id}`;
+            ctrl.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+                    <strong>${track.label}</strong>
+                    <input type="range" class="vol-slider" id="${track.id}-vol" min="0" max="100" value="80">
+                </div>
+                ${track.type === 'synth' ? `
                     <select id="${track.id}-inst">
-                        ${Object.keys(INSTRUMENTS)
-                            .map(k => `<option value="${k}">${INSTRUMENTS[k].label}</option>`)
-                            .join('')}
-                        <option value="custom">-- CUSTOM --</option>
+                        ${Object.entries(INSTRUMENTS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
+                        <option value="custom">— Custom —</option>
                     </select>
-                    <div style="display:flex; gap:5px; align-items:center">
+                    <div style="display:flex;gap:5px;align-items:center">
                         <select id="${track.id}-wave">
                             <option value="sawtooth">SAW</option>
                             <option value="square" selected>SQR</option>
                             <option value="sine">SIN</option>
                             <option value="triangle">TRI</option>
                         </select>
-                        <input type="number" id="${track.id}-filter" value="2000" style="width:45px"> Hz
+                        <input type="number" id="${track.id}-filter" value="2000" style="width:55px"> Hz
                     </div>
-                    <div class="knob-row" id="knobs-${track.id}" style="display:flex; gap:4px; margin-top:4px"></div>`;
+                    <div class="knob-row" id="knobs-${track.id}" style="display:flex;gap:4px;margin-top:4px"></div>
+                ` : ''}
+            `;
+            container.appendChild(ctrl);
+
+            // ── Step grid ──────────────────────────────────────────────────────
+            const grid = document.createElement('div');
+            grid.className = track.type === 'drum' ? 'grid drum-grid' : 'grid synth-grid';
+
+            if (track.type === 'drum') {
+                // Single row of toggle cells
+                grid.innerHTML = '';
+                for (let i = 0; i < STEPS; i++) {
+                    const key = `${track.id}-${i}`;
+                    const active = activeData[key] ? ' active-drum' : '';
+                    grid.innerHTML += `<div class="cell${active}" data-step="${i}" id="${key}"></div>`;
+                }
+                grid.querySelectorAll('.cell').forEach(cell => {
+                    cell.addEventListener('click', () => Main.toggleDrum(cell as HTMLElement, track.label));
+                });
+            } else {
+                // Single row of note selects
+                for (let i = 0; i < STEPS; i++) {
+                    const key = `${track.id}-${i}`;
+                    const currentNote = activeData[key] || '';
+                    const sel = document.createElement('select');
+                    sel.className = 'step-note' + (currentNote ? ' has-note' : '');
+                    sel.id = key;
+                    sel.dataset.step = String(i);
+                    sel.innerHTML = `<option value="">—</option>${NOTE_OPTIONS}`;
+                    sel.value = currentNote;
+                    sel.addEventListener('change', () => Main.onNoteSelect(sel, track.id));
+                    grid.appendChild(sel);
+                }
             }
 
-            html += `</div><div class="grid">`;
-            const rows = track.type === 'drum' ? [track.label] : NOTES;
-
-            rows.forEach(row => {
-                html += `<div class="label">${row}</div>`;
-                for (let i = 0; i < STEPS; i++) {
-                    const cellId = `${track.id}-${row}-${i}`;
-                    html += `<div class="cell" data-step="${i}" id="${cellId}"></div>`;
-                }
-            });
-
-            html += `</div>`;
-            container.innerHTML = html;
+            container.appendChild(grid);
             root.appendChild(container);
 
-            // Knobs einbauen
+            // Knobs
             if (track.type === 'synth') {
                 const knobRow = document.getElementById(`knobs-${track.id}`);
                 if (knobRow) {
                     KNOB_DEFS.forEach(({ key, label, min, max, default: def }) => {
-                        const knob = makeKnob(track.id, key, label, min, max, def);
-                        knobRow.appendChild(knob);
+                        knobRow.appendChild(makeKnob(track.id, key, label, min, max, def));
                     });
                 }
-
                 document.getElementById(`${track.id}-inst`)?.addEventListener('change', e => {
                     Main.applyPreset(track.id, (e.target as HTMLSelectElement).value);
                 });
             }
-
-            container.querySelectorAll('.cell').forEach(cell => {
-                cell.addEventListener('click', e => {
-                    const target = e.target as HTMLElement;
-                    Main.toggleCell(target.id, track.type);
-                });
-            });
         });
     },
 
-    toggleCell: (id: string, type: string) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-
-        if (activeData[id]) {
-            delete activeData[id];
-            el.classList.remove(type === 'drum' ? 'active-drum' : 'active-synth');
+    toggleDrum: (el: HTMLElement, drumLabel: string) => {
+        const key = el.id;
+        if (activeData[key]) {
+            delete activeData[key];
+            el.classList.remove('active-drum');
         } else {
-            activeData[id] = true;
-            el.classList.add(type === 'drum' ? 'active-drum' : 'active-synth');
-            Main.previewNote(id);
+            activeData[key] = drumLabel;
+            el.classList.add('active-drum');
+            const trackId = key.split('-')[0];
+            const vol = (document.getElementById(`${trackId}-vol`) as HTMLInputElement)?.valueAsNumber ?? 80;
+            ZsynthPlayer.playDrum(drumLabel, 0, vol / 100, ZsynthPlayer.masterGain!);
         }
     },
 
-    previewNote: (cellId: string) => {
-        const [trackId, note] = cellId.split('-');
-        const vol = (document.getElementById(`${trackId}-vol`) as HTMLInputElement)?.valueAsNumber || 80;
-
-        if (trackId.startsWith('synth')) {
-            const wave = (document.getElementById(`${trackId}-wave`) as HTMLSelectElement).value as any;
-            const filter = (document.getElementById(`${trackId}-filter`) as HTMLInputElement).valueAsNumber;
+    onNoteSelect: (sel: HTMLSelectElement, trackId: string) => {
+        const step = sel.dataset.step!;
+        const key = `${trackId}-${step}`;
+        if (sel.value) {
+            activeData[key] = sel.value;
+            sel.classList.add('has-note');
+            // Preview
+            const vol = (document.getElementById(`${trackId}-vol`) as HTMLInputElement)?.valueAsNumber ?? 80;
+            const wave = (document.getElementById(`${trackId}-wave`) as HTMLSelectElement)?.value as any;
+            const filter = (document.getElementById(`${trackId}-filter`) as HTMLInputElement)?.valueAsNumber ?? 2000;
             const kv = knobValues[trackId] || {};
-            ZsynthPlayer.playSynth(
-                note,
-                0,
-                {
-                    vol,
-                    wave,
-                    filter,
-                    attack: kv.attack ?? 0.02,
-                    release: kv.release ?? 0.3,
-                    detune: kv.detune ?? 0,
-                },
-                ZsynthPlayer.masterGain!
-            );
+            ZsynthPlayer.playSynth(sel.value, 0, { vol, wave, filter, attack: kv.attack ?? 0.02, release: kv.release ?? 0.3, detune: kv.detune ?? 0 }, ZsynthPlayer.masterGain!);
         } else {
-            ZsynthPlayer.playDrum(note, 0, vol / 100, ZsynthPlayer.masterGain!);
+            delete activeData[key];
+            sel.classList.remove('has-note');
         }
     },
 
     playPreview: () => {
-        const songData = Main.getCurrentSongData();
-        ZsynthPlayer.init({ preview: songData });
+        ZsynthPlayer.init({ preview: Main.getCurrentSongData() });
         ZsynthPlayer.play('preview');
     },
 
@@ -266,12 +237,12 @@ const Main = {
             config[t.id] = { vol: (document.getElementById(`${t.id}-vol`) as HTMLInputElement).value };
             if (t.type === 'synth') {
                 const kv = knobValues[t.id] || {};
-                config[t.id].wave = (document.getElementById(`${t.id}-wave`) as HTMLSelectElement).value;
+                config[t.id].wave   = (document.getElementById(`${t.id}-wave`) as HTMLSelectElement).value;
                 config[t.id].filter = (document.getElementById(`${t.id}-filter`) as HTMLInputElement).value;
-                config[t.id].inst = (document.getElementById(`${t.id}-inst`) as HTMLSelectElement).value;
-                config[t.id].attack = kv.attack ?? 0.02;
+                config[t.id].inst   = (document.getElementById(`${t.id}-inst`) as HTMLSelectElement).value;
+                config[t.id].attack  = kv.attack  ?? 0.02;
                 config[t.id].release = kv.release ?? 0.3;
-                config[t.id].detune = kv.detune ?? 0;
+                config[t.id].detune  = kv.detune  ?? 0;
             }
         });
 
@@ -279,57 +250,73 @@ const Main = {
     },
 
     exportJSON: () => {
-        const data = Main.getCurrentSongData();
-        (document.getElementById('io-field') as HTMLTextAreaElement).value = JSON.stringify(data, null, 2);
+        // Save internal format directly
+        const bpm = (document.getElementById('bpm') as HTMLInputElement).value;
+        const config: Record<string, any> = {};
+        TRACK_DEFS.forEach(t => {
+            config[t.id] = { vol: (document.getElementById(`${t.id}-vol`) as HTMLInputElement).value };
+            if (t.type === 'synth') {
+                const kv = knobValues[t.id] || {};
+                config[t.id].wave   = (document.getElementById(`${t.id}-wave`) as HTMLSelectElement).value;
+                config[t.id].filter = (document.getElementById(`${t.id}-filter`) as HTMLInputElement).value;
+                config[t.id].inst   = (document.getElementById(`${t.id}-inst`) as HTMLSelectElement).value;
+                config[t.id].attack  = kv.attack  ?? 0.02;
+                config[t.id].release = kv.release ?? 0.3;
+                config[t.id].detune  = kv.detune  ?? 0;
+            }
+        });
+        (document.getElementById('io-field') as HTMLTextAreaElement).value =
+            JSON.stringify({ bpm, activeData, config }, null, 2);
     },
 
     importJSON: () => {
-        const ioField = document.getElementById('io-field') as HTMLTextAreaElement;
         try {
-            const data: SongData = JSON.parse(ioField.value);
+            const raw = JSON.parse((document.getElementById('io-field') as HTMLTextAreaElement).value);
+            if ((document.getElementById('bpm') as HTMLInputElement)) {
+                (document.getElementById('bpm') as HTMLInputElement).value = raw.bpm || '110';
+            }
 
-            const bpmInput = document.getElementById('bpm') as HTMLInputElement;
-            if (bpmInput) bpmInput.value = data.bpm || '110';
-
-            activeData = data.activeData || {};
-            Main.buildUI();
-
-            Object.keys(activeData).forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    const trackId = id.split('-')[0];
-                    el.classList.add(trackId.includes('synth') ? 'active-synth' : 'active-drum');
+            // Detect and convert old format (keys like "synth1-C4-12" or "kick-KICK-5")
+            const incoming: Record<string, any> = raw.activeData || {};
+            activeData = {};
+            Object.entries(incoming).forEach(([key, val]) => {
+                const parts = key.split('-');
+                if (parts.length >= 3) {
+                    // Old format: trackId-noteValue-step
+                    const trackId = parts[0];
+                    const step = parts[parts.length - 1];
+                    const noteValue = parts.slice(1, -1).join('-');
+                    activeData[`${trackId}-${step}`] = noteValue;
+                } else {
+                    // New format: trackId-step with string value
+                    activeData[key] = String(val);
                 }
             });
 
-            if (data.config) {
-                Object.entries(data.config).forEach(([tid, conf]) => {
+            Main.buildUI();
+
+            if (raw.config) {
+                Object.entries(raw.config).forEach(([tid, conf]: [string, any]) => {
                     const volEl = document.getElementById(`${tid}-vol`) as HTMLInputElement;
                     if (volEl) volEl.value = conf.vol;
-
                     if (tid.startsWith('synth')) {
                         const instEl = document.getElementById(`${tid}-inst`) as HTMLSelectElement;
                         const waveEl = document.getElementById(`${tid}-wave`) as HTMLSelectElement;
                         const filtEl = document.getElementById(`${tid}-filter`) as HTMLInputElement;
-
                         if (instEl) instEl.value = conf.inst || 'custom';
                         if (waveEl) waveEl.value = conf.wave || 'square';
                         if (filtEl) filtEl.value = conf.filter || '2000';
-
-                        // Knobs wiederherstellen
                         if (knobValues[tid]) {
-                            knobValues[tid].attack = conf.attack ?? 0.02;
+                            knobValues[tid].attack  = conf.attack  ?? 0.02;
                             knobValues[tid].release = conf.release ?? 0.3;
-                            knobValues[tid].detune = conf.detune ?? 0;
+                            knobValues[tid].detune  = conf.detune  ?? 0;
                         }
-
-                        // Knob-Canvas neu zeichnen
                         const knobRow = document.getElementById(`knobs-${tid}`);
                         if (knobRow) {
                             KNOB_DEFS.forEach(({ key, min, max, label }, i) => {
                                 const canvas = knobRow.children[i] as HTMLCanvasElement;
                                 if (canvas) {
-                                    const val = (conf as any)[key] ?? (knobValues[tid] as any)[key];
+                                    const val = conf[key] ?? (knobValues[tid] as any)[key];
                                     (knobValues[tid] as any)[key] = val;
                                     drawKnob(canvas, val, min, max, label);
                                 }
@@ -347,17 +334,13 @@ const Main = {
     applyPreset: (trackId: string, presetKey: string) => {
         if (presetKey === 'custom') return;
         const p = INSTRUMENTS[presetKey];
-
         (document.getElementById(`${trackId}-wave`) as HTMLSelectElement).value = p.wave;
         (document.getElementById(`${trackId}-filter`) as HTMLInputElement).value = p.filter.toString();
-
-        // Knobs auf Preset-Werte setzen
         if (knobValues[trackId]) {
-            knobValues[trackId].attack = p.attack ?? 0.02;
+            knobValues[trackId].attack  = p.attack  ?? 0.02;
             knobValues[trackId].release = p.release ?? 0.3;
-            knobValues[trackId].detune = p.detune ?? 0;
+            knobValues[trackId].detune  = p.detune  ?? 0;
         }
-
         const knobRow = document.getElementById(`knobs-${trackId}`);
         if (knobRow) {
             KNOB_DEFS.forEach(({ key, min, max, label }, i) => {

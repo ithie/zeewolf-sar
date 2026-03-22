@@ -4,516 +4,283 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>ZEEWOLF - Campaign Builder & 3D Editor</title>
+        <link rel="stylesheet" href="/src/editor/style.css" />
+        <style>
+            /* Canvas-only layout — all controls live in the Electron workbench panel */
+            body { background: #181818; margin: 0; padding: 16px; box-sizing: border-box; }
+            .workspace { display: flex; align-items: flex-start; }
+            .canvas-container { display: flex; flex-direction: column; align-items: center; }
+        </style>
     </head>
     <body>
-        <div id="sidebar">
-            <div class="sidebar-header"><strong>ZEEWOLF OPS</strong></div>
 
-            <!-- File management -->
-            <div style="padding: 8px; background: #0a0a0a; border-bottom: 1px solid #2a2a2a; display: flex; flex-direction: column; gap: 6px; font-size: 11px; font-family: monospace;">
-                <div style="color: #ff6600; font-weight: bold; font-size: 10px; letter-spacing: 0.05em;">📁 KAMPAGNENDATEI</div>
-                <select id="campaign-select" style="width: 100%; background: #000; color: #5f5; border: 1px solid #444; font-family: monospace; font-size: 11px; padding: 3px;">
-                    <option value="">-- Keine Datei --</option>
-                </select>
-                <div style="display: flex; gap: 4px;">
-                    <button id="btn-campaign-load" style="flex: 1; background: #000; color: #5f5; border: 1px solid #5f5; padding: 5px; cursor: pointer; font-family: monospace; font-size: 11px;">LADEN</button>
-                    <button id="btn-campaign-save" style="flex: 1; background: #003300; color: #5f5; border: 1px solid #5f5; padding: 5px; cursor: pointer; font-family: monospace; font-size: 11px;">SPEICHERN</button>
+        <!-- ── Canvases ─────────────────────────────────────────────────────── -->
+        <div class="workspace">
+
+                <div class="canvas-container">
+                <div class="canvas-header header-2d">
+                    <span>2D Editor & Tactical Map</span>
+                    <span class="canvas-hint">Klick auf Pad/Träger/Wind für Details</span>
                 </div>
-                <div style="display: flex; gap: 4px;">
-                    <input id="new-campaign-name" type="text" placeholder="neuer Name..." style="flex: 1; background: #000; color: #5f5; border: 1px solid #333; font-family: monospace; font-size: 11px; padding: 4px; min-width: 0;">
-                    <button id="btn-campaign-new" style="background: #330000; color: #f66; border: 1px solid #633; padding: 5px 8px; cursor: pointer; font-family: monospace; font-size: 11px;">NEU</button>
+                <div class="editor-wrapper">
+                    <canvas id="editorCanvas" width="600" height="600"></canvas>
+
+                    <div id="ui_wind" class="floating-ui" style="left:90px;top:15px">
+                        <span class="close-btn" id="close-wind">✖</span>
+                        <strong style="color:cyan">💨 WIND VECTOR</strong><br>
+                        Direction: <input type="number" id="m_wind_dir" value="45" min="0" max="359" style="width:50px"><br>
+                        Force: &nbsp;&nbsp;&nbsp;&nbsp;<input type="number" id="m_wind_str" value="1.0" step="0.1" min="0" style="width:50px"><br>
+                        <label><input type="checkbox" id="m_wind_var"> Dynamic Variance</label>
+                    </div>
+
+                    <div id="ui_carrier" class="floating-ui">
+                        <span class="close-btn" id="close-carrier">✖</span>
+                        <strong style="color:#88aaff">🚢 CARRIER OPS</strong><br>
+                        <button id="btn_spawn_carrier" style="width:100%;margin:5px 0">Set Start Point</button>
+                        Angle (°): <input type="number" id="m_carrier_angle" value="0" min="0" max="359" style="width:45px"><br>
+                        Speed (kn): <input type="number" id="m_carrier_speed" value="0" step="0.5" style="width:45px"><br>
+                        Path: <select id="m_carrier_path" style="width:80px">
+                            <option value="static">Static</option>
+                            <option value="straight">Straight</option>
+                            <option value="circle">Circle</option>
+                        </select><br>
+                        Radius: <input type="number" id="m_carrier_radius" value="40" step="5" style="width:45px">
+                    </div>
+
+                    <div id="ui_boat" class="floating-ui">
+                        <span class="close-btn" id="close-boat">✖</span>
+                        <strong style="color:#4af">⛵ BOAT OPS</strong><br>
+                        Angle (°): <input type="number" id="m_boat_angle" value="0" min="0" max="359" style="width:45px"><br>
+                        Speed (kn): <input type="number" id="m_boat_speed" value="3" step="0.5" style="width:45px"><br>
+                        Path: <select id="m_boat_path" style="width:80px">
+                            <option value="static">Static</option>
+                            <option value="straight">Straight</option>
+                            <option value="circle">Circle</option>
+                        </select><br>
+                        Radius: <input type="number" id="m_boat_radius" value="20" step="5" style="width:45px">
+                    </div>
+
+                    <div id="ui_pad" class="floating-ui">
+                        <span class="close-btn" id="close-pad">✖</span>
+                        <strong style="color:#5f5">🚁 BASE PAD</strong><br>
+                        <button id="btn_spawn_pad" style="width:100%;margin:5px 0">Set Start Point</button>
+                    </div>
                 </div>
             </div>
 
-            <div style="padding: 8px; border-bottom: 1px solid #2a2a2a; display: flex; flex-direction: column; gap: 4px;">
-                <div style="font-size: 12px; color: var(--accent); margin-bottom: 4px; font-weight: bold">
-                    KAMPAGNEN INFO (HAUPTMENÜ)
-                </div>
-                <label style="font-size: 10px; color: #aaa">Titel:</label>
-                <input
-                    type="text"
-                    id="c_title"
-                    value="OPERATION ZEEWOLF"
-                    style="width: 100%; margin-bottom: 6px; background: #000; color: var(--accent); border: 1px solid #444"
-                />
-                <label style="font-size: 10px; color: #aaa">Sublines (1 pro Zeile):</label>
-                <textarea id="c_sublines" style="height: 50px; margin-bottom: 4px">
-Sichere den Archipel.
+        </div>
+
+        <!-- ── State inputs: required by the TypeScript module, not displayed ─ -->
+        <!-- These serve as the module's internal state storage,               -->
+        <!-- controlled by the Electron workbench panel via editorDispatch().  -->
+        <div id="editor-state" hidden>
+            <!-- Tool selection -->
+            <input type="radio" name="tool" value="move">
+            <input type="radio" name="tool" value="terrain" checked>
+            <input type="radio" name="tool" value="flatten">
+            <input type="radio" name="tool" value="pad">
+            <input type="radio" name="tool" value="lighthouse">
+            <input type="radio" name="tool" value="carrier">
+            <input type="radio" name="tool" value="boat">
+            <input type="radio" name="tool" value="person">
+            <input type="radio" name="tool" value="crate">
+            <input type="radio" name="tool" value="foliage">
+
+            <!-- Brush size -->
+            <input type="radio" name="brush" value="0">
+            <input type="radio" name="brush" value="1.5" checked>
+            <input type="radio" name="brush" value="5.0">
+            <input type="radio" name="brush" value="15.0">
+            <input type="radio" name="brush" value="custom">
+            <input type="number" id="m_custom_brush" value="8" min="1" max="50">
+
+            <!-- Foliage controls (read directly by paint() at paint-time) -->
+            <select id="foliage-type">
+                <option value="pine" selected>pine</option>
+                <option value="oak">oak</option>
+                <option value="bush">bush</option>
+                <option value="dead">dead</option>
+            </select>
+            <input type="range" id="foliage-scale" min="0.5" max="2.0" step="0.1" value="1.0">
+            <span id="foliage-scale-val">1.0</span>
+            <div id="foliage-type-bar"></div>
+
+            <!-- Map / zoom -->
+            <input type="number" id="m_grid_size" value="100" step="10" min="40" max="400">
+            <button id="btn-resize-map">Resize</button>
+            <button id="btn-zoom-in">+</button>
+            <button id="btn-zoom-out">-</button>
+
+            <!-- Mission data (synced via syncToData / loadMission) -->
+            <input type="text"   id="m_headline" value="Phase 1">
+            <textarea            id="m_briefing"></textarea>
+            <input type="checkbox" id="m_rain">
+            <input type="checkbox" id="m_night">
+            <input type="number" id="m_npc_heli_count" value="0" min="0" max="3">
+            <select id="m_npc_heli_type">
+                <option value="random">Zufällig</option>
+                <option value="dolphin">Dolphin</option>
+                <option value="jayhawk">Jayhawk</option>
+                <option value="chinook">Chinook</option>
+            </select>
+
+            <!-- Campaign metadata (read by export) -->
+            <input type="text" id="c_title" value="OPERATION ZEEWOLF">
+            <textarea id="c_sublines">Sichere den Archipel.
 Viel Glück, Pilot.</textarea>
-            </div>
 
+            <!-- Mission / object / payload lists (rendered into by module, not displayed) -->
             <div id="mission-list"></div>
-            <button class="primary" id="btn-add-mission">➕ Mission hinzufügen</button>
-            <button
-                id="btn-copy-mission"
-                style="
-                    margin-top: 8px;
-                    background: #555;
-                    color: #fff;
-                    border: none;
-                    padding: 8px;
-                    cursor: pointer;
-                    width: 100%;
-                    box-sizing: border-box;
-                "
-            >
-                📋 Level duplizieren
-            </button>
+            <div id="payload-list"></div>
+            <div id="object-list"></div>
+            <div id="foliage-list"></div>
+            <span id="foliage-count"></span>
 
-            <div style="display:none">
-            <button
-                id="btn-export-campaign"
-                style="
-                    background: #ff6600;
-                    color: #000;
-                    border: none;
-                    padding: 10px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    width: 100%;
-                    box-sizing: border-box;
-                "
-            >
-                ⬆️ EXPORT CAMPAIGN
-            </button>
-            <button
-                id="btn-import-campaign"
-                style="
-                    margin-top: 8px;
-                    background: #0088ff;
-                    color: #fff;
-                    border: none;
-                    padding: 10px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    width: 100%;
-                    box-sizing: border-box;
-                "
-            >
-                ⬇️ IMPORT DATA
-            </button>
-            <textarea id="output" placeholder="JSON Code hier einfügen..."></textarea>
-            </div>
+            <!-- Mission management buttons (called programmatically) -->
+            <button id="btn-add-mission">Add</button>
+            <button id="btn-copy-mission">Copy</button>
+            <button id="btn-clear-foliage">Clear foliage</button>
+
+            <!-- Export / import bridge (used by editorExport / editorImport) -->
+            <button id="btn-export-campaign">Export</button>
+            <button id="btn-import-campaign">Import</button>
+            <textarea id="output"></textarea>
         </div>
 
-        <div id="main-content">
-            <h2>Mission Builder & Tactical Editor</h2>
-
-            <div class="tool-bar">
-                <div class="flex-row" style="margin-top: 0">
-                    <div class="flex-col">
-                        <strong>TOOLS:</strong><br />
-                        <label><input type="radio" name="tool" value="move" /> ✋ Drag & Pan</label><br />
-                        <label><input type="radio" name="tool" value="terrain" checked /> ⛰️ Berge (Shift: Tal)</label
-                        ><br />
-                        <label><input type="radio" name="tool" value="flatten" /> 🧽 Einebnen (Shift: Wasser)</label
-                        ><br />
-                        <strong>OBJECTS:</strong><br />
-                        <label><input type="radio" name="tool" value="pad" /> 🚁 Landepad</label><br />
-                        <label><input type="radio" name="tool" value="lighthouse" /> 🗼 Turm</label><br />
-                        <label><input type="radio" name="tool" value="carrier" /> 🚢 Träger (Shift: Löschen)</label
-                        ><br />
-                        <label
-                            ><input type="radio" name="tool" value="boat" /> ⛵ Boot (Shift: Löschen, M: Bewegen)</label
-                        ><br />
-                        <strong>PAYLOADS:</strong><br />
-                        <label
-                            ><input type="radio" name="tool" value="person" /> 🟡 Person platzieren (Shift: Löschen, M:
-                            Bewegen)</label
-                        ><br />
-                        <label
-                            ><input type="radio" name="tool" value="crate" /> 🟠 Crate platzieren (Shift: Löschen, M:
-                            Bewegen)</label
-                        >
-                        <br /><strong>BEFLOCKUNG:</strong><br />
-                        <label><input type="radio" name="tool" value="foliage" /> 🌲 Bäume (Shift: Löschen)</label
-                        ><br />
-                        <div id="foliage-type-bar" style="margin-left: 14px; margin-top: 4px; display: none">
-                            Typ:
-                            <select
-                                id="foliage-type"
-                                style="
-                                    background: #000;
-                                    color: #5f5;
-                                    border: 1px solid #444;
-                                    font-family: monospace;
-                                    font-size: 11px;
-                                "
-                            >
-                                <option value="pine">🌲 Nadelbaum</option>
-                                <option value="oak">🌳 Laubbaum</option>
-                                <option value="bush">🌿 Busch</option>
-                                <option value="dead">🪵 Kahler Baum</option>
-                            </select>
-                            &nbsp;Scale:
-                            <input
-                                type="range"
-                                id="foliage-scale"
-                                min="0.5"
-                                max="2.0"
-                                step="0.1"
-                                value="1.0"
-                                style="width: 70px; vertical-align: middle"
-                            />
-                            <span id="foliage-scale-val" style="color: #5f5; font-size: 11px">1.0</span>
-                        </div>
-                    </div>
-                    <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
-                        <strong>BRUSH RADIUS:</strong><br />
-                        <label><input type="radio" name="brush" value="0" /> 1 (Pixel)</label><br />
-                        <label><input type="radio" name="brush" value="1.5" checked /> 3 (Normal)</label><br />
-                        <label><input type="radio" name="brush" value="5.0" /> 10 (Groß)</label><br />
-                        <label><input type="radio" name="brush" value="15.0" /> 30 (Massiv)</label><br />
-                        <label
-                            ><input type="radio" name="brush" value="custom" /> Frei:
-                            <input type="number" id="m_custom_brush" value="8" min="1" max="50" style="width: 45px" />
-                        </label>
-                    </div>
-                    <div class="flex-col" style="border-left: 1px solid #333; padding-left: 15px">
-                        <strong>MAP PROPERTIES:</strong><br />
-                        Size:
-                        <input
-                            type="number"
-                            id="m_grid_size"
-                            value="100"
-                            step="10"
-                            min="40"
-                            max="400"
-                            style="width: 60px"
-                        />
-                        <button id="btn-resize-map" style="padding: 4px 8px; font-size: 11px">Resize</button
-                        ><br /><br />
-                        Zoom: <button id="btn-zoom-in" style="padding: 4px 8px; font-size: 11px">+</button>
-                        <button id="btn-zoom-out" style="padding: 4px 8px; font-size: 11px">-</button><br />
-                        <span style="font-size: 10px; color: #666">(Mausrad funktioniert ebenfalls)</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="workspace">
-                <div class="canvas-container">
-                    <div class="canvas-header header-2d">
-                        <span>2D Editor & Tactical Map</span>
-                        <span class="canvas-hint">Klick auf Pad/Träger/Wind für Details</span>
-                    </div>
-                    <div class="editor-wrapper">
-                        <canvas id="editorCanvas" width="600" height="600"></canvas>
-
-                        <div id="ui_wind" class="floating-ui" style="left: 90px; top: 15px">
-                            <span class="close-btn" id="close-wind">✖</span>
-                            <strong style="color: cyan">💨 WIND VECTOR</strong><br />
-                            Direction:
-                            <input
-                                type="number"
-                                id="m_wind_dir"
-                                value="45"
-                                min="0"
-                                max="359"
-                                style="width: 50px"
-                            /><br />
-                            Force: &nbsp;&nbsp;&nbsp;&nbsp;<input
-                                type="number"
-                                id="m_wind_str"
-                                value="1.0"
-                                step="0.1"
-                                min="0"
-                                style="width: 50px"
-                            /><br />
-                            <label><input type="checkbox" id="m_wind_var" /> Dynamic Variance</label>
-                        </div>
-
-                        <div id="ui_carrier" class="floating-ui">
-                            <span class="close-btn" id="close-carrier">✖</span>
-                            <strong style="color: #88aaff">🚢 CARRIER OPS</strong><br />
-                            <button id="btn_spawn_carrier" style="width: 100%; margin: 5px 0">Set Start Point</button
-                            ><br />
-                            Angle (°):
-                            <input
-                                type="number"
-                                id="m_carrier_angle"
-                                value="0"
-                                min="0"
-                                max="359"
-                                style="width: 45px"
-                            /><br />
-                            Speed (kn):<input
-                                type="number"
-                                id="m_carrier_speed"
-                                value="0"
-                                step="0.5"
-                                style="width: 45px"
-                            /><br />
-                            Path:
-                            <select id="m_carrier_path" style="width: 80px">
-                                <option value="static">Static</option>
-                                <option value="straight">Straight</option>
-                                <option value="circle">Circle</option></select
-                            ><br />
-                            Radius:
-                            <input type="number" id="m_carrier_radius" value="40" step="5" style="width: 45px" />
-                        </div>
-
-                        <div id="ui_boat" class="floating-ui">
-                            <span class="close-btn" id="close-boat">✖</span>
-                            <strong style="color: #4af">⛵ BOAT OPS</strong><br />
-                            Angle (°):
-                            <input
-                                type="number"
-                                id="m_boat_angle"
-                                value="0"
-                                min="0"
-                                max="359"
-                                style="width: 45px"
-                            /><br />
-                            Speed (kn):<input
-                                type="number"
-                                id="m_boat_speed"
-                                value="3"
-                                step="0.5"
-                                style="width: 45px"
-                            /><br />
-                            Path:
-                            <select id="m_boat_path" style="width: 80px">
-                                <option value="static">Static</option>
-                                <option value="straight">Straight</option>
-                                <option value="circle">Circle</option></select
-                            ><br />
-                            Radius:
-                            <input type="number" id="m_boat_radius" value="20" step="5" style="width: 45px" />
-                        </div>
-
-                        <div id="ui_pad" class="floating-ui">
-                            <span class="close-btn" id="close-pad">✖</span>
-                            <strong style="color: #5f5">🚁 BASE PAD</strong><br />
-                            <button id="btn_spawn_pad" style="width: 100%; margin: 5px 0">Set Start Point</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="canvas-container">
-                    <div class="canvas-header header-3d">
-                        <span>3D Engine Preview</span>
-                        <span class="canvas-hint">Drag = Pan | D-Klick = Reset</span>
-                    </div>
-                    <canvas id="previewCanvas" width="500" height="600"></canvas>
-                </div>
-            </div>
-
-            <div class="mission-config">
-                <div class="flex-row">
-                    <div class="flex-col" style="flex: 2">
-                        <strong>MISSION BRIEFING (In-Game Overlay):</strong><br />
-                        Mission Name: <input type="text" id="m_headline" value="Phase 1" style="width: 90%" /><br />
-                        Briefing Text:<br />
-                        <textarea
-                            id="m_briefing"
-                            style="height: 60px"
-                            placeholder="Text, der vor dem Abflug im Spiel angezeigt wird..."
-                        ></textarea>
-                    </div>
-                    <div class="flex-col">
-                        <!-- ── OBJECTIVES: Payloads ─────────────────────────── -->
-                        <strong>OBJECTIVES (Payloads):</strong><br />
-                        <div
-                            id="payload-list"
-                            style="
-                                min-height: 40px;
-                                background: #0a0a0a;
-                                border: 1px solid #333;
-                                padding: 6px;
-                                margin: 6px 0;
-                                max-height: 120px;
-                                overflow-y: auto;
-                            "
-                        >
-                            <span style="color: #555; font-size: 11px">Keine Payloads platziert</span>
-                        </div>
-                        <span style="font-size: 10px; color: #888">
-                            🟡 Person / 🟠 Crate Tool wählen, dann auf die Karte klicken.<br />
-                            Shift+Klick entfernt nächsten Payload dieses Typs.
-                        </span>
-                        <hr style="border-color: #222" />
-                        <strong>OBJECTS:</strong><br />
-                        <div
-                            id="object-list"
-                            style="
-                                min-height: 40px;
-                                background: #0a0a0a;
-                                border: 1px solid #333;
-                                padding: 6px;
-                                margin: 6px 0;
-                                max-height: 120px;
-                                overflow-y: auto;
-                            "
-                        >
-                            <span style="color: #555; font-size: 11px">Keine Objekte platziert</span>
-                        </div>
-                        <!-- ────────────────────────────────────────────────── -->
-                        <hr style="border-color: #222" />
-                        <strong>ENVIRONMENT:</strong><br />
-                        <label><input type="checkbox" id="m_rain" /> 🌧️ Rain / Storm</label><br />
-                        <label><input type="checkbox" id="m_night" /> 🌙 Night Ops</label>
-                        <hr style="border-color: #222" />
-                        <strong>NPC-HELI:</strong><br />
-                        <div style="display: flex; gap: 6px; align-items: center; margin: 4px 0; font-size: 11px">
-                            <label style="color: #8af">Anzahl</label>
-                            <input
-                                type="number"
-                                id="m_npc_heli_count"
-                                min="0"
-                                max="3"
-                                value="0"
-                                style="
-                                    width: 40px;
-                                    background: #111;
-                                    color: #ccc;
-                                    border: 1px solid #444;
-                                    padding: 2px 4px;
-                                "
-                            />
-                            <label style="color: #8af">Typ</label>
-                            <select
-                                id="m_npc_heli_type"
-                                style="
-                                    background: #111;
-                                    color: #ccc;
-                                    border: 1px solid #444;
-                                    padding: 2px 4px;
-                                    font-size: 11px;
-                                "
-                            >
-                                <option value="random">Zufällig</option>
-                                <option value="dolphin">Dolphin</option>
-                                <option value="jayhawk">Jayhawk</option>
-                                <option value="chinook">Chinook</option>
-                            </select>
-                        </div>
-                        <hr style="border-color: #222" />
-                        <strong>BEFLOCKUNG:</strong>
-                        <span id="foliage-count" style="color: #888; font-size: 10px; margin-left: 6px"></span>
-                        <button
-                            id="btn-clear-foliage"
-                            style="
-                                float: right;
-                                background: #822;
-                                color: #fff;
-                                border: none;
-                                padding: 2px 6px;
-                                cursor: pointer;
-                                font-size: 10px;
-                            "
-                        >
-                            Alle löschen
-                        </button>
-                        <div
-                            id="foliage-list"
-                            style="
-                                min-height: 30px;
-                                background: #0a0a0a;
-                                border: 1px solid #333;
-                                padding: 6px;
-                                margin: 6px 0;
-                                max-height: 80px;
-                                overflow-y: auto;
-                                font-size: 10px;
-                                color: #888;
-                            "
-                        >
-                            Keine Bäume platziert
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <!-- ── Workbench bridge ────────────────────────────────────────────── -->
         <script>
-        (function () {
-            const API = 'http://localhost:3001';
-            const DIR  = 'src/game/campaigns';
+        window.editorExport = function () {
+            const origAlert = window.alert;
+            window.alert = () => {};
+            document.getElementById('btn-export-campaign').click();
+            window.alert = origAlert;
+            return document.getElementById('output').value || null;
+        };
 
-            async function refreshList() {
-                try {
-                    const res   = await fetch(`${API}/api/list/${DIR}`);
-                    const files = await res.json();
-                    const sel   = document.getElementById('campaign-select');
-                    const cur   = sel.value;
-                    sel.innerHTML = '<option value="">-- Keine Datei --</option>';
-                    files.forEach(f => {
-                        const o = document.createElement('option');
-                        o.value = f;
-                        o.textContent = f.replace(/\.json$/, '');
-                        sel.appendChild(o);
-                    });
-                    if (cur && files.includes(cur)) sel.value = cur;
-                } catch { /* API noch nicht bereit */ }
-            }
+        window.editorImport = function (content) {
+            document.getElementById('output').value = content;
+            document.getElementById('btn-import-campaign').click();
+        };
 
-            async function loadCampaign(filename) {
-                const res  = await fetch(`${API}/api/load/${DIR}/${filename}`);
-                const json = await res.text();
-                document.getElementById('output').value = json;
-                document.getElementById('btn-import-campaign').click();
-                document.getElementById('campaign-select').value = filename;
-            }
+        window.editorGetState = function () {
+            const ed = window.__editor;
+            if (!ed) return null;
+            const m = ed.getCurrentMission();
+            const s = ed.state;
+            const foliageArr = (m && m.foliage) ? m.foliage : [];
+            const foliageCounts = {};
+            const foliageIcons = { pine: '🌲', oak: '🌳', bush: '🌿', dead: '🪵' };
+            foliageArr.forEach(function(f) { foliageCounts[f.type] = (foliageCounts[f.type] || 0) + 1; });
+            const foliageSummary = Object.entries(foliageCounts)
+                .map(function([t, n]) { return (foliageIcons[t] || '🌲') + ' ' + t + ': ' + n; }).join(' | ');
+            return {
+                campaignTitle:    document.getElementById('c_title').value,
+                campaignSublines: document.getElementById('c_sublines').value,
+                missions: s.campaign.map(function(mis, i) {
+                    return { idx: i, headline: mis.headline, active: i === s.curIdx };
+                }),
+                tool:            s.currentTool,
+                brushRadius:     s.brushRadius,
+                isCustomBrush:   s.isCustomBrush,
+                customBrushValue: document.getElementById('m_custom_brush').value,
+                foliageType:     document.getElementById('foliage-type').value,
+                foliageScale:    document.getElementById('foliage-scale').value,
+                currentMission: m ? {
+                    headline:     m.headline,
+                    briefing:     m.briefing  || '',
+                    gridSize:     m.gridSize,
+                    rain:         m.rain,
+                    night:        m.night,
+                    windDir:      m.windDir,
+                    windStr:      m.windStr,
+                    windVar:      m.windVar,
+                    npcHeliCount: m.npcHeliCount || 0,
+                    npcHeliType:  m.npcHeliType  || 'random',
+                    objects:  (m.objects  || []).map(function(o, i) { return { idx: i, type: o.type, x: o.x, y: o.y }; }),
+                    payloads: (m.payloads || []).map(function(p, i) { return { idx: i, type: p.type, x: p.x, y: p.y, npcTarget: !!p.npcTarget }; }),
+                    foliageCount:   foliageArr.length,
+                    foliageSummary: foliageSummary,
+                } : null,
+            };
+        };
 
-            async function saveCampaign(filename) {
-                // Suppress the "Kampagne exportiert!" alert during programmatic export
-                const origAlert = window.alert;
-                window.alert = () => {};
-                document.getElementById('btn-export-campaign').click();
-                window.alert = origAlert;
+        window.editorDispatch = function (action, data) {
+            const ed = window.__editor;
+            if (!ed) return;
+            const m   = ed.getCurrentMission();
+            const get  = function(id) { return document.getElementById(id); };
+            const set  = function(id, v) { const el = get(id); if (el) el.value = v; };
+            const chk  = function(id, v) { const el = get(id); if (el) el.checked = v; };
+            const clk  = function(id)   { const el = get(id); if (el) el.click(); };
+            const fire = function(id, ev) { const el = get(id); if (el) el.dispatchEvent(new Event(ev)); };
 
-                const json = document.getElementById('output').value;
-                if (!json) return;
-                await fetch(`${API}/api/save/${DIR}/${encodeURIComponent(filename)}`,
-                    { method: 'POST', body: json });
-                await refreshList();
-                document.getElementById('campaign-select').value = filename;
-                const btn = document.getElementById('btn-campaign-save');
-                const orig = btn.textContent;
-                btn.textContent = 'OK ✓';
-                setTimeout(() => { btn.textContent = orig; }, 1500);
-            }
+            switch (action) {
+                case 'set-campaign-title':    set('c_title', data.value); break;
+                case 'set-campaign-sublines': set('c_sublines', data.value); break;
 
-            document.getElementById('btn-campaign-load').addEventListener('click', async () => {
-                const sel = document.getElementById('campaign-select');
-                if (!sel.value) return;
-                await loadCampaign(sel.value);
-            });
-
-            document.getElementById('btn-campaign-save').addEventListener('click', async () => {
-                const sel = document.getElementById('campaign-select');
-                if (!sel.value) { alert('Bitte zuerst eine Datei auswählen oder neue erstellen!'); return; }
-                await saveCampaign(sel.value);
-            });
-
-            document.getElementById('btn-campaign-new').addEventListener('click', async () => {
-                const input = document.getElementById('new-campaign-name');
-                const name  = input.value.trim().replace(/[^a-z0-9_\-äöüÄÖÜ]/gi, '_');
-                if (!name) { alert('Bitte einen Namen eingeben!'); return; }
-                const filename = name + '.json';
-
-                // 1) Save current editor state as new file
-                await saveCampaign(filename);
-
-                // 2) Auto-register import + array entry in src/game/main.ts
-                const regRes = await fetch(`${API}/api/register-campaign`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename }),
-                });
-                const regData = await regRes.json();
-                if (regData.ok && !regData.skipped) {
-                    console.log(`[workbench] Kampagne "${regData.ident}" in main.ts registriert — Vite reload läuft.`);
+                case 'select-mission': ed.loadMission(data.idx); break;
+                case 'add-mission':    clk('btn-add-mission'); break;
+                case 'copy-mission':   clk('btn-copy-mission'); break;
+                case 'delete-mission':
+                    if (ed.state.campaign.length <= 1) return;
+                    if (confirm('Mission wirklich löschen?')) {
+                        ed.state.campaign.splice(data.idx, 1);
+                        ed.loadMission(Math.max(0, data.idx - 1));
+                    }
+                    break;
+                case 'move-mission': {
+                    const arr = ed.state.campaign;
+                    const ni  = data.idx + data.dir;
+                    if (ni < 0 || ni >= arr.length) return;
+                    const tmp = arr[data.idx]; arr[data.idx] = arr[ni]; arr[ni] = tmp;
+                    ed.loadMission(ni);
+                    break;
                 }
+                case 'set-tool': {
+                    const r = document.querySelector('input[name="tool"][value="' + data.tool + '"]');
+                    if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+                    break;
+                }
+                case 'set-brush': {
+                    const r = document.querySelector('input[name="brush"][value="' + data.value + '"]');
+                    if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+                    else {
+                        const cr = document.querySelector('input[name="brush"][value="custom"]');
+                        if (cr) { cr.checked = true; cr.dispatchEvent(new Event('change')); }
+                        set('m_custom_brush', data.value); fire('m_custom_brush', 'input');
+                    }
+                    break;
+                }
+                case 'set-foliage-type':  set('foliage-type', data.value); break;
+                case 'set-foliage-scale':
+                    set('foliage-scale', data.value);
+                    const fsv = get('foliage-scale-val'); if (fsv) fsv.innerText = data.value;
+                    break;
+                case 'resize-map':  set('m_grid_size', data.size); clk('btn-resize-map'); break;
+                case 'zoom-in':  clk('btn-zoom-in');  break;
+                case 'zoom-out': clk('btn-zoom-out'); break;
 
-                input.value = '';
-                document.getElementById('campaign-select').value = filename;
-            });
+                case 'set-headline':  set('m_headline', data.value);      fire('m_headline',       'input'); break;
+                case 'set-briefing':  set('m_briefing', data.value);      fire('m_briefing',       'input'); break;
+                case 'set-rain':      chk('m_rain',     data.value);      fire('m_rain',           'input'); break;
+                case 'set-night':     chk('m_night',    data.value);      fire('m_night',          'input'); break;
+                case 'set-wind-dir':  set('m_wind_dir', data.value);      fire('m_wind_dir',       'input'); break;
+                case 'set-wind-str':  set('m_wind_str', data.value);      fire('m_wind_str',       'input'); break;
+                case 'set-wind-var':  chk('m_wind_var', data.value);      fire('m_wind_var',       'input'); break;
+                case 'set-npc-count': set('m_npc_heli_count', data.value); fire('m_npc_heli_count', 'input'); break;
+                case 'set-npc-type':  set('m_npc_heli_type',  data.value); fire('m_npc_heli_type',  'input'); break;
 
-            refreshList();
-        })();
+                case 'delete-payload':
+                    if (m && m.payloads) { m.payloads.splice(data.idx, 1); ed.renderPayloadList(); } break;
+                case 'set-payload-npc':
+                    if (m && m.payloads && m.payloads[data.idx]) m.payloads[data.idx].npcTarget = data.value; break;
+                case 'delete-object':
+                    if (m) { m.objects.splice(data.idx, 1); ed.renderObjectList(); } break;
+                case 'clear-foliage': clk('btn-clear-foliage'); break;
+            }
+        };
         </script>
+
         <script type="module" src="/src/editor/main.ts"></script>
     </body>
 </html>

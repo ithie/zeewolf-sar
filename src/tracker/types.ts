@@ -14,7 +14,7 @@ export interface SynthConfig {
 
 export interface SongData {
     bpm: string;
-    activeData: Record<string, boolean>;
+    activeData: Record<string, string>; // key: `${trackId}-${step}`, value: note name or drum label
     config: Record<string, any>;
 }
 
@@ -164,4 +164,13 @@ export const NOTES = [
     'B1',
     'Bb1',
     'A1',
+    'Ab1',
+    'G1',
+    'Gb1',
+    'F1',
+    'E1',
+    'Eb1',
+    'D1',
+    'Db1',
+    'C1',
 ];

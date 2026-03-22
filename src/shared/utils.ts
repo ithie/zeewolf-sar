@@ -1,4 +1,3 @@
-// Foliage-Typ → einstelliger Code
 const FOLIAGE_ENCODE: Record<string, string> = { pine: 'p', oak: 'o', bush: 'b', dead: 'd' };
 const FOLIAGE_DECODE: Record<string, string> = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
 

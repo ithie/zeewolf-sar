@@ -208,14 +208,139 @@
       overflow: hidden;
     }
 
-    /* Tracker / Editor tabs */
-    #tab-tracker, #tab-editor {
-      width: 100%; height: 100%;
+    /* Tracker tab */
+    #tab-tracker { width: 100%; height: 100%; }
+    #tab-tracker iframe { width: 100%; height: 100%; border: none; }
+
+    /* Editor tab */
+    #tab-editor { flex-direction: column; }
+    #editor-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+    /* Shared file-nav bar (editor + tracker) */
+    #editor-nav, #tracker-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 10px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
-    #tab-tracker iframe, #tab-editor iframe {
-      width: 100%; height: 100%;
-      border: none;
+    #editor-nav button, #tracker-nav button {
+      background: var(--bg4);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 2px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
     }
+    #editor-nav button:hover, #tracker-nav button:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
+    #editor-current-file, #tracker-current-file {
+      flex: 1;
+      font-size: 11px;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Tracker tab layout */
+    #tab-tracker { flex-direction: column; }
+    #tab-tracker iframe { flex: 1; border: none; min-height: 0; }
+
+    /* Controls panel */
+    #editor-controls {
+      width: 280px;
+      min-width: 200px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      font-size: 12px;
+    }
+    #editor-controls::-webkit-scrollbar { width: 6px; }
+    #editor-controls::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    .ed-section {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 10px;
+    }
+    .ed-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .ed-section label { display: block; margin: 3px 0; color: var(--text); cursor: pointer; }
+    .ed-section input[type=text],
+    .ed-section input[type=number],
+    .ed-section textarea,
+    .ed-section select {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 3px 6px;
+      font-size: 11px;
+      font-family: inherit;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .ed-section textarea { resize: vertical; min-height: 44px; }
+    .ed-section input[type=text]:focus,
+    .ed-section input[type=number]:focus,
+    .ed-section textarea:focus,
+    .ed-section select:focus { outline: none; border-color: var(--accent2); }
+    .ed-section input[type=range] { width: 100%; cursor: pointer; }
+
+    .ed-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .ed-row label { margin: 0; }
+    .ed-row input[type=number] { width: 52px; }
+
+    .ed-radio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+    .ed-radio { cursor: pointer; }
+
+    .ed-mission-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 6px; border-radius: 3px; cursor: pointer;
+      border: 1px solid transparent; margin-bottom: 3px;
+    }
+    .ed-mission-item:hover { background: var(--tree-hover); }
+    .ed-mission-item.active { background: var(--tree-active); border-color: var(--accent); color: #fff; }
+    .ed-mission-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    .ed-mission-controls { display: flex; gap: 2px; flex-shrink: 0; }
+    .ed-mission-controls button, .ed-btn-sm {
+      background: var(--bg4); color: var(--text); border: 1px solid var(--border);
+      border-radius: 2px; padding: 1px 5px; font-size: 10px; cursor: pointer;
+    }
+    .ed-mission-controls button:hover, .ed-btn-sm:hover { background: var(--accent2); color: #fff; }
+    .ed-mission-controls .ed-del:hover { background: #7a2020; }
+
+    .ed-btn {
+      display: block; width: 100%; background: var(--bg4); color: var(--text);
+      border: 1px solid var(--border); border-radius: 2px; padding: 4px 8px;
+      font-size: 11px; cursor: pointer; text-align: left; margin-top: 4px;
+    }
+    .ed-btn:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
+    .ed-btn-danger:hover { background: #7a2020 !important; border-color: #a33 !important; }
+
+    .ed-list-row {
+      display: flex; align-items: center; gap: 4px; padding: 2px 0;
+      font-size: 11px; color: var(--text-dim);
+    }
+    .ed-list-row span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ed-empty { color: var(--text-dim); font-size: 11px; font-style: italic; }
+
+    /* Canvas iframe pane */
+    #editor-canvas-pane { flex: 1; display: flex; flex-direction: column; overflow: auto; }
+    #iframe-preview { width: 100%; height: 320px; border: none; border-bottom: 2px solid #333; flex-shrink: 0; }
+    #iframe-editor  { width: 100%; flex: 1; border: none; min-width: 640px; min-height: 640px; }
 
     /* ── Horizontal resize handle (left / right) ─────────────────────────── */
     #resize-h {
@@ -352,12 +477,34 @@
 
         <!-- Tracker tab -->
         <div id="tab-tracker" class="tab-pane">
+          <div id="tracker-nav">
+            <button id="btn-tr-new">Neu</button>
+            <button id="btn-tr-open">Öffnen…</button>
+            <button id="btn-tr-save">Speichern</button>
+            <button id="btn-tr-saveas">Speichern unter…</button>
+            <span id="tracker-current-file">— kein Song —</span>
+          </div>
           <iframe src="http://localhost:5173/tracker.html" id="iframe-tracker" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
         </div>
 
         <!-- Editor tab -->
         <div id="tab-editor" class="tab-pane">
-          <iframe src="http://localhost:5173/editor.html" id="iframe-editor" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+          <div id="editor-nav">
+            <button id="btn-ed-new">Neu</button>
+            <button id="btn-ed-open">Öffnen…</button>
+            <button id="btn-ed-save">Speichern</button>
+            <button id="btn-ed-saveas">Speichern unter…</button>
+            <span id="editor-current-file">— keine Datei —</span>
+          </div>
+          <div id="editor-body">
+            <div id="editor-controls"><div class="ed-section"><div class="ed-empty">Lade Editor…</div></div></div>
+            <div id="editor-canvas-pane">
+              <iframe src="http://localhost:5173/editor-preview.html" id="iframe-preview"
+                sandbox="allow-scripts allow-same-origin"></iframe>
+              <iframe src="http://localhost:5173/editor.html" id="iframe-editor"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -736,6 +883,311 @@
     // Init: load file tree and git branch
     refreshBranch();
     refreshTree();
+  });
+
+  // ── Campaign editor ───────────────────────────────────────────────────────
+  const edIframe    = document.getElementById('iframe-editor');
+  const edFileLabel = document.getElementById('editor-current-file');
+  let edCurrentFile = null;
+
+  function edSetFile(name) {
+    edCurrentFile = name;
+    edFileLabel.textContent = name ? name.replace(/\.json$/, '') : '— keine Datei —';
+  }
+
+  function edImport(content) {
+    const w = edIframe.contentWindow;
+    if (w && w.editorImport) w.editorImport(content);
+  }
+
+  function edExport() {
+    const w = edIframe.contentWindow;
+    return (w && w.editorExport) ? w.editorExport() : null;
+  }
+
+  async function edDoSave(filename) {
+    const json = edExport();
+    if (!json) return;
+    await wb.saveCampaignFile(filename, json);
+    edSetFile(filename);
+  }
+
+  document.getElementById('btn-ed-new').addEventListener('click', () => {
+    edSetFile(null);
+    edImport('{"campaignTitle":"Neue Kampagne","campaignSublines":[],"levels":[]}');
+  });
+
+  document.getElementById('btn-ed-open').addEventListener('click', async () => {
+    const result = await wb.showOpenDialog();
+    if (result.cancelled) return;
+    edSetFile(result.filename);
+    edImport(result.content);
+  });
+
+  document.getElementById('btn-ed-save').addEventListener('click', async () => {
+    if (!edCurrentFile) {
+      const result = await wb.showSaveDialog();
+      if (result.cancelled) return;
+      await edDoSave(result.filename);
+    } else {
+      await edDoSave(edCurrentFile);
+    }
+  });
+
+  document.getElementById('btn-ed-saveas').addEventListener('click', async () => {
+    const result = await wb.showSaveDialog(edCurrentFile);
+    if (result.cancelled) return;
+    await edDoSave(result.filename);
+  });
+
+  // ── Tracker ───────────────────────────────────────────────────────────────
+  const trIframe    = document.getElementById('iframe-tracker');
+  const trFileLabel = document.getElementById('tracker-current-file');
+  let trCurrentPath = null;
+
+  function trSetFile(filename, relativePath) {
+    trCurrentPath = relativePath || null;
+    trFileLabel.textContent = filename || '— kein Song —';
+  }
+
+  function trImport(content) {
+    const w = trIframe.contentWindow;
+    if (w && w.trackerImport) w.trackerImport(content);
+  }
+
+  function trExport() {
+    const w = trIframe.contentWindow;
+    return (w && w.trackerExport) ? w.trackerExport() : null;
+  }
+
+  async function trDoSave(relativePath) {
+    const json = trExport();
+    if (!json) return;
+    await wb.writeFile(relativePath, json);
+  }
+
+  document.getElementById('btn-tr-new').addEventListener('click', () => {
+    trSetFile(null, null);
+    trImport('{"bpm":"110","activeData":{},"config":{}}');
+  });
+
+  document.getElementById('btn-tr-open').addEventListener('click', async () => {
+    const result = await wb.showOpenSongDialog();
+    if (result.cancelled) return;
+    trImport(result.content);
+    trSetFile(result.filename, result.relativePath);
+  });
+
+  document.getElementById('btn-tr-save').addEventListener('click', async () => {
+    if (!trCurrentPath) {
+      const result = await wb.showSaveSongDialog();
+      if (result.cancelled) return;
+      trSetFile(result.filename, result.relativePath);
+    }
+    await trDoSave(trCurrentPath);
+  });
+
+  document.getElementById('btn-tr-saveas').addEventListener('click', async () => {
+    const defaultName = trCurrentPath ? trCurrentPath.split('/').pop() : undefined;
+    const result = await wb.showSaveSongDialog(defaultName);
+    if (result.cancelled) return;
+    trSetFile(result.filename, result.relativePath);
+    await trDoSave(result.relativePath);
+  });
+
+  // ── Editor controls panel rendering ──────────────────────────────────────
+  function edDispatch(action, data) {
+    const w = edIframe.contentWindow;
+    if (w && w.editorDispatch) {
+      w.editorDispatch(action, data);
+      // Refresh panel after dispatch (skip if user is typing in the panel)
+      setTimeout(edRefreshPanel, 80);
+    }
+  }
+
+  function edH(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function edRefreshPanel() {
+    const controls = document.getElementById('editor-controls');
+    if (controls && controls.contains(document.activeElement)) return;
+    const w = edIframe.contentWindow;
+    if (!w || !w.editorGetState) return;
+    const st = w.editorGetState();
+    edRenderPanel(st);
+  }
+
+  const ED_TOOLS = [
+    { v:'move',       l:'✋ Drag & Pan' },
+    { v:'terrain',    l:'⛰️ Berge' },
+    { v:'flatten',    l:'🧽 Einebnen' },
+    { v:'pad',        l:'🚁 Landepad' },
+    { v:'lighthouse', l:'🗼 Turm' },
+    { v:'carrier',    l:'🚢 Träger' },
+    { v:'boat',       l:'⛵ Boot' },
+    { v:'person',     l:'🟡 Person' },
+    { v:'crate',      l:'🟠 Crate' },
+    { v:'foliage',    l:'🌲 Bäume' },
+  ];
+  const OBJ_ICONS = { pad:'🟩', carrier:'🚢', boat:'⛵', lighthouse:'🔦' };
+
+  function edRenderPanel(st) {
+    const controls = document.getElementById('editor-controls');
+    if (!st) { controls.innerHTML = '<div class="ed-section"><div class="ed-empty">Lade Editor…</div></div>'; return; }
+
+    const cm = st.currentMission;
+
+    controls.innerHTML = `
+      <div class="ed-section">
+        <div class="ed-section-title">Kampagne</div>
+        <label style="font-size:10px;color:var(--text-dim)">Titel</label>
+        <input type="text" value="${edH(st.campaignTitle)}"
+          oninput="edDispatch('set-campaign-title',{value:this.value})">
+        <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Sublines (1 pro Zeile)</label>
+        <textarea rows="2" oninput="edDispatch('set-campaign-sublines',{value:this.value})">${edH(st.campaignSublines)}</textarea>
+      </div>
+
+      <div class="ed-section">
+        <div class="ed-section-title">Missionen</div>
+        ${st.missions.map(m => `
+          <div class="ed-mission-item${m.active?' active':''}" onclick="edDispatch('select-mission',{idx:${m.idx}})">
+            <span>${m.idx+1}. ${edH(m.headline.substring(0,20))}</span>
+            <div class="ed-mission-controls">
+              <button onclick="event.stopPropagation();edDispatch('move-mission',{idx:${m.idx},dir:-1})">↑</button>
+              <button onclick="event.stopPropagation();edDispatch('move-mission',{idx:${m.idx},dir:1})">↓</button>
+              <button class="ed-del" onclick="event.stopPropagation();edDispatch('delete-mission',{idx:${m.idx}})">✕</button>
+            </div>
+          </div>`).join('')}
+        <button class="ed-btn" onclick="edDispatch('add-mission')">+ Mission hinzufügen</button>
+        <button class="ed-btn" onclick="edDispatch('copy-mission')">📋 Duplizieren</button>
+      </div>
+
+      <div class="ed-section">
+        <div class="ed-section-title">Werkzeuge</div>
+        <div class="ed-radio-grid">
+          ${ED_TOOLS.map(t=>`<label class="ed-radio">
+            <input type="radio" name="ed-tool" value="${t.v}" ${st.tool===t.v?'checked':''}
+              onchange="edDispatch('set-tool',{tool:'${t.v}'})"> ${t.l}
+          </label>`).join('')}
+        </div>
+        ${st.tool==='foliage'?`<div style="margin-top:6px">
+          <div class="ed-row" style="margin-bottom:4px">
+            <label style="color:var(--text-dim)">Typ</label>
+            <select style="flex:1" onchange="edDispatch('set-foliage-type',{value:this.value})">
+              ${['pine','oak','bush','dead'].map(t=>`<option value="${t}" ${st.foliageType===t?'selected':''}>${{pine:'🌲 Nadel',oak:'🌳 Laub',bush:'🌿 Busch',dead:'🪵 Kahl'}[t]}</option>`).join('')}
+            </select>
+          </div>
+          <label style="color:var(--text-dim)">Scale: ${st.foliageScale}</label>
+          <input type="range" min="0.5" max="2.0" step="0.1" value="${st.foliageScale}"
+            oninput="edDispatch('set-foliage-scale',{value:this.value})">
+        </div>`:''}
+      </div>
+
+      <div class="ed-section">
+        <div class="ed-section-title">Pinsel</div>
+        ${[{v:'0',l:'1px'},{v:'1.5',l:'3 (Normal)'},{v:'5.0',l:'10 (Groß)'},{v:'15.0',l:'30 (Massiv)'}].map(b=>`
+          <label class="ed-radio"><input type="radio" name="ed-brush" value="${b.v}"
+            ${!st.isCustomBrush && st.brushRadius==b.v?'checked':''}
+            onchange="edDispatch('set-brush',{value:'${b.v}'})"> ${b.l}</label>`).join('')}
+        <div class="ed-row" style="margin-top:4px">
+          <label class="ed-radio"><input type="radio" name="ed-brush" value="custom"
+            ${st.isCustomBrush?'checked':''}
+            onchange="edDispatch('set-brush',{value:document.getElementById('ed-custom-brush').value})"> Frei:</label>
+          <input type="number" id="ed-custom-brush" value="${edH(st.customBrushValue)}"
+            min="1" max="50" style="width:50px"
+            oninput="if(document.querySelector('input[name=ed-brush][value=custom]').checked) edDispatch('set-brush',{value:this.value})">
+        </div>
+      </div>
+
+      <div class="ed-section">
+        <div class="ed-section-title">Karte</div>
+        <div class="ed-row">
+          <label style="color:var(--text-dim)">Größe</label>
+          <input type="number" id="ed-map-size" value="${cm?cm.gridSize:100}" min="40" max="400" step="10" style="width:60px">
+          <button class="ed-btn-sm" onclick="edDispatch('resize-map',{size:document.getElementById('ed-map-size').value})">Resize</button>
+        </div>
+        <div class="ed-row" style="margin-top:6px">
+          <label style="color:var(--text-dim)">Zoom</label>
+          <button class="ed-btn-sm" onclick="edDispatch('zoom-in')">+</button>
+          <button class="ed-btn-sm" onclick="edDispatch('zoom-out')">−</button>
+        </div>
+      </div>
+
+      ${cm ? `
+      <div class="ed-section">
+        <div class="ed-section-title">Mission: ${edH(cm.headline)}</div>
+        <label style="font-size:10px;color:var(--text-dim)">Name</label>
+        <input type="text" value="${edH(cm.headline)}" oninput="edDispatch('set-headline',{value:this.value})">
+        <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Briefing</label>
+        <textarea rows="3" oninput="edDispatch('set-briefing',{value:this.value})">${edH(cm.briefing)}</textarea>
+        <div style="margin-top:6px">
+          <label><input type="checkbox" ${cm.rain?'checked':''} onchange="edDispatch('set-rain',{value:this.checked})"> 🌧️ Regen / Sturm</label>
+          <label><input type="checkbox" ${cm.night?'checked':''} onchange="edDispatch('set-night',{value:this.checked})"> 🌙 Nacht</label>
+        </div>
+        <div class="ed-row" style="margin-top:6px">
+          <label style="color:var(--text-dim)">Wind °</label>
+          <input type="number" value="${cm.windDir}" min="0" max="359" style="width:52px" oninput="edDispatch('set-wind-dir',{value:this.value})">
+          <label style="color:var(--text-dim)">Stärke</label>
+          <input type="number" value="${cm.windStr}" step="0.1" min="0" style="width:52px" oninput="edDispatch('set-wind-str',{value:this.value})">
+        </div>
+        <label style="margin-top:4px"><input type="checkbox" ${cm.windVar?'checked':''} onchange="edDispatch('set-wind-var',{value:this.checked})"> Dyn. Windvarianz</label>
+        <div class="ed-row" style="margin-top:6px">
+          <label style="color:var(--text-dim)">NPC-Helis</label>
+          <input type="number" value="${cm.npcHeliCount}" min="0" max="3" style="width:40px" oninput="edDispatch('set-npc-count',{value:this.value})">
+          <select onchange="edDispatch('set-npc-type',{value:this.value})" style="flex:1">
+            ${['random','dolphin','jayhawk','chinook'].map(t=>`<option value="${t}" ${cm.npcHeliType===t||(!cm.npcHeliType&&t==='random')?'selected':''}>${{random:'Zufällig',dolphin:'Dolphin',jayhawk:'Jayhawk',chinook:'Chinook'}[t]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div class="ed-section">
+        <div class="ed-section-title">Objekte</div>
+        ${cm.objects.length ? cm.objects.map(o=>`
+          <div class="ed-list-row">
+            <span>${OBJ_ICONS[o.type]||'?'} ${o.type} @ (${o.x}, ${o.y})</span>
+            <button class="ed-btn-sm ed-del" onclick="edDispatch('delete-object',{idx:${o.idx}})">✕</button>
+          </div>`).join('') : '<div class="ed-empty">Keine Objekte</div>'}
+      </div>
+
+      <div class="ed-section">
+        <div class="ed-section-title">Payloads</div>
+        ${cm.payloads.length ? cm.payloads.map(p=>`
+          <div class="ed-list-row">
+            <span>${p.type==='person'?'🟡':'🟠'} ${p.type} @ (${p.x}, ${p.y})</span>
+            <label style="font-size:10px;color:#8af;white-space:nowrap">
+              <input type="checkbox" ${p.npcTarget?'checked':''} onchange="edDispatch('set-payload-npc',{idx:${p.idx},value:this.checked})"> NPC
+            </label>
+            <button class="ed-btn-sm ed-del" onclick="edDispatch('delete-payload',{idx:${p.idx}})">✕</button>
+          </div>`).join('') : '<div class="ed-empty">Keine Payloads</div>'}
+      </div>
+
+      <div class="ed-section">
+        <div class="ed-section-title">Beflockung <span style="font-weight:400">(${cm.foliageCount})</span></div>
+        ${cm.foliageCount ? `<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">${edH(cm.foliageSummary)}</div>
+          <button class="ed-btn ed-btn-danger" onclick="edDispatch('clear-foliage')">Alle löschen</button>`
+          : '<div class="ed-empty">Keine Bäume</div>'}
+      </div>
+      ` : ''}
+    `;
+  }
+
+  // Listen for state changes from editor iframe
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'editor-state-changed') edRefreshPanel();
+  });
+
+  // Refresh when editor iframe finishes loading
+  edIframe.addEventListener('load', () => {
+    // Module needs a moment to init
+    setTimeout(edRefreshPanel, 500);
+  });
+
+  // Refresh when Editor tab is clicked
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab === 'editor') setTimeout(edRefreshPanel, 100);
+    });
   });
   </script>
 </body>
