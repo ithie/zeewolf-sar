@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as http from 'http';
+import { spawn } from 'child_process';
 import { startApiServer } from './api-server';
 import { getBranch, pull, commit, push } from './git';
 
@@ -248,6 +249,34 @@ app.whenReady().then(async () => {
       await fs.writeFile(mainTsPath, lines.join('\n'), 'utf-8');
     }
     return { ok: true };
+  });
+
+  // ── Test runner ─────────────────────────────────────────────────────────
+  ipcMain.handle('run-tests', async () => {
+    const vitestBin = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'vitest');
+    const resultsFile = path.join(PROJECT_ROOT, 'workbench', 'dist', 'test-results.json');
+    const coverageFile = path.join(PROJECT_ROOT, 'coverage', 'coverage-final.json');
+
+    await fs.mkdir(path.dirname(resultsFile), { recursive: true });
+
+    await new Promise<void>((resolve) => {
+      const proc = spawn(vitestBin, [
+        'run', '--reporter=json',
+        `--outputFile=${resultsFile}`,
+        '--coverage',
+      ], {
+        cwd: PROJECT_ROOT,
+        env: { ...process.env, FORCE_COLOR: '0' },
+      });
+      proc.on('close', () => resolve());
+      proc.on('error', () => resolve());
+    });
+
+    let testResults: unknown = null;
+    let coverage: unknown = null;
+    try { testResults = JSON.parse(await fs.readFile(resultsFile, 'utf-8')); } catch { /* no results */ }
+    try { coverage   = JSON.parse(await fs.readFile(coverageFile, 'utf-8')); } catch { /* no coverage */ }
+    return { testResults, coverage, projectRoot: PROJECT_ROOT };
   });
 
   await createWindow();

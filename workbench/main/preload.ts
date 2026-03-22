@@ -47,4 +47,8 @@ contextBridge.exposeInMainWorld('workbench', {
 
   saveModelFile: (filePath: string, content: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('save-model-file', filePath, content),
+
+  // Test runner
+  runTests: (): Promise<{ testResults: any; coverage: any; projectRoot: string }> =>
+    ipcRenderer.invoke('run-tests'),
 });

@@ -418,6 +418,109 @@
     #autosave-dot.saving  { background: var(--accent2); }
     #autosave-dot.saved   { background: var(--success); }
 
+    /* ── Coverage badges in file tree ───────────────────────────────────── */
+    .tree-cov {
+      flex-shrink: 0;
+      margin-left: auto;
+      font-size: 10px;
+      font-family: 'Fira Code', Consolas, monospace;
+      padding: 0 4px;
+      border-radius: 2px;
+      opacity: 0.9;
+    }
+    .cov-hi  { color: #4ec9b0; }
+    .cov-mid { color: #ce9178; }
+    .cov-lo  { color: #f44747; }
+
+    /* Monaco glyph margin coverage ──────────────────────────────────────── */
+    .cov-glyph-hit  { background: rgba(78,201,176,0.75); width: 3px !important; margin-left: 4px; border-radius: 1px; }
+    .cov-glyph-miss { background: rgba(244,71,71,0.85);  width: 3px !important; margin-left: 4px; border-radius: 1px; }
+
+    /* ── Tests tab ───────────────────────────────────────────────────────── */
+    #tab-tests { flex-direction: column; overflow: hidden; }
+
+    #tests-toolbar {
+      display: flex; align-items: center; gap: 8px;
+      height: 36px; padding: 0 10px;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #tests-toolbar button {
+      background: var(--bg4); color: var(--text);
+      border: 1px solid var(--border); border-radius: 3px;
+      padding: 3px 12px; font-size: 12px; cursor: pointer;
+    }
+    #tests-toolbar button:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
+    #tests-toolbar button:disabled { opacity: 0.4; cursor: default; }
+    #tests-status { font-size: 12px; color: var(--text-dim); }
+    #tests-status.ok  { color: var(--success); }
+    #tests-status.err { color: var(--error); }
+
+    #tests-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+    #tests-results {
+      flex: 1; overflow-y: auto; min-height: 0;
+      padding-bottom: 4px;
+    }
+    #tests-results::-webkit-scrollbar { width: 6px; }
+    #tests-results::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    #tests-coverage {
+      height: 210px; border-top: 2px solid var(--border);
+      overflow-y: auto; flex-shrink: 0;
+    }
+    #tests-coverage::-webkit-scrollbar { width: 6px; }
+    #tests-coverage::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    .tests-cov-header {
+      position: sticky; top: 0;
+      padding: 4px 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-dim); background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cov-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .cov-table td { padding: 2px 10px; }
+    .cov-table tr:hover { background: var(--tree-hover); }
+    .cov-file { color: var(--text); font-family: 'Fira Code', Consolas, monospace; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .cov-pct  { font-family: monospace; font-size: 11px; text-align: right; white-space: nowrap; }
+    .cov-bar-cell { width: 80px; padding-right: 8px; }
+    .cov-bar { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+    .cov-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+    .test-file-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px; cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .test-file-row:hover { background: var(--tree-hover); }
+    .test-file-toggle { font-size: 10px; color: var(--text-dim); flex-shrink: 0; }
+    .test-file-icon { flex-shrink: 0; }
+    .test-file-name { flex: 1; font-size: 12px; font-family: 'Fira Code', Consolas, monospace; overflow: hidden; text-overflow: ellipsis; }
+    .test-file-meta { font-size: 11px; color: var(--text-dim); flex-shrink: 0; white-space: nowrap; }
+
+    .test-cases { background: rgba(0,0,0,0.15); }
+    .test-describe {
+      padding: 3px 10px 1px 32px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .test-case-row {
+      display: flex; align-items: baseline; gap: 6px;
+      padding: 2px 10px 2px 40px; font-size: 11px; color: var(--text-dim);
+    }
+    .test-passed { color: #4ec9b0; }
+    .test-failed  { color: #f44747; }
+    .test-skipped { color: #858585; }
+    .test-err-msg {
+      padding: 3px 10px 4px 52px;
+      font-size: 11px; color: #f44747;
+      font-family: 'Fira Code', Consolas, monospace;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .test-empty { padding: 20px 10px; font-size: 12px; color: var(--text-dim); font-style: italic; }
+
     /* ── Overlay blocker during resize ──────────────────────────────────── */
     #iframe-blocker {
       display: none;
@@ -464,6 +567,7 @@
         <button class="tab-btn" data-tab="tracker">Tracker</button>
         <button class="tab-btn" data-tab="editor">Editor</button>
         <button class="tab-btn" data-tab="models">Modelle</button>
+        <button class="tab-btn" data-tab="tests">Tests</button>
       </div>
 
       <div id="tab-content">
@@ -525,6 +629,18 @@
             sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
         </div>
 
+        <!-- Tests tab -->
+        <div id="tab-tests" class="tab-pane">
+          <div id="tests-toolbar">
+            <button id="btn-run-tests">▶ Tests ausführen</button>
+            <span id="tests-status">— noch nicht ausgeführt —</span>
+          </div>
+          <div id="tests-body">
+            <div id="tests-results"><div class="test-empty">Tests ausführen um Ergebnisse zu sehen.</div></div>
+            <div id="tests-coverage"><div class="tests-cov-header">Coverage</div><div class="test-empty">—</div></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -557,38 +673,38 @@
   let currentFilePath = null;
   let isDirty = false;
   let autoSaveTimer = null;
+  let coverageDecorationIds = [];
 
   // ── Auto-save dot ─────────────────────────────────────────────────────────
-  function setDot(state) {
-    const dot = document.getElementById('autosave-dot');
-    dot.className = state;
-  }
+  const setDot = state => {
+    document.getElementById('autosave-dot').className = state;
+  };
 
   // ── Git status display ────────────────────────────────────────────────────
   let statusTimer = null;
-  function showStatus(msg, type = '') {
+  const showStatus = (msg, type = '') => {
     const el = document.getElementById('git-status');
     el.textContent = msg;
     el.className = type;
     clearTimeout(statusTimer);
     if (msg) statusTimer = setTimeout(() => { el.textContent = ''; el.className = ''; }, 6000);
-  }
+  };
 
-  function setButtonsBusy(busy) {
+  const setButtonsBusy = busy => {
     ['btn-pull', 'btn-commit', 'btn-push'].forEach(id => {
       document.getElementById(id).disabled = busy;
     });
-  }
+  };
 
   // ── Git toolbar ───────────────────────────────────────────────────────────
-  async function refreshBranch() {
+  const refreshBranch = async () => {
     try {
       const branch = await wb.git.getBranch();
       document.getElementById('git-branch').textContent = '⎇ ' + branch;
     } catch (e) {
       document.getElementById('git-branch').textContent = '⎇ ?';
     }
-  }
+  };
 
   document.getElementById('btn-pull').addEventListener('click', async () => {
     setButtonsBusy(true);
@@ -632,7 +748,7 @@
   });
 
   // ── File save ─────────────────────────────────────────────────────────────
-  async function saveCurrentFile() {
+  const saveCurrentFile = async () => {
     if (!currentFilePath || !editor || !isDirty) return;
     setDot('saving');
     try {
@@ -644,12 +760,12 @@
       showStatus('Save failed: ' + e, 'err');
       setDot('');
     }
-  }
+  };
 
-  function scheduleAutoSave() {
+  const scheduleAutoSave = () => {
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => saveCurrentFile(), 2000);
-  }
+  };
 
   // ── Language detection ────────────────────────────────────────────────────
   const LANG_MAP = {
@@ -658,13 +774,10 @@
     txt: 'plaintext', mjs: 'javascript', cjs: 'javascript',
   };
 
-  function langForPath(filePath) {
-    const ext = filePath.split('.').pop() || '';
-    return LANG_MAP[ext] || 'plaintext';
-  }
+  const langForPath = filePath => LANG_MAP[filePath.split('.').pop() || ''] || 'plaintext';
 
   // ── Open file ─────────────────────────────────────────────────────────────
-  async function openFile(filePath) {
+  const openFile = async filePath => {
     if (editor && currentFilePath === filePath) return;
     await saveCurrentFile();
 
@@ -687,13 +800,15 @@
       if (old && old !== model) old.dispose();
       isDirty = false;
       setDot('');
+      coverageDecorationIds = [];
+      applyEditorCoverage(filePath);
     } catch (e) {
       showStatus('Could not open ' + filePath + ': ' + e, 'err');
     }
   }
 
   // ── File tree ─────────────────────────────────────────────────────────────
-  async function buildTree(container, dirPath, depth) {
+  const buildTree = async (container, dirPath, depth) => {
     let entries;
     try {
       entries = await wb.readDir(dirPath);
@@ -717,6 +832,13 @@
 
       item.appendChild(icon);
       item.appendChild(name);
+      const cov = entry.isDir ? getFolderCoverage(fullPath) : getFileCoverage(fullPath);
+      if (cov !== null) {
+        const badge = document.createElement('span');
+        badge.className = 'tree-cov ' + covClass(cov);
+        badge.textContent = cov + '%';
+        item.appendChild(badge);
+      }
       container.appendChild(item);
 
       if (entry.isDir) {
@@ -750,11 +872,11 @@
     }
   }
 
-  async function refreshTree() {
+  const refreshTree = async () => {
     const tree = document.getElementById('file-tree');
     tree.innerHTML = '';
     await buildTree(tree, '', 0);
-  }
+  };
 
   document.getElementById('btn-refresh-tree').addEventListener('click', refreshTree);
 
@@ -780,14 +902,14 @@
   });
 
   // ── Horizontal resize (left / right panels) ───────────────────────────────
-  (function () {
-    const handle = document.getElementById('resize-h');
-    const left   = document.getElementById('left-panel');
-    const root   = document.getElementById('root');
+  (() => {
+    const handle  = document.getElementById('resize-h');
+    const left    = document.getElementById('left-panel');
+    const root    = document.getElementById('root');
     const blocker = document.getElementById('iframe-blocker');
     let dragging = false, startX = 0, startW = 0;
 
-    handle.addEventListener('mousedown', (e) => {
+    handle.addEventListener('mousedown', e => {
       dragging = true;
       startX = e.clientX;
       startW = left.offsetWidth;
@@ -797,10 +919,9 @@
       e.preventDefault();
     });
 
-    document.addEventListener('mousemove', (e) => {
+    document.addEventListener('mousemove', e => {
       if (!dragging) return;
-      const totalW = root.offsetWidth;
-      const newW = Math.max(300, Math.min(totalW - 300, startW + (e.clientX - startX)));
+      const newW = Math.max(300, Math.min(root.offsetWidth - 300, startW + (e.clientX - startX)));
       left.style.width = newW + 'px';
       if (editor) editor.layout();
     });
@@ -814,7 +935,7 @@
   })();
 
   // ── Vertical resize (game / modelviewer) ──────────────────────────────────
-  (function () {
+  (() => {
     const handle  = document.getElementById('resize-v');
     const gamePan = document.getElementById('game-pane');
     const modPan  = document.getElementById('model-pane');
@@ -822,7 +943,7 @@
     const blocker = document.getElementById('iframe-blocker');
     let dragging = false, startY = 0, startH = 0;
 
-    handle.addEventListener('mousedown', (e) => {
+    handle.addEventListener('mousedown', e => {
       dragging = true;
       startY = e.clientY;
       startH = gamePan.offsetHeight;
@@ -832,7 +953,7 @@
       e.preventDefault();
     });
 
-    document.addEventListener('mousemove', (e) => {
+    document.addEventListener('mousemove', e => {
       if (!dragging) return;
       const totalH = right.offsetHeight;
       const handleH = handle.offsetHeight;
@@ -850,7 +971,7 @@
   })();
 
   // ── Monaco init ───────────────────────────────────────────────────────────
-  require(['vs/editor/editor.main'], function () {
+  require(['vs/editor/editor.main'], () => {
 
     // TypeScript compiler options matching the project tsconfig
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -874,6 +995,7 @@
       fontFamily:         "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
       fontLigatures:      true,
       lineNumbers:        'on',
+      glyphMargin:        true,
       minimap:            { enabled: true, scale: 1 },
       scrollBeyondLastLine: false,
       automaticLayout:    true,
@@ -908,27 +1030,27 @@
   const edFileLabel = document.getElementById('editor-current-file');
   let edCurrentFile = null;
 
-  function edSetFile(name) {
+  const edSetFile = name => {
     edCurrentFile = name;
     edFileLabel.textContent = name ? name.replace(/\.json$/, '') : '— keine Datei —';
-  }
+  };
 
-  function edImport(content) {
+  const edImport = content => {
     const w = edIframe.contentWindow;
     if (w && w.editorImport) w.editorImport(content);
-  }
+  };
 
-  function edExport() {
+  const edExport = () => {
     const w = edIframe.contentWindow;
     return (w && w.editorExport) ? w.editorExport() : null;
-  }
+  };
 
-  async function edDoSave(filename) {
+  const edDoSave = async filename => {
     const json = edExport();
     if (!json) return;
     await wb.saveCampaignFile(filename, json);
     edSetFile(filename);
-  }
+  };
 
   document.getElementById('btn-ed-new').addEventListener('click', () => {
     edSetFile(null);
@@ -963,26 +1085,26 @@
   const trFileLabel = document.getElementById('tracker-current-file');
   let trCurrentPath = null;
 
-  function trSetFile(filename, relativePath) {
+  const trSetFile = (filename, relativePath) => {
     trCurrentPath = relativePath || null;
     trFileLabel.textContent = filename || '— kein Song —';
-  }
+  };
 
-  function trImport(content) {
+  const trImport = content => {
     const w = trIframe.contentWindow;
     if (w && w.trackerImport) w.trackerImport(content);
-  }
+  };
 
-  function trExport() {
+  const trExport = () => {
     const w = trIframe.contentWindow;
     return (w && w.trackerExport) ? w.trackerExport() : null;
-  }
+  };
 
-  async function trDoSave(relativePath) {
+  const trDoSave = async relativePath => {
     const json = trExport();
     if (!json) return;
     await wb.writeFile(relativePath, json);
-  }
+  };
 
   document.getElementById('btn-tr-new').addEventListener('click', () => {
     trSetFile(null, null);
@@ -1019,29 +1141,29 @@
   let moCurrentFile = null;   // basename
   let moCurrentPath = null;   // absolute path (for save-model-file)
 
-  function moSetFile(filename, filePath) {
+  const moSetFile = (filename, filePath) => {
     moCurrentFile = filename || null;
     moCurrentPath = filePath || null;
     moFileLabel.textContent = filename || '— kein Modell —';
-  }
+  };
 
-  function moExport() {
+  const moExport = () => {
     const w = moIframe.contentWindow;
     return (w && w.modelEditorExport) ? w.modelEditorExport() : null;
-  }
+  };
 
-  function moImport(content) {
+  const moImport = content => {
     const w = moIframe.contentWindow;
     if (w && w.modelEditorImport) w.modelEditorImport(content);
-  }
+  };
 
-  async function moDoSave(filePath) {
+  const moDoSave = async filePath => {
     const json = moExport();
     if (!json || !filePath) return;
     await wb.saveModelFile(filePath, json);
     const w = moIframe.contentWindow;
     if (w && w.modelEditorGetState) w.modelEditorGetState().dirty = false;
-  }
+  };
 
   document.getElementById('btn-mo-new').addEventListener('click', () => {
     moSetFile(null, null);
@@ -1071,28 +1193,206 @@
     await moDoSave(result.filePath);
   });
 
+  // ── Tests / Coverage ─────────────────────────────────────────────────────
+  let coverageData = null;
+  let coverageRoot = null;
+
+  const covClass = pct => pct >= 80 ? 'cov-hi' : pct >= 50 ? 'cov-mid' : 'cov-lo';
+
+  const getFileCoverage = relPath => {
+    if (!coverageData || !coverageRoot) return null;
+    const d = coverageData[coverageRoot + '/' + relPath];
+    if (!d) return null;
+    const stmts = Object.values(d.s);
+    if (!stmts.length) return null;
+    return Math.round(stmts.filter(n => n > 0).length / stmts.length * 100);
+  };
+
+  const getFolderCoverage = relPath => {
+    if (!coverageData || !coverageRoot) return null;
+    const prefix = coverageRoot + '/' + relPath + '/';
+    let total = 0, covered = 0;
+    for (const [absPath, d] of Object.entries(coverageData)) {
+      if (!absPath.startsWith(prefix)) continue;
+      const stmts = Object.values(d.s);
+      total += stmts.length;
+      covered += stmts.filter(n => n > 0).length;
+    }
+    return total ? Math.round(covered / total * 100) : null;
+  };
+
+  const applyCoverageToTree = () => {
+    document.querySelectorAll('.tree-item').forEach(item => {
+      const relPath = item.dataset.path;
+      if (!relPath) return;
+      item.querySelector('.tree-cov')?.remove();
+      const isDir = item.nextElementSibling?.classList.contains('tree-children');
+      const pct = isDir ? getFolderCoverage(relPath) : getFileCoverage(relPath);
+      if (pct !== null) {
+        const badge = document.createElement('span');
+        badge.className = 'tree-cov ' + covClass(pct);
+        badge.textContent = pct + '%';
+        item.appendChild(badge);
+      }
+    });
+  };
+
+  const applyEditorCoverage = filePath => {
+    if (!editor) return;
+    const clearDecos = () => {
+      if (coverageDecorationIds.length) coverageDecorationIds = editor.deltaDecorations(coverageDecorationIds, []);
+    };
+    if (!coverageData || !coverageRoot) { clearDecos(); return; }
+    const d = coverageData[coverageRoot + '/' + filePath];
+    if (!d) { clearDecos(); return; }
+    const lineMap = {};
+    for (const [id, count] of Object.entries(d.s)) {
+      const range = d.statementMap[id];
+      if (!range) continue;
+      for (let l = range.start.line; l <= range.end.line; l++) {
+        if (!(l in lineMap)) lineMap[l] = count > 0;
+        else if (count === 0) lineMap[l] = false;
+      }
+    }
+    const decorations = Object.entries(lineMap).map(([line, hit]) => ({
+      range: new monaco.Range(+line, 1, +line, 1),
+      options: {
+        glyphMarginClassName: hit ? 'cov-glyph-hit' : 'cov-glyph-miss',
+        overviewRulerColor: hit ? '#4ec9b050' : '#f4474760',
+        overviewRulerLane: monaco.editor.OverviewRulerLane.Left,
+      },
+    }));
+    coverageDecorationIds = editor.deltaDecorations(coverageDecorationIds, decorations);
+  };
+
+  const renderTestResults = data => {
+    const el = document.getElementById('tests-results');
+    const statusEl = document.getElementById('tests-status');
+    if (!data || !data.testResults) {
+      el.innerHTML = '<div class="test-empty">Test-Ausführung fehlgeschlagen oder keine Daten.</div>';
+      statusEl.textContent = '✗ Fehler'; statusEl.className = 'err';
+      return;
+    }
+    const passed = data.numPassedTests || 0;
+    const failed = data.numFailedTests || 0;
+    const dur = (data.endTime && data.startTime) ? (data.endTime - data.startTime) : 0;
+    if (failed > 0) {
+      statusEl.textContent = `✗ ${failed} fehlgeschlagen  ·  ${passed} bestanden  ·  ${dur}ms`;
+      statusEl.className = 'err';
+    } else {
+      statusEl.textContent = `✓ ${passed} bestanden  ·  ${dur}ms`;
+      statusEl.className = 'ok';
+    }
+    let html = '';
+    for (const suite of data.testResults) {
+      const relPath = coverageRoot && suite.testFilePath.startsWith(coverageRoot)
+        ? suite.testFilePath.slice(coverageRoot.length + 1)
+        : suite.testFilePath;
+      const ok = suite.status === 'passed';
+      const count = (suite.assertionResults || []).length;
+      const sdur = suite.endTime - suite.startTime;
+      const rowId = 'tr-' + Math.random().toString(36).slice(2);
+      html += `<div class="test-file-row" onclick="const c=document.getElementById('${rowId}');c.style.display=c.style.display==='none'?'':'none';this.querySelector('.test-file-toggle').textContent=c.style.display==='none'?'▶':'▼'">`;
+      html += `<span class="test-file-toggle">▼</span>`;
+      html += `<span class="${ok ? 'test-passed' : 'test-failed'}">${ok ? '✓' : '✗'}</span>`;
+      html += `<span class="test-file-name">${relPath}</span>`;
+      html += `<span class="test-file-meta">${count} tests&nbsp;&nbsp;${sdur}ms</span>`;
+      html += `</div>`;
+      html += `<div class="test-cases" id="${rowId}">`;
+      const byDescribe = {};
+      for (const t of (suite.assertionResults || [])) {
+        const key = (t.ancestorTitles || []).join(' › ') || '';
+        if (!byDescribe[key]) byDescribe[key] = [];
+        byDescribe[key].push(t);
+      }
+      for (const [desc, tests] of Object.entries(byDescribe)) {
+        if (desc) html += `<div class="test-describe">${desc}</div>`;
+        for (const t of tests) {
+          const icon = t.status === 'passed' ? '✓' : t.status === 'failed' ? '✗' : '⊘';
+          const cls = t.status === 'passed' ? 'test-passed' : t.status === 'failed' ? 'test-failed' : 'test-skipped';
+          html += `<div class="test-case-row"><span class="${cls}">${icon}</span><span>${t.title}</span></div>`;
+          if (t.failureMessages?.length) {
+            for (const msg of t.failureMessages) {
+              html += `<div class="test-err-msg">${msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0, 400)}</div>`;
+            }
+          }
+        }
+      }
+      html += `</div>`;
+    }
+    el.innerHTML = html;
+  };
+
+  const renderCoverageSummary = (data, root) => {
+    const el = document.getElementById('tests-coverage');
+    if (!data || !root) {
+      el.innerHTML = '<div class="tests-cov-header">Coverage</div><div class="test-empty">Keine Daten.</div>';
+      return;
+    }
+    let html = '<div class="tests-cov-header">Coverage</div><table class="cov-table">';
+    const entries = Object.entries(data)
+      .map(([absPath, d]) => {
+        const relPath = absPath.startsWith(root + '/') ? absPath.slice(root.length + 1) : absPath;
+        const stmts = Object.values(d.s);
+        const stmtPct = stmts.length ? Math.round(stmts.filter(n => n > 0).length / stmts.length * 100) : 100;
+        const funcs = Object.values(d.f || {});
+        const funcPct = funcs.length ? Math.round(funcs.filter(n => n > 0).length / funcs.length * 100) : 100;
+        return { relPath, stmtPct, funcPct };
+      })
+      .sort((a, b) => a.relPath.localeCompare(b.relPath));
+    for (const { relPath, stmtPct, funcPct } of entries) {
+      const sc = covClass(stmtPct);
+      const barColor = stmtPct >= 80 ? '#4ec9b0' : stmtPct >= 50 ? '#ce9178' : '#f44747';
+      html += `<tr>
+        <td class="cov-file">${relPath}</td>
+        <td class="cov-bar-cell"><div class="cov-bar"><div class="cov-bar-fill" style="width:${stmtPct}%;background:${barColor}"></div></div></td>
+        <td class="cov-pct ${sc}">${stmtPct}%</td>
+        <td class="cov-pct ${covClass(funcPct)}" style="color:var(--text-dim);font-size:10px">fn:${funcPct}%</td>
+      </tr>`;
+    }
+    html += '</table>';
+    el.innerHTML = html;
+  };
+
+  document.getElementById('btn-run-tests').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-run-tests');
+    const statusEl = document.getElementById('tests-status');
+    btn.disabled = true;
+    statusEl.textContent = '⏳ Läuft…';
+    statusEl.className = '';
+    document.getElementById('tests-results').innerHTML = '<div class="test-empty">Tests laufen…</div>';
+    try {
+      const result = await wb.runTests();
+      coverageData = result.coverage;
+      coverageRoot = result.projectRoot;
+      renderTestResults(result.testResults);
+      renderCoverageSummary(result.coverage, result.projectRoot);
+      applyCoverageToTree();
+      if (currentFilePath) applyEditorCoverage(currentFilePath);
+    } catch (e) {
+      statusEl.textContent = '✗ ' + String(e); statusEl.className = 'err';
+    }
+    btn.disabled = false;
+  });
+
   // ── Editor controls panel rendering ──────────────────────────────────────
-  function edDispatch(action, data) {
+  const edDispatch = (action, data) => {
     const w = edIframe.contentWindow;
     if (w && w.editorDispatch) {
       w.editorDispatch(action, data);
-      // Refresh panel after dispatch (skip if user is typing in the panel)
       setTimeout(edRefreshPanel, 80);
     }
-  }
+  };
 
-  function edH(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  const edH = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-  function edRefreshPanel() {
+  const edRefreshPanel = () => {
     const controls = document.getElementById('editor-controls');
     if (controls && controls.contains(document.activeElement)) return;
     const w = edIframe.contentWindow;
     if (!w || !w.editorGetState) return;
-    const st = w.editorGetState();
-    edRenderPanel(st);
-  }
+    edRenderPanel(w.editorGetState());
+  };
 
   const ED_TOOLS = [
     { v:'move',       l:'✋ Drag & Pan' },
@@ -1108,7 +1408,7 @@
   ];
   const OBJ_ICONS = { pad:'🟩', carrier:'🚢', boat:'⛵', lighthouse:'🔦' };
 
-  function edRenderPanel(st) {
+  const edRenderPanel = st => {
     const controls = document.getElementById('editor-controls');
     if (!st) { controls.innerHTML = '<div class="ed-section"><div class="ed-empty">Lade Editor…</div></div>'; return; }
 
