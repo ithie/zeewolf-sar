@@ -21,6 +21,10 @@ type LighthouseObject = { type: 'lighthouse'; x: number; y: number };
 
 type MissionObject = PadObject | CarrierObject | BoatObject | LighthouseObject;
 
+export type Objective =
+    | { type: 'rescue_all' }
+    | { type: 'land_at'; target: 'pad' | 'carrier' | 'boat' };
+
 export interface Mission {
     headline: string;
     briefing: string;
@@ -28,6 +32,7 @@ export interface Mission {
     terrain: number[][];
 
     spawnObject: 'pad' | 'carrier';
+    objectives: Objective[];
     objects: MissionObject[];
     payloads: { type: 'person' | 'crate'; x: number; y: number }[];
     foliage: { x: number; y: number; s: number; type: string }[];

@@ -196,6 +196,7 @@ Viel Glück, Pilot.</textarea>
                     windVar:      m.windVar,
                     npcHeliCount: m.npcHeliCount || 0,
                     npcHeliType:  m.npcHeliType  || 'random',
+                    objectives: (m.objectives || []).map(function(o, i) { return Object.assign({ idx: i }, o); }),
                     objects:  (m.objects  || []).map(function(o, i) { return { idx: i, type: o.type, x: o.x, y: o.y }; }),
                     payloads: (m.payloads || []).map(function(p, i) { return { idx: i, type: p.type, x: p.x, y: p.y, npcTarget: !!p.npcTarget }; }),
                     foliageCount:   foliageArr.length,
@@ -269,6 +270,17 @@ Viel Glück, Pilot.</textarea>
                 case 'set-wind-var':  chk('m_wind_var', data.value);      fire('m_wind_var',       'input'); break;
                 case 'set-npc-count': set('m_npc_heli_count', data.value); fire('m_npc_heli_count', 'input'); break;
                 case 'set-npc-type':  set('m_npc_heli_type',  data.value); fire('m_npc_heli_type',  'input'); break;
+
+                case 'add-objective':
+                    if (m) {
+                        if (!m.objectives) m.objectives = [];
+                        var newObj = { type: data.type };
+                        if (data.target) newObj.target = data.target;
+                        m.objectives.push(newObj);
+                        ed.syncToData();
+                    } break;
+                case 'delete-objective':
+                    if (m && m.objectives) { m.objectives.splice(data.idx, 1); ed.syncToData(); } break;
 
                 case 'delete-payload':
                     if (m && m.payloads) { m.payloads.splice(data.idx, 1); ed.renderPayloadList(); } break;

@@ -428,6 +428,7 @@
             const G = {
                 goalCount: 0,
                 totalRescued: 0,
+                objectives: [],
                 menuHover: Object.fromEntries(HELI_TYPES.map(h => [h.id, false])),
                 menuAngles: Object.fromEntries(HELI_TYPES.map(h => [h.id, -0.5])),
                 points: [],
@@ -744,7 +745,9 @@
 
             // ─── G.payloads ────────────────────────────────────────────────────────────────
             function initPayloadsFromMission(G) {
-                const { payloads: missionPayloads } = window.campaignHandler.getCurrentMissionData();
+                const missionData = window.campaignHandler.getCurrentMissionData();
+                G.objectives = missionData.objectives || [];
+                const { payloads: missionPayloads } = missionData;
                 if (!missionPayloads || !missionPayloads.length) {
                     G.payloads = [];
                     G.goalCount = 0;
@@ -1250,7 +1253,7 @@
                 let groundH = getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
 
                 // onPad detection (carrier OR land pad)
-                let onPad = false;
+                let onCarrierDeck = false, onPadSurface = false;
                 if (hasCarrier()) {
                     let local = getCarrierLocal(G.heli.x, G.heli.y, G.CARRIER);
                     if (
@@ -1259,7 +1262,7 @@
                         local.y >= -G.CARRIER.l &&
                         local.y <= G.CARRIER.l
                     )
-                        onPad = true;
+                        onCarrierDeck = true;
                 }
                 if (
                     hasPad() &&
@@ -1268,7 +1271,8 @@
                     G.heli.y >= G.PAD.yMin &&
                     G.heli.y <= G.PAD.yMax
                 )
-                    onPad = true;
+                    onPadSurface = true;
+                const onPad = onCarrierDeck || onPadSurface;
 
                 // Use PAD surface height when on pad, carrier deck height when on carrier
                 const effectiveGroundH =
@@ -1281,6 +1285,14 @@
                     G.heli.engineOn = true;
                 if (G.keys['KeyS'] && !G.heli.inAir && G.heli.engineOn) {
                     G.heli.engineOn = false;
+                    const landObj = G.objectives.find(o => o.type === 'land_at');
+                    if (landObj) {
+                        const onTarget =
+                            (landObj.target === 'carrier' && onCarrierDeck) ||
+                            (landObj.target === 'pad' && onPadSurface) ||
+                            (landObj.target === 'boat' && onPadSurface);
+                        if (onTarget) missionComplete();
+                    }
                 }
                 // Trigger fuel truck once rotor has fully spun down after engine off
                 if (
@@ -2218,7 +2230,12 @@
                     ctx.fillStyle = G.heli.onboard >= G.heli.maxLoad ? '#f90' : '#5f5';
                     ctx.fillText(`PAX: ${G.heli.onboard}/${G.heli.maxLoad}`, hX, hY + 64);
                     ctx.fillStyle = '#5f5';
-                    ctx.fillText(`SAVED: ${G.totalRescued}/${G.goalCount}`, hX, hY + 80);
+                    const landObj = G.objectives.find(o => o.type === 'land_at');
+                    if (landObj) {
+                        ctx.fillText(`FLY TO: ${landObj.target.toUpperCase()}`, hX, hY + 80);
+                    } else {
+                        ctx.fillText(`SAVED: ${G.totalRescued}/${G.goalCount}`, hX, hY + 80);
+                    }
 
                     // minimap
                     const ms = 140,

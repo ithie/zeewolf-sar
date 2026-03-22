@@ -1151,6 +1151,20 @@
       </div>
 
       <div class="ed-section">
+        <div class="ed-section-title">Ziele</div>
+        ${cm.objectives.length ? cm.objectives.map(o=>`
+          <div class="ed-list-row">
+            <span>${o.type==='rescue_all' ? '🚁 Alle retten' : `🎯 Landen: ${o.target}`}</span>
+            <button class="ed-btn-sm ed-del" onclick="edDispatch('delete-objective',{idx:${o.idx}})">✕</button>
+          </div>`).join('') : '<div class="ed-empty">Keine Ziele</div>'}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+          <button class="ed-btn" onclick="edDispatch('add-objective',{type:'rescue_all'})">+ Alle retten</button>
+          <button class="ed-btn" onclick="edDispatch('add-objective',{type:'land_at',target:'pad'})">+ Landen: Pad</button>
+          <button class="ed-btn" onclick="edDispatch('add-objective',{type:'land_at',target:'carrier'})">+ Landen: Carrier</button>
+        </div>
+      </div>
+
+      <div class="ed-section">
         <div class="ed-section-title">Payloads</div>
         ${cm.payloads.length ? cm.payloads.map(p=>`
           <div class="ed-list-row">
