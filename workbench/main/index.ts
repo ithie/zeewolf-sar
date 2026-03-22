@@ -176,6 +176,43 @@ app.whenReady().then(async () => {
     return { cancelled: false, filename, relativePath };
   });
 
+  // ── Model editor: native open dialog ─────────────────────────────────────
+  ipcMain.handle('show-open-model-dialog', async () => {
+    const modelsDir = path.join(PROJECT_ROOT, 'src/game/models');
+    await fs.mkdir(modelsDir, { recursive: true });
+    const result = await dialog.showOpenDialog({
+      title: 'Modell öffnen',
+      defaultPath: modelsDir,
+      filters: [{ name: 'Model JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (result.canceled || !result.filePaths.length) return { cancelled: true };
+    const filePath = result.filePaths[0];
+    const content  = await fs.readFile(filePath, 'utf-8');
+    const filename = path.basename(filePath);
+    return { cancelled: false, filename, filePath, content };
+  });
+
+  // ── Model editor: native save dialog ──────────────────────────────────────
+  ipcMain.handle('show-save-model-dialog', async (_event, defaultName?: string) => {
+    const modelsDir = path.join(PROJECT_ROOT, 'src/game/models');
+    await fs.mkdir(modelsDir, { recursive: true });
+    const result = await dialog.showSaveDialog({
+      title: 'Modell speichern',
+      defaultPath: path.join(modelsDir, defaultName ?? 'neues_modell.json'),
+      filters: [{ name: 'Model JSON', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePath) return { cancelled: true };
+    const filename = path.basename(result.filePath);
+    return { cancelled: false, filename, filePath: result.filePath };
+  });
+
+  // ── Model editor: write file ───────────────────────────────────────────────
+  ipcMain.handle('save-model-file', async (_event, filePath: string, content: string) => {
+    await fs.writeFile(filePath, content, 'utf-8');
+    return { ok: true };
+  });
+
   // ── Campaign editor: write file + auto-register in main.ts ────────────────
   ipcMain.handle('save-campaign-file', async (_event, filename: string, content: string) => {
     const fullPath = path.join(PROJECT_ROOT, 'src/game/campaigns', filename);

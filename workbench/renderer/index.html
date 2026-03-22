@@ -216,8 +216,8 @@
     #tab-editor { flex-direction: column; }
     #editor-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 
-    /* Shared file-nav bar (editor + tracker) */
-    #editor-nav, #tracker-nav {
+    /* Shared file-nav bar (editor + tracker + models) */
+    #editor-nav, #tracker-nav, #models-nav {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -227,7 +227,7 @@
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
-    #editor-nav button, #tracker-nav button {
+    #editor-nav button, #tracker-nav button, #models-nav button {
       background: var(--bg4);
       color: var(--text);
       border: 1px solid var(--border);
@@ -237,8 +237,8 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    #editor-nav button:hover, #tracker-nav button:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
-    #editor-current-file, #tracker-current-file {
+    #editor-nav button:hover, #tracker-nav button:hover, #models-nav button:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
+    #editor-current-file, #tracker-current-file, #models-current-file {
       flex: 1;
       font-size: 11px;
       color: var(--text-dim);
@@ -250,6 +250,10 @@
     /* Tracker tab layout */
     #tab-tracker { flex-direction: column; }
     #tab-tracker iframe { flex: 1; border: none; min-height: 0; }
+
+    /* Models tab layout */
+    #tab-models { flex-direction: column; }
+    #tab-models iframe { flex: 1; border: none; min-height: 0; }
 
     /* Controls panel */
     #editor-controls {
@@ -459,6 +463,7 @@
         <button class="tab-btn active" data-tab="code">Code</button>
         <button class="tab-btn" data-tab="tracker">Tracker</button>
         <button class="tab-btn" data-tab="editor">Editor</button>
+        <button class="tab-btn" data-tab="models">Modelle</button>
       </div>
 
       <div id="tab-content">
@@ -505,6 +510,19 @@
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
             </div>
           </div>
+        </div>
+
+        <!-- Models tab -->
+        <div id="tab-models" class="tab-pane">
+          <div id="models-nav">
+            <button id="btn-mo-new">Neu</button>
+            <button id="btn-mo-open">Öffnen…</button>
+            <button id="btn-mo-save">Speichern</button>
+            <button id="btn-mo-saveas">Speichern unter…</button>
+            <span id="models-current-file">— kein Modell —</span>
+          </div>
+          <iframe src="http://localhost:5173/modeleditor.html" id="iframe-models"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
         </div>
 
       </div>
@@ -993,6 +1011,64 @@
     if (result.cancelled) return;
     trSetFile(result.filename, result.relativePath);
     await trDoSave(result.relativePath);
+  });
+
+  // ── Model editor ─────────────────────────────────────────────────────────
+  const moIframe    = document.getElementById('iframe-models');
+  const moFileLabel = document.getElementById('models-current-file');
+  let moCurrentFile = null;   // basename
+  let moCurrentPath = null;   // absolute path (for save-model-file)
+
+  function moSetFile(filename, filePath) {
+    moCurrentFile = filename || null;
+    moCurrentPath = filePath || null;
+    moFileLabel.textContent = filename || '— kein Modell —';
+  }
+
+  function moExport() {
+    const w = moIframe.contentWindow;
+    return (w && w.modelEditorExport) ? w.modelEditorExport() : null;
+  }
+
+  function moImport(content) {
+    const w = moIframe.contentWindow;
+    if (w && w.modelEditorImport) w.modelEditorImport(content);
+  }
+
+  async function moDoSave(filePath) {
+    const json = moExport();
+    if (!json || !filePath) return;
+    await wb.saveModelFile(filePath, json);
+    const w = moIframe.contentWindow;
+    if (w && w.modelEditorGetState) w.modelEditorGetState().dirty = false;
+  }
+
+  document.getElementById('btn-mo-new').addEventListener('click', () => {
+    moSetFile(null, null);
+    moImport('{"id":"new_model","label":"New Model","static":true,"movementType":"none","pivot":[0,0,0],"faces":[],"collisionBoxes":[]}');
+  });
+
+  document.getElementById('btn-mo-open').addEventListener('click', async () => {
+    const result = await wb.showOpenModelDialog();
+    if (result.cancelled) return;
+    moImport(result.content);
+    moSetFile(result.filename, result.filePath || null);
+  });
+
+  document.getElementById('btn-mo-save').addEventListener('click', async () => {
+    if (!moCurrentPath) {
+      const result = await wb.showSaveModelDialog(moCurrentFile || undefined);
+      if (result.cancelled) return;
+      moSetFile(result.filename, result.filePath);
+    }
+    await moDoSave(moCurrentPath);
+  });
+
+  document.getElementById('btn-mo-saveas').addEventListener('click', async () => {
+    const result = await wb.showSaveModelDialog(moCurrentFile || undefined);
+    if (result.cancelled) return;
+    moSetFile(result.filename, result.filePath);
+    await moDoSave(result.filePath);
   });
 
   // ── Editor controls panel rendering ──────────────────────────────────────

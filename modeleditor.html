@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>ZEEWOLF – Modell-Editor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #1e1e1e;
+      --bg2:    #252526;
+      --bg3:    #2d2d2d;
+      --bg4:    #3c3c3c;
+      --accent: #0e639c;
+      --accent2:#1177bb;
+      --text:   #cccccc;
+      --dim:    #858585;
+      --border: #3c3c3c;
+    }
+    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; overflow: hidden; }
+
+    #main { display: flex; height: 100%; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    #sidebar { width: 264px; min-width: 180px; flex-shrink: 0; background: var(--bg2);
+      border-right: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; }
+    #sidebar::-webkit-scrollbar { width: 6px; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    .sec { border-bottom: 1px solid var(--border); padding: 8px 10px; }
+    .sec-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--dim); margin-bottom: 6px; }
+    .sec label { display: block; margin: 3px 0; cursor: pointer; }
+    .sec input[type=text], .sec input[type=number], .sec select {
+      background: var(--bg3); color: var(--text); border: 1px solid var(--border);
+      border-radius: 2px; padding: 2px 5px; font-size: 11px; width: 100%; }
+    .sec input[type=number] { width: 60px; }
+    .sec input:focus, .sec select:focus { outline: none; border-color: var(--accent2); }
+    .sec input[type=color] { background: none; border: 1px solid var(--border); border-radius: 2px;
+      width: 32px; height: 20px; padding: 1px; cursor: pointer; }
+    .sec input[type=range] { width: 100%; cursor: pointer; }
+
+    .row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin: 3px 0; }
+    .row label { margin: 0; white-space: nowrap; }
+    .row input[type=number] { width: 54px; }
+    .row input[type=text]   { flex: 1; width: auto; }
+    .row select             { flex: 1; width: auto; }
+
+    .btn { background: var(--bg4); color: var(--text); border: 1px solid var(--border);
+      border-radius: 2px; padding: 3px 8px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+    .btn:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
+    .btn-sm { padding: 1px 5px; font-size: 10px; }
+    .btn-danger:hover { background: #7a2020 !important; border-color: #a33 !important; }
+    .flex-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+
+    .face-item { display: flex; align-items: center; gap: 5px; padding: 2px 4px;
+      border-radius: 2px; cursor: pointer; margin: 1px 0; }
+    .face-item:hover { background: var(--bg4); }
+    .face-item.active { background: var(--accent); color: #fff; }
+    .face-swatch { width: 12px; height: 12px; border-radius: 2px;
+      border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0; }
+    .face-id { flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .vert-row { display: flex; align-items: center; gap: 3px; margin: 2px 0; border-radius: 2px; }
+    .vert-row .vi { width: 18px; font-size: 10px; color: var(--dim); text-align: right; flex-shrink: 0; }
+    .vert-row input[type=number] { width: 52px; }
+    .vert-row.selected { background: rgba(17,119,187,0.2); }
+
+    .cbox-block { border: 1px solid var(--border); border-radius: 2px; padding: 4px 6px; margin: 3px 0; font-size: 10px; }
+    .cbox-grid { display: grid; grid-template-columns: 32px 52px 52px; gap: 2px 4px; align-items: center; margin-top: 3px; }
+    .cbox-grid label { color: var(--dim); text-align: right; }
+    .cbox-grid input { width: 52px; }
+
+    .empty { color: var(--dim); font-style: italic; font-size: 11px; }
+
+    /* ── Canvas ── */
+    #canvas-area { flex: 1; position: relative; overflow: hidden; cursor: grab; background: #050505; }
+    #canvas-area:active { cursor: grabbing; }
+    #canvas { display: block; position: absolute; top: 0; left: 0; }
+    #hint { position: absolute; bottom: 8px; right: 8px; font-size: 10px;
+      color: rgba(255,255,255,0.25); pointer-events: none; }
+  </style>
+</head>
+<body>
+<div id="main">
+
+  <!-- ── Sidebar ── -->
+  <div id="sidebar">
+
+    <!-- Model selection -->
+    <div class="sec">
+      <div class="sec-title">Modell</div>
+      <select id="preset-select">
+        <option value="">— Preset laden —</option>
+        <option value="hangar">Hangar</option>
+        <option value="lighthouse">Lighthouse</option>
+        <option value="sailboat">Sailboat</option>
+        <option value="jayhawk">Jayhawk (MH-60T)</option>
+        <option value="dolphin">Dolphin (MH-65)</option>
+        <option value="chinook">Chinook (CH-47)</option>
+        <option value="glider">Glider (ASK-21)</option>
+        <option value="carrier_hull">Carrier Hull</option>
+        <option value="carrier_tower">Carrier Tower</option>
+      </select>
+      <div class="row" style="margin-top:5px">
+        <label>ID:</label>
+        <input type="text" id="meta-id">
+      </div>
+      <div class="row">
+        <label>Label:</label>
+        <input type="text" id="meta-label">
+      </div>
+    </div>
+
+    <!-- Properties -->
+    <div class="sec">
+      <div class="sec-title">Eigenschaften</div>
+      <div class="row">
+        <label><input type="radio" name="mobil" id="r-static" value="static" checked> Statisch</label>
+        <label><input type="radio" name="mobil" id="r-moving" value="moving"> Beweglich</label>
+      </div>
+      <div class="row" id="move-type-row">
+        <label>Typ:</label>
+        <select id="move-type">
+          <option value="none">–</option>
+          <option value="auto">Auto</option>
+          <option value="ship">Schiff</option>
+          <option value="plane">Flugzeug</option>
+          <option value="heli">Hubschrauber</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- View controls -->
+    <div class="sec">
+      <div class="sec-title">Ansicht</div>
+      <div class="row">
+        <label>Rotation:</label>
+        <input type="range" id="view-angle" min="0" max="360" value="225" style="flex:1">
+        <span id="view-angle-val" style="width:32px;text-align:right;font-size:10px">225°</span>
+      </div>
+      <div class="row">
+        <label>Zoom:</label>
+        <input type="range" id="view-zoom" min="0.5" max="12" step="0.5" value="3" style="flex:1">
+        <span id="view-zoom-val" style="width:32px;text-align:right;font-size:10px">3.0×</span>
+      </div>
+      <label><input type="checkbox" id="show-cboxes" checked> Kollisionsboxen</label>
+    </div>
+
+    <!-- Face list -->
+    <div class="sec">
+      <div class="sec-title">Flächen <span id="face-count" style="font-weight:400"></span></div>
+      <div id="face-list"><div class="empty">Kein Modell geladen</div></div>
+      <div class="flex-row" style="margin-top:6px">
+        <button class="btn btn-sm" id="btn-add-face">+ Fläche</button>
+      </div>
+    </div>
+
+    <!-- Selected face editor -->
+    <div class="sec" id="face-editor" style="display:none">
+      <div class="sec-title">Fläche</div>
+      <div class="row">
+        <label>ID:</label>
+        <input type="text" id="face-id-input">
+      </div>
+      <div class="row">
+        <label>Farbe:</label>
+        <input type="color" id="face-color">
+        <input type="text" id="face-color-hex" style="flex:1;font-family:monospace;font-size:10px">
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="face-has-stroke"> Kontur</label>
+        <input type="color" id="face-stroke">
+        <input type="text" id="face-stroke-hex" style="flex:1;font-family:monospace;font-size:10px">
+        <label>W:</label>
+        <input type="number" id="face-stroke-w" value="1" min="0.5" max="5" step="0.5" style="width:40px">
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="face-has-normal"> Normal:</label>
+        <label>nx</label><input type="number" id="face-nx" step="0.1" style="width:44px">
+        <label>ny</label><input type="number" id="face-ny" step="0.1" style="width:44px">
+      </div>
+      <div class="sec-title" style="margin-top:8px">Vertices</div>
+      <div id="vert-list"></div>
+      <div class="flex-row">
+        <button class="btn btn-sm" id="btn-add-vert">+ Vertex</button>
+        <button class="btn btn-sm btn-danger" id="btn-del-vert">– Letzter</button>
+        <button class="btn btn-sm btn-danger" id="btn-del-face">Fläche ✕</button>
+      </div>
+    </div>
+
+    <!-- Collision boxes -->
+    <div class="sec">
+      <div class="sec-title">Kollisionsboxen</div>
+      <div id="cbox-list"><div class="empty">–</div></div>
+      <div class="flex-row" style="margin-top:6px">
+        <button class="btn btn-sm" id="btn-add-cbox">+ Box</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Canvas ── -->
+  <div id="canvas-area">
+    <canvas id="canvas"></canvas>
+    <div id="hint">Scrollen = Zoom · Ziehen = Kamera · Klick = Fläche/Vertex</div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF,
+  JAYHAWK_DEF, DOLPHIN_DEF, CHINOOK_DEF, GLIDER_DEF,
+  CARRIER_HULL_DEF, CARRIER_TOWER_DEF,
+} from '/src/game/defs.ts';
+import { createSceneRenderer } from '/src/game/scene-renderer.ts';
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+const TW = 64, TH = 32, SH = 25;
+
+// ── Presets ────────────────────────────────────────────────────────────────────
+const PRESETS = {
+  hangar:        { def: HANGAR_DEF,        label: 'Hangar',           isStatic: true,  movementType: 'none' },
+  lighthouse:    { def: LIGHTHOUSE_DEF,    label: 'Lighthouse',       isStatic: true,  movementType: 'none' },
+  sailboat:      { def: SAILBOAT_DEF,      label: 'Sailboat',         isStatic: false, movementType: 'ship' },
+  jayhawk:       { def: JAYHAWK_DEF,       label: 'Jayhawk (MH-60T)', isStatic: false, movementType: 'heli' },
+  dolphin:       { def: DOLPHIN_DEF,       label: 'Dolphin (MH-65)',  isStatic: false, movementType: 'heli' },
+  chinook:       { def: CHINOOK_DEF,       label: 'Chinook (CH-47)',  isStatic: false, movementType: 'heli' },
+  glider:        { def: GLIDER_DEF,        label: 'Glider (ASK-21)',  isStatic: false, movementType: 'plane' },
+  carrier_hull:  { def: CARRIER_HULL_DEF,  label: 'Carrier Hull',     isStatic: false, movementType: 'ship' },
+  carrier_tower: { def: CARRIER_TOWER_DEF, label: 'Carrier Tower',    isStatic: false, movementType: 'ship' },
+};
+
+// ── State ──────────────────────────────────────────────────────────────────────
+const state = {
+  def: null,
+  meta: { label: '', isStatic: true, movementType: 'none' },
+  selectedFaceIdx: -1,
+  selectedVertIdx: -1,
+  dirty: false,
+  filename: null,
+};
+
+let cam       = { x: 0, y: 0 };
+let zoom      = 3.0;
+let viewAngle = (225 / 180) * Math.PI;
+
+// ── Canvas setup ───────────────────────────────────────────────────────────────
+const area   = document.getElementById('canvas-area');
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+function resize() { canvas.width = area.clientWidth; canvas.height = area.clientHeight; draw(); }
+new ResizeObserver(resize).observe(area);
+
+// ── Isometric projection (world-space, same signature as game / modelviewer) ──
+function iso(wx, wy, wz, camX, camY) {
+  return {
+    x: canvas.width  / 2 + (wx - wy) * (TW * zoom / 2) - camX,
+    y: canvas.height / 2 + (wx + wy) * (TH * zoom / 2) - wz * SH * zoom - camY,
+  };
+}
+
+// SceneRenderer — identical engine as game and modelviewer
+const SceneRenderer = createSceneRenderer(ctx, iso);
+
+// Project a local model coordinate to screen (for overlays: highlights, vertex dots, arrow)
+function localToScreen(lx, ly, lz) {
+  const cosA = Math.cos(viewAngle), sinA = Math.sin(viewAngle);
+  return iso(lx * cosA - ly * sinA, lx * sinA + ly * cosA, lz, cam.x, cam.y);
+}
+
+// ── Drawing ────────────────────────────────────────────────────────────────────
+function drawDirectionArrow() {
+  const z = 1.8;
+  const shaft = localToScreen(0, 0, z), tip = localToScreen(3.0, 0, z);
+  const w0 = localToScreen(2.4, 0.3, z), w1 = localToScreen(2.4, -0.3, z);
+  ctx.strokeStyle = 'rgba(0,220,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(shaft.x, shaft.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+  ctx.fillStyle = 'rgba(0,220,255,0.85)';
+  ctx.beginPath();
+  ctx.moveTo(tip.x, tip.y); ctx.lineTo(w0.x, w0.y); ctx.lineTo(w1.x, w1.y);
+  ctx.closePath(); ctx.fill();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!state.def) {
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.font = '13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Kein Modell geladen — Preset wählen oder Datei öffnen', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  // Highlight selected face via color override; SceneRenderer handles culling + depth sort
+  const colors = {};
+  if (state.selectedFaceIdx >= 0 && state.def.faces[state.selectedFaceIdx]) {
+    colors[state.def.faces[state.selectedFaceIdx].id] = '#ffdd44';
+  }
+
+  SceneRenderer.debugCollision = document.getElementById('show-cboxes').checked;
+  SceneRenderer.add(state.def, { x: 0, y: 0, angle: viewAngle, colors });
+  SceneRenderer.flush(cam.x, cam.y);
+
+  // Selected face outline (drawn after flush so it's always on top)
+  if (state.selectedFaceIdx >= 0) {
+    const face = state.def.faces[state.selectedFaceIdx];
+    if (face && face.verts.length >= 2) {
+      const pts = face.verts.map(v => localToScreen(v[0], v[1], v[2]));
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  if (!state.meta.isStatic) drawDirectionArrow();
+
+  // Vertex dots for selected face
+  if (state.selectedFaceIdx >= 0) {
+    const face = state.def.faces[state.selectedFaceIdx];
+    if (face) {
+      face.verts.forEach((v, i) => {
+        const pt = localToScreen(v[0], v[1], v[2]);
+        const sel = i === state.selectedVertIdx;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, sel ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = sel ? '#ff4444' : '#ffee00';
+        ctx.fill();
+        ctx.strokeStyle = sel ? '#fff' : '#888';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+    }
+  }
+}
+
+// ── Sidebar render ─────────────────────────────────────────────────────────────
+function renderFaceList() {
+  const list  = document.getElementById('face-list');
+  const count = document.getElementById('face-count');
+  if (!state.def || !state.def.faces.length) {
+    list.innerHTML  = '<div class="empty">Keine Flächen</div>';
+    count.textContent = '';
+    return;
+  }
+  count.textContent = `(${state.def.faces.length})`;
+  list.innerHTML = state.def.faces.map((f, i) => `
+    <div class="face-item ${i === state.selectedFaceIdx ? 'active' : ''}" data-i="${i}">
+      <div class="face-swatch" style="background:${f.color}"></div>
+      <div class="face-id" title="${f.id}">${f.id}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.face-item').forEach(el => {
+    el.addEventListener('click', () => selectFace(parseInt(el.dataset.i)));
+  });
+}
+
+function renderFaceEditor() {
+  const sec = document.getElementById('face-editor');
+  if (state.selectedFaceIdx < 0 || !state.def) { sec.style.display = 'none'; return; }
+  const face = state.def.faces[state.selectedFaceIdx];
+  if (!face) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+
+  document.getElementById('face-id-input').value     = face.id;
+  document.getElementById('face-color').value        = toColorInput(face.color);
+  document.getElementById('face-color-hex').value    = face.color;
+
+  const hasStroke = !!face.stroke;
+  document.getElementById('face-has-stroke').checked = hasStroke;
+  document.getElementById('face-stroke').value       = toColorInput(face.stroke || '#aaaaaa');
+  document.getElementById('face-stroke-hex').value   = face.stroke || '#aaaaaa';
+  document.getElementById('face-stroke-w').value     = face.strokeWidth ?? 1;
+
+  const hasNormal = Array.isArray(face.normal);
+  document.getElementById('face-has-normal').checked = hasNormal;
+  document.getElementById('face-nx').value           = hasNormal ? face.normal[0] : 0;
+  document.getElementById('face-ny').value           = hasNormal ? face.normal[1] : 0;
+
+  renderVertList(face);
+}
+
+function renderVertList(face) {
+  const list = document.getElementById('vert-list');
+  list.innerHTML = face.verts.map((v, i) => `
+    <div class="vert-row ${i === state.selectedVertIdx ? 'selected' : ''}" data-i="${i}">
+      <span class="vi">V${i}</span>
+      <input type="number" class="vx" step="0.01" value="${v[0].toFixed(3)}" style="width:52px">
+      <input type="number" class="vy" step="0.01" value="${v[1].toFixed(3)}" style="width:52px">
+      <input type="number" class="vz" step="0.01" value="${v[2].toFixed(3)}" style="width:52px">
+    </div>
+  `).join('');
+  list.querySelectorAll('.vert-row').forEach(row => {
+    const i = parseInt(row.dataset.i);
+    row.addEventListener('click', () => { state.selectedVertIdx = i; renderFaceEditor(); draw(); });
+    row.querySelector('.vx').addEventListener('input', e => { face.verts[i][0] = parseFloat(e.target.value) || 0; markDirty(); draw(); });
+    row.querySelector('.vy').addEventListener('input', e => { face.verts[i][1] = parseFloat(e.target.value) || 0; markDirty(); draw(); });
+    row.querySelector('.vz').addEventListener('input', e => { face.verts[i][2] = parseFloat(e.target.value) || 0; markDirty(); draw(); });
+  });
+}
+
+function renderCboxList() {
+  const list = document.getElementById('cbox-list');
+  const boxes = state.def && state.def.collisionBoxes;
+  if (!boxes || !boxes.length) { list.innerHTML = '<div class="empty">–</div>'; return; }
+  list.innerHTML = boxes.map((cb, i) => `
+    <div class="cbox-block">
+      <div class="row">
+        <input type="text" class="cbi-id" data-i="${i}" value="${cb.id}" style="flex:1;font-size:10px">
+        <button class="btn btn-sm btn-danger cbox-del" data-i="${i}">✕</button>
+      </div>
+      <div class="cbox-grid">
+        <label>xMin/Max</label>
+        <input type="number" step="0.1" value="${cb.xMin}" class="cbi" data-i="${i}" data-f="xMin">
+        <input type="number" step="0.1" value="${cb.xMax}" class="cbi" data-i="${i}" data-f="xMax">
+        <label>yMin/Max</label>
+        <input type="number" step="0.1" value="${cb.yMin}" class="cbi" data-i="${i}" data-f="yMin">
+        <input type="number" step="0.1" value="${cb.yMax}" class="cbi" data-i="${i}" data-f="yMax">
+        <label>zMin/Max</label>
+        <input type="number" step="0.1" value="${cb.zMin}" class="cbi" data-i="${i}" data-f="zMin">
+        <input type="number" step="0.1" value="${cb.zMax}" class="cbi" data-i="${i}" data-f="zMax">
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.cbi').forEach(inp => {
+    inp.addEventListener('input', e => {
+      boxes[+e.target.dataset.i][e.target.dataset.f] = parseFloat(e.target.value) || 0;
+      markDirty(); draw();
+    });
+  });
+  list.querySelectorAll('.cbi-id').forEach(inp => {
+    inp.addEventListener('input', e => { boxes[+e.target.dataset.i].id = e.target.value; markDirty(); });
+  });
+  list.querySelectorAll('.cbox-del').forEach(btn => {
+    btn.addEventListener('click', () => { boxes.splice(+btn.dataset.i, 1); markDirty(); renderCboxList(); draw(); });
+  });
+}
+
+function renderAll() { renderFaceList(); renderFaceEditor(); renderCboxList(); draw(); }
+
+// ── Selection ──────────────────────────────────────────────────────────────────
+function selectFace(i) {
+  state.selectedFaceIdx = i;
+  state.selectedVertIdx = -1;
+  renderFaceList();
+  renderFaceEditor();
+  draw();
+}
+
+// ── Loading ────────────────────────────────────────────────────────────────────
+function loadPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  state.def = JSON.parse(JSON.stringify(p.def));
+  state.meta = { label: p.label, isStatic: p.isStatic, movementType: p.movementType };
+  state.selectedFaceIdx = -1;
+  state.selectedVertIdx = -1;
+  state.dirty = false;
+  state.filename = null;
+  syncMetaToUI();
+  renderAll();
+}
+
+function syncMetaToUI() {
+  document.getElementById('meta-id').value    = state.def ? state.def.id : '';
+  document.getElementById('meta-label').value = state.meta.label;
+  document.getElementById('r-static').checked = state.meta.isStatic;
+  document.getElementById('r-moving').checked = !state.meta.isStatic;
+  document.getElementById('move-type').value  = state.meta.movementType;
+  document.getElementById('move-type-row').style.opacity = state.meta.isStatic ? '0.4' : '1';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function toColorInput(c) {
+  if (!c) return '#888888';
+  if (c.startsWith('rgba')) {
+    const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (m) return '#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+  }
+  return c.length === 4 ? '#' + c[1]+c[1]+c[2]+c[2]+c[3]+c[3] : c.slice(0,7);
+}
+
+function markDirty() { state.dirty = true; }
+
+function pointInPolygon(mx, my, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+    if ((yi > my) !== (yj > my) && mx < (xj - xi) * (my - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+// ── Canvas interaction ─────────────────────────────────────────────────────────
+let isDragging = false, dragMoved = false;
+let lastMouse  = { x: 0, y: 0 };
+
+area.addEventListener('mousedown', e => {
+  isDragging = true; dragMoved = false;
+  lastMouse  = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - lastMouse.x, dy = e.clientY - lastMouse.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) dragMoved = true;
+  cam.x -= dx; cam.y -= dy;
+  lastMouse = { x: e.clientX, y: e.clientY };
+  draw();
+});
+
+// Centroid depth for picking sort only (front face = highest wx+wy)
+function faceCentroidDepth(face) {
+  const cosA = Math.cos(viewAngle), sinA = Math.sin(viewAngle);
+  let d = 0;
+  for (const v of face.verts) d += v[0] * cosA - v[1] * sinA + v[0] * sinA + v[1] * cosA;
+  return d / face.verts.length;
+}
+
+area.addEventListener('click', e => {
+  if (dragMoved || !state.def) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+  // Vertex picking (selected face only)
+  if (state.selectedFaceIdx >= 0) {
+    const face = state.def.faces[state.selectedFaceIdx];
+    if (face) {
+      for (let i = 0; i < face.verts.length; i++) {
+        const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
+        if (Math.hypot(mx - pt.x, my - pt.y) < 8) {
+          state.selectedVertIdx = i;
+          renderFaceEditor(); draw(); return;
+        }
+      }
+    }
+  }
+
+  // Face picking: front to back (highest depth first), skip backface-culled faces
+  const faces = state.def.faces;
+  const order = faces.map((_, i) => i).sort((a, b) => faceCentroidDepth(faces[b]) - faceCentroidDepth(faces[a]));
+  for (const i of order) {
+    const f = faces[i];
+    if (f.normal) {
+      const [nx, ny] = f.normal;
+      const cosA = Math.cos(viewAngle), sinA = Math.sin(viewAngle);
+      if ((nx * cosA - ny * sinA) + (nx * sinA + ny * cosA) <= 0) continue;
+    }
+    const pts = f.verts.map(v => localToScreen(v[0], v[1], v[2]));
+    if (pointInPolygon(mx, my, pts)) { selectFace(i); return; }
+  }
+});
+
+area.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoom *= e.deltaY > 0 ? 0.9 : 1.1;
+  zoom = Math.max(0.5, Math.min(20, zoom));
+  document.getElementById('view-zoom').value = zoom;
+  document.getElementById('view-zoom-val').textContent = zoom.toFixed(1) + '×';
+  draw();
+}, { passive: false });
+
+// ── UI events ──────────────────────────────────────────────────────────────────
+document.getElementById('preset-select').addEventListener('change', e => {
+  if (e.target.value) { loadPreset(e.target.value); e.target.value = ''; }
+});
+
+document.getElementById('meta-id').addEventListener('input', e => {
+  if (state.def) { state.def.id = e.target.value; markDirty(); }
+});
+document.getElementById('meta-label').addEventListener('input', e => {
+  state.meta.label = e.target.value; markDirty();
+});
+
+document.querySelectorAll('input[name="mobil"]').forEach(r => {
+  r.addEventListener('change', () => {
+    state.meta.isStatic = document.getElementById('r-static').checked;
+    document.getElementById('move-type-row').style.opacity = state.meta.isStatic ? '0.4' : '1';
+    markDirty(); draw();
+  });
+});
+document.getElementById('move-type').addEventListener('change', e => { state.meta.movementType = e.target.value; markDirty(); });
+
+document.getElementById('view-angle').addEventListener('input', e => {
+  viewAngle = (parseInt(e.target.value) / 180) * Math.PI;
+  document.getElementById('view-angle-val').textContent = e.target.value + '°';
+  draw();
+});
+document.getElementById('view-zoom').addEventListener('input', e => {
+  zoom = parseFloat(e.target.value);
+  document.getElementById('view-zoom-val').textContent = zoom.toFixed(1) + '×';
+  draw();
+});
+document.getElementById('show-cboxes').addEventListener('change', () => draw());
+
+// Face editor events
+document.getElementById('face-id-input').addEventListener('input', e => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  state.def.faces[state.selectedFaceIdx].id = e.target.value;
+  markDirty(); renderFaceList();
+});
+
+function setupColorPair(colorId, hexId, apply) {
+  document.getElementById(colorId).addEventListener('input', e => {
+    document.getElementById(hexId).value = e.target.value;
+    apply(e.target.value);
+  });
+  document.getElementById(hexId).addEventListener('change', e => {
+    const v = e.target.value.trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(v) || v.startsWith('rgba')) {
+      document.getElementById(colorId).value = toColorInput(v);
+      apply(v);
+    }
+  });
+}
+
+setupColorPair('face-color', 'face-color-hex', v => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  state.def.faces[state.selectedFaceIdx].color = v;
+  markDirty(); renderFaceList(); draw();
+});
+setupColorPair('face-stroke', 'face-stroke-hex', v => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  if (document.getElementById('face-has-stroke').checked) {
+    state.def.faces[state.selectedFaceIdx].stroke = v; markDirty(); draw();
+  }
+});
+
+document.getElementById('face-has-stroke').addEventListener('change', e => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  const face = state.def.faces[state.selectedFaceIdx];
+  face.stroke = e.target.checked ? (document.getElementById('face-stroke-hex').value || '#aaaaaa') : null;
+  markDirty(); draw();
+});
+document.getElementById('face-stroke-w').addEventListener('input', e => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  state.def.faces[state.selectedFaceIdx].strokeWidth = parseFloat(e.target.value) || 1;
+  markDirty(); draw();
+});
+document.getElementById('face-has-normal').addEventListener('change', e => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  const face = state.def.faces[state.selectedFaceIdx];
+  if (e.target.checked) {
+    face.normal = [parseFloat(document.getElementById('face-nx').value) || 0,
+                   parseFloat(document.getElementById('face-ny').value) || 0];
+  } else { delete face.normal; }
+  markDirty(); draw();
+});
+['face-nx','face-ny'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (state.selectedFaceIdx < 0 || !state.def) return;
+    if (!document.getElementById('face-has-normal').checked) return;
+    state.def.faces[state.selectedFaceIdx].normal = [
+      parseFloat(document.getElementById('face-nx').value) || 0,
+      parseFloat(document.getElementById('face-ny').value) || 0,
+    ];
+    markDirty(); draw();
+  });
+});
+
+document.getElementById('btn-add-vert').addEventListener('click', () => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  const face = state.def.faces[state.selectedFaceIdx];
+  face.verts.push([...(face.verts[face.verts.length - 1] || [0,0,0])]);
+  markDirty(); renderFaceEditor(); draw();
+});
+document.getElementById('btn-del-vert').addEventListener('click', () => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  const face = state.def.faces[state.selectedFaceIdx];
+  if (face.verts.length <= 3) return;
+  face.verts.pop();
+  state.selectedVertIdx = Math.min(state.selectedVertIdx, face.verts.length - 1);
+  markDirty(); renderFaceEditor(); draw();
+});
+document.getElementById('btn-del-face').addEventListener('click', () => {
+  if (state.selectedFaceIdx < 0 || !state.def) return;
+  state.def.faces.splice(state.selectedFaceIdx, 1);
+  state.selectedFaceIdx = Math.min(state.selectedFaceIdx, state.def.faces.length - 1);
+  if (!state.def.faces.length) state.selectedFaceIdx = -1;
+  state.selectedVertIdx = -1;
+  markDirty(); renderAll();
+});
+document.getElementById('btn-add-face').addEventListener('click', () => {
+  if (!state.def) return;
+  state.def.faces.push({ id: 'face_' + state.def.faces.length, verts: [[0,0,0],[1,0,0],[1,1,0],[0,1,0]], color: '#888888' });
+  state.selectedFaceIdx = state.def.faces.length - 1;
+  state.selectedVertIdx = -1;
+  markDirty(); renderAll();
+});
+document.getElementById('btn-add-cbox').addEventListener('click', () => {
+  if (!state.def) return;
+  if (!state.def.collisionBoxes) state.def.collisionBoxes = [];
+  state.def.collisionBoxes.push({ id: 'box_' + state.def.collisionBoxes.length, xMin:-1,xMax:1,yMin:-1,yMax:1,zMin:0,zMax:1 });
+  markDirty(); renderCboxList(); draw();
+});
+
+// ── Serialization ──────────────────────────────────────────────────────────────
+function toJSON() {
+  return JSON.stringify({
+    id:           state.def.id,
+    label:        state.meta.label,
+    static:       state.meta.isStatic,
+    movementType: state.meta.movementType,
+    pivot:        state.def.pivot || [0,0,0],
+    faces:        state.def.faces,
+    collisionBoxes: state.def.collisionBoxes || [],
+  }, null, 2);
+}
+
+function fromJSON(content) {
+  const d = JSON.parse(content);
+  state.def  = { id: d.id, pivot: d.pivot || [0,0,0], faces: d.faces || [], collisionBoxes: d.collisionBoxes || [] };
+  state.meta = { label: d.label || d.id, isStatic: d.static !== false, movementType: d.movementType || 'none' };
+  state.selectedFaceIdx = -1;
+  state.selectedVertIdx = -1;
+  state.dirty = false;
+  syncMetaToUI();
+  renderAll();
+}
+
+// ── Workbench bridge ───────────────────────────────────────────────────────────
+window.modelEditorExport = () => state.def ? toJSON() : null;
+window.modelEditorImport = content => { fromJSON(content); state.dirty = false; };
+window.modelEditorGetState = () => ({
+  id:        state.def ? state.def.id : null,
+  label:     state.meta.label,
+  dirty:     state.dirty,
+  filename:  state.filename,
+  faceCount: state.def ? state.def.faces.length : 0,
+});
+
+// Initial render
+draw();
+</script>
+</body>
+</html>

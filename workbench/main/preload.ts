@@ -37,4 +37,14 @@ contextBridge.exposeInMainWorld('workbench', {
 
   showSaveSongDialog: (defaultName?: string): Promise<{ cancelled: boolean; filename?: string; relativePath?: string }> =>
     ipcRenderer.invoke('show-save-song-dialog', defaultName),
+
+  // Model editor: native file dialogs
+  showOpenModelDialog: (): Promise<{ cancelled: boolean; filename?: string; filePath?: string; content?: string }> =>
+    ipcRenderer.invoke('show-open-model-dialog'),
+
+  showSaveModelDialog: (defaultName?: string): Promise<{ cancelled: boolean; filename?: string; filePath?: string }> =>
+    ipcRenderer.invoke('show-save-model-dialog', defaultName),
+
+  saveModelFile: (filePath: string, content: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('save-model-file', filePath, content),
 });
