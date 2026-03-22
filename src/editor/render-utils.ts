@@ -21,7 +21,7 @@ export const renderIso = (
     const fitH = (tH * 0.9) / isoH;
     const sTW = Math.min(fitW, fitH) * (isFull ? 1 : zScale);
     const sTH = sTW / 2;
-    const sH = sTW * 0.3;
+    const sH = sTW * (25 / 64); // matches game: tileW=64, stepH=25
     const cX = tW / 2 + (isFull ? 0 : pX);
     const cY = tH * 0.1 + (isFull ? 0 : pY);
     const step = mode === 'wireframe' ? Math.max(1, Math.round(m.gridSize / 25)) : 1;
