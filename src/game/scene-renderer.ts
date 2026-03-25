@@ -30,6 +30,7 @@ export interface SceneRenderer {
     add(def: DEF | null, opts: DEFInstanceOptions): void;
     flush(camX: number, camY: number): void;
     debugCollision: boolean;
+    debugAltitude: boolean;
 }
 
 interface _Face {
@@ -109,6 +110,7 @@ export function createSceneRenderer(ctx: CanvasRenderingContext2D, iso: IsoFn): 
 
     const renderer: SceneRenderer = {
         debugCollision: false,
+        debugAltitude: false,
 
         add(def, { x, y, z = 0, angle = 0, colors, drawFn, depth: depthOverride } = {} as DEFInstanceOptions) {
             const faces: _Face[] = [];

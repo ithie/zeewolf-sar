@@ -791,6 +791,24 @@ export function createDrawObjects(
                 }
             }
         }
+
+        if (!isShadow && SceneRenderer.debugAltitude) {
+            const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : 0;
+            const top    = actualIso(hX, hY, hZ,     camX, camY);
+            const bottom = actualIso(hX, hY, groundZ, camX, camY);
+            actualCtx.save();
+            actualCtx.strokeStyle = 'rgba(255, 220, 0, 0.9)';
+            actualCtx.lineWidth = 1.5;
+            actualCtx.setLineDash([5, 4]);
+            actualCtx.shadowColor = '#ffdd00';
+            actualCtx.shadowBlur = 4;
+            actualCtx.beginPath();
+            actualCtx.moveTo(top.x, top.y);
+            actualCtx.lineTo(bottom.x, bottom.y);
+            actualCtx.stroke();
+            actualCtx.setLineDash([]);
+            actualCtx.restore();
+        }
     }
 
     return { drawFace, drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli };

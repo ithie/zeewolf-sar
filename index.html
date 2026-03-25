@@ -2194,7 +2194,8 @@
                         G.heli.roll,
                         G.heli.rotationPos,
                         camX,
-                        camY
+                        camY,
+                        { shadowGetGround: (x, y) => getGround(x, y) }
                     );
 
                     renderRain();
@@ -2635,7 +2636,10 @@
             // ─── collision boxes ─────────────────────────────────────────────────────────
             let showCollisionBoxes = false;
             window.addEventListener('keydown', e => {
-                if (e.key === 'c' || e.key === 'C') showCollisionBoxes = !showCollisionBoxes;
+                if (e.key === 'c' || e.key === 'C') {
+                    showCollisionBoxes = !showCollisionBoxes;
+                    SceneRenderer.debugAltitude = showCollisionBoxes;
+                }
             });
 
             // Draw an oriented bounding box in isometric space (debug visual).
