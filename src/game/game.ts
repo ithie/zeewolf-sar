@@ -928,8 +928,8 @@ function updatePhysics() {
     if (G.activePayload) {
         let p = G.activePayload;
         let hookZ = G.heli.z - G.heli.winch;
-        let tension = 0.005,
-            damping = 0.98;
+        const damping = p.type === 'person' ? 0.88 : 0.95;
+        const tension = p.type === 'person' ? 0.018 : 0.005;
         let ax = (G.heli.x - p.x) * tension + G.wind.x * 2.0;
         let ay = (G.heli.y - p.y) * tension + G.wind.y * 2.0;
         p.vx += ax;
@@ -949,7 +949,7 @@ function updatePhysics() {
         // rescuer pendulum physics when winch extended without payload
         if (G.heli.winch > 0.3 && G.heli.type !== 'glider') {
             const rs = G.rescuerSwing;
-            const tension = 0.005, damping = 0.98;
+            const tension = 0.018, damping = 0.88;
             const ax = (G.heli.x - rs.x) * tension + G.wind.x * 2.0;
             const ay = (G.heli.y - rs.y) * tension + G.wind.y * 2.0;
             rs.vx += ax;
