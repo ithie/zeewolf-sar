@@ -4,6 +4,14 @@ A declarative, renderer-agnostic way to describe 3D isometric objects as ordered
 
 ---
 
+## File Locations
+
+- **Interfaces & helpers** (`DEF`, `DEFFace`, `DEFCollisionBox`, `nGonRing`, `cylFaces`): `src/game/defs.ts`
+- **Model definitions** (one file per object): `src/game/models/`
+- **SceneRenderer**: `src/game/scene-renderer.ts`
+
+---
+
 ## Motivation
 
 The traditional approach in this codebase used imperative `draw*()` functions that mixed geometry, color, and rendering logic. DEF separates **what an object looks like** (geometry + colors) from **how it is rendered** (projection, depth sorting, camera).
@@ -166,7 +174,7 @@ This keeps animated and sprite-based elements in the same depth-sorted pipeline 
 
 ## Cylinder Approximation
 
-Circles and cylinders are approximated as n-sided polygons. Use `_cylFaces(radius, zBottom, zTop, color, stroke)` to generate side faces + top cap. **Use n ≥ 16** for objects where the circular shape is prominent. n=8 produces visibly angular results at large radii.
+Circles and cylinders are approximated as n-sided polygons. Use `cylFaces(radius, zBottom, zTop, color, stroke, n?)` from `src/game/defs.ts` to generate side faces + top cap. **Use n ≥ 16** for objects where the circular shape is prominent. n=8 produces visibly angular results at large radii.
 
 ---
 

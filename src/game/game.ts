@@ -14,6 +14,7 @@ import { toCredits } from './ui/credits-screen';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles';
 import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen';
 import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select';
+import { I18N } from './i18n';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -1121,7 +1122,7 @@ function updatePhysics() {
 
     if (G.heli.fuel <= 0 && inAir) {
         if (G.heli.fuel > -1) {
-            showMsg('OUT OF FUEL!');
+            showMsg('KEIN TREIBSTOFF!');
             G.heli.fuel = -1;
         }
         G.heli.engineOn = false;
@@ -1159,7 +1160,7 @@ function updatePhysics() {
     if (G.heli.z > zMax) {
         G.heli.z = zMax;
         G.heli.vz = 0;
-        if (Math.random() < 0.05) showMsg('MAX ALTITUDE');
+        if (Math.random() < 0.05) showMsg(I18N.MAX_ALTITUDE);
     }
     if (G.heli.z < groundH + 0.1) {
         G.heli.z = groundH + 0.1;
@@ -1185,7 +1186,7 @@ function updatePhysics() {
                 G.rescuerSwing.y = p.y;
                 G.rescuerSwing.vx = 0;
                 G.rescuerSwing.vy = 0;
-                showMsg(p.type === 'crate' ? 'CARGO SECURED!' : 'PATIENT SECURED!');
+                showMsg(p.type === 'crate' ? I18N.CARGO_SECURED : I18N.PATIENT_SECURED);
                 G.heli.winch = Math.max(0, G.heli.winch - 0.5);
                 break;
             }
@@ -1202,7 +1203,7 @@ function updatePhysics() {
             p.rescued = true;
             G.activePayload = null;
             G.totalRescued++;
-            showMsg('DELIVERED!');
+            showMsg(I18N.DELIVERED);
             if (G.totalRescued >= G.goalCount) missionComplete();
         }
     }
@@ -1216,18 +1217,18 @@ function updatePhysics() {
                 p.rescued = true;
                 G.activePayload = null;
                 G.heli.onboard++;
-                showMsg(`ONBOARD [${G.heli.onboard}/${G.heli.maxLoad}]`);
-            } else showMsg('CABIN FULL!');
+                showMsg(I18N.ONBOARD(G.heli.onboard, G.heli.maxLoad));
+            } else showMsg(I18N.CABIN_FULL);
         } else {
             if (onPad && G.heli.z < 3.0) {
                 p.hanging = false;
                 p.rescued = true;
                 G.activePayload = null;
                 G.totalRescued++;
-                showMsg('DELIVERED!');
+                showMsg(I18N.DELIVERED);
                 if (G.totalRescued >= G.goalCount) missionComplete();
             } else {
-                showMsg('DROP AT PAD!');
+                showMsg(I18N.DROP_AT_PAD);
                 G.heli.winch = 0.6;
             }
         }
@@ -1248,7 +1249,7 @@ function updatePhysics() {
                     G.totalRescued += G.heli.onboard;
                     G.heli.onboard = 0;
                     if (G.totalRescued >= G.goalCount) missionComplete();
-                    else showMsg(`SECURED: ${G.totalRescued}/${G.goalCount}`);
+                    else showMsg(I18N.SECURED(G.totalRescued, G.goalCount));
                 }
             }
         }
@@ -1257,11 +1258,11 @@ function updatePhysics() {
     // crash detection
     if (!zstate.introActive) {
         if (!onPad && G.heli.z < 0.1 && getGround(G.heli.x, G.heli.y, G.points, G.CARRIER) < -0.2)
-            triggerCrash('WATER IMPACT');
+            triggerCrash(I18N.CRASH_WATER);
         if (G.heli.z < groundH + 0.25) {
-            if (!onPad && groundH > 0.1) triggerCrash('BAD LANDING ZONE');
-            else if (Math.hypot(G.heli.vx, G.heli.vy) > 0.12) triggerCrash('TOO FAST');
-            else if (G.heli.vz < -0.15) triggerCrash('HARD IMPACT');
+            if (!onPad && groundH > 0.1) triggerCrash(I18N.CRASH_BAD_ZONE);
+            else if (Math.hypot(G.heli.vx, G.heli.vy) > 0.12) triggerCrash(I18N.CRASH_TOO_FAST);
+            else if (G.heli.vz < -0.15) triggerCrash(I18N.CRASH_HARD_IMPACT);
         }
         // lighthouse collision – handled by handleCollisionBoxes()
     }
@@ -1493,7 +1494,7 @@ function launchMission() {
         G.heli.rotorRPM = 0;
         zstate.cam.x = (G.heli.x - G.heli.y) * (tileW / 2);
         zstate.cam.y = (G.heli.x + G.heli.y) * (tileH / 2);
-        showMsg('SOARING – ↑↓ PITCH  ←→ BANK');
+        showMsg(I18N.SOARING);
     } else if (isStartsOnCarrier()) {
         zstate.introActive = false;
         zstate.introProgress = 1;
@@ -1508,7 +1509,7 @@ function launchMission() {
         G.heli.rotorRPM = 0;
         zstate.cam.x = (G.heli.x - G.heli.y) * (tileW / 2);
         zstate.cam.y = (G.heli.x + G.heli.y) * (tileH / 2);
-        showMsg('SYSTEM READY - START ENGINE [W]');
+        showMsg(I18N.SYSTEM_READY);
     } else {
         zstate.introActive = true;
         zstate.introProgress = 0;
@@ -1672,7 +1673,7 @@ function drawScene() {
             G.heli.rotorRPM = 0;
             G.heli.x = G.START_POS.x;
             G.heli.y = G.START_POS.y;
-            showMsg('SYSTEM READY - START ENGINE [W]');
+            showMsg(I18N.SYSTEM_READY);
         }
     }
 
@@ -2594,7 +2595,7 @@ function handleCollisionBoxes() {
                     deckZ + 2.5
                 )
             ) {
-                triggerCrash('COLLISION WITH TOWER');
+                triggerCrash(I18N.CRASH_CARRIER_TOWER);
             }
         }
 
@@ -2639,7 +2640,7 @@ function handleCollisionBoxes() {
                         deckZ + 0.1 + hb.z2
                     )
                 ) {
-                    triggerCrash('COLLISION WITH PARKED HELI');
+                    triggerCrash(I18N.CRASH_PARKED_HELI);
                 }
             }
         });
@@ -2658,7 +2659,7 @@ function handleCollisionBoxes() {
             drawCollisionBox(hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8, 'rgba(255,80,0,0.9)');
         if (!zstate.introActive && !zstate.crashed && G.heli.inAir) {
             if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8)) {
-                triggerCrash('HANGAR COLLISION');
+                triggerCrash(I18N.CRASH_HANGAR);
             }
         }
     }
@@ -2697,7 +2698,7 @@ function handleCollisionBoxes() {
                     fZ + 0.9
                 )
             ) {
-                triggerCrash('FUEL TRUCK COLLISION');
+                triggerCrash(I18N.CRASH_FUEL_TRUCK);
             }
         }
     }
@@ -2729,7 +2730,7 @@ function handleCollisionBoxes() {
                         8.5
                     )
                 ) {
-                    triggerCrash('TOWER COLLISION');
+                    triggerCrash(I18N.CRASH_LIGHTHOUSE);
                 }
             }
         }
@@ -2775,7 +2776,7 @@ function handleCollisionBoxes() {
                     3.2
                 )
             ) {
-                triggerCrash('BOAT COLLISION');
+                triggerCrash(I18N.CRASH_BOAT);
             }
         }
     });
@@ -2834,7 +2835,7 @@ function handleCollisionBoxes() {
             if (
                 checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, t.x, t.y, 0, -r, r, -r, r, t.gz, t.gz + h)
             ) {
-                triggerCrash('TREE STRIKE');
+                triggerCrash(I18N.CRASH_TREE);
             }
         });
     }

@@ -1,6 +1,6 @@
 {
     "type": "glider",
-    "campaignTitle": "SOARING",
+    "campaignTitle": "HOCH HINAUS",
     "campaignSublines": [
         "Alpen-Thermik",
         "Kein Motor. Nur Luft."
@@ -8,7 +8,7 @@
     "levels": [
         {
             "gridSize": 500,
-            "headline": "SOARING – ALPENFLUG",
+            "headline": "HOCH HINAUS – ALPENFLUG",
             "sublines": [
                 "Finde die Thermik.",
                 "Gleite so weit wie möglich."

@@ -1,6 +1,6 @@
 # Workbench
 
-The Workbench is an Electron application that runs alongside the Vite dev server. It provides the Mission Editor, the ZSynth Tracker, a code editor, and Git integration in a single window.
+The Workbench is an Electron application that runs alongside the Vite dev server. It provides the Mission Editor, the Model Editor, the ZSynth Tracker, a code editor, and Git integration in a single window.
 
 Start everything with:
 
@@ -120,6 +120,19 @@ The following IPC channels are registered in the main process. They are not call
 | `git-pull`           | Pull from remote                                 |
 | `git-commit`         | Stage all and commit                             |
 | `git-push`           | Push to remote                                   |
+
+---
+
+## Model Editor
+
+An interactive editor for the game's isometric DEF geometry (`src/modeleditor.html`).
+
+- Browse all preset models: Hangar, Lighthouse, Sailboat, Carrier (Hull + Tower), Fuel Truck, and all helicopters
+- Add, select, move, and delete vertices and faces directly on the isometric canvas
+- Per-face controls: color picker, stroke color, normal direction for backface culling
+- Export the current DEF as JSON for use in `src/game/models/`
+
+The Model Editor is served by Vite and embedded as an iframe in the Workbench. It uses the same `SceneRenderer` and DEF pipeline as the game.
 
 ---
 

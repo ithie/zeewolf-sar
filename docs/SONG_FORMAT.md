@@ -104,4 +104,17 @@ Selecting a preset overwrites `wave`, `filter`, `attack`, `release`, and `detune
 
 ## Registering a Song in the Game
 
-Songs are loaded dynamically — no manual registration required. The game reads files from `src/game/music/` at runtime based on campaign level definitions.
+Songs are statically imported in `src/game/main.ts`. After saving a new song via the Tracker, add an import and register it in the `songList`:
+
+```typescript
+import MySong from './music/mysong.json';
+
+const songList: Record<string, SongData> = {
+    final: SoundFinal,
+    main: SoundMainTheme,
+    tutorial: SoundTutorial,
+    mysong: MySong,         // ← add here
+};
+```
+
+The key you use here is the theme name passed to `soundHandler.play('mysong')`.
