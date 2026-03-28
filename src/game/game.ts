@@ -6,13 +6,14 @@ import { HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF, CARRIER_HULL_DEF, CARRIER_TOW
 import { createSceneRenderer } from './scene-renderer';
 import { HELI_TYPES, getHeliType } from './heli-types';
 import { createDrawObjects } from './draw-objects';
+import { tileW, tileH, stepH } from './render-config';
+import { toCredits } from './ui/credits-screen';
+import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen';
+import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
-const tileW = 64,
-    tileH = 32,
-    stepH = 25;
 const isoFn = (wx, wy, wz, cx, cy) => iso(wx, wy, wz, cx, cy, { canvas, tileW, tileH, stepH });
 const SceneRenderer = createSceneRenderer(ctx, isoFn);
 const { drawFace, drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } =
@@ -78,6 +79,9 @@ const G = {
 
 // parkedHelis is constant shape — destructure once for readability
 const { parkedHelis } = G;
+
+initHeliInfoScreen(G, drawHeli);
+initHeliSelect(G, drawHeli);
 
 // ─── helper flags ────────────────────────────────────────────────────────────
 // ─── object helpers ──────────────────────────────────────────────────────────
@@ -2856,210 +2860,7 @@ function toMainMenu() {
         if (el) el.style.display = 'none';
     });
     document.getElementById('main-menu').style.display = 'flex';
-    _animMainMenuBg();
-}
-
-function _animMainMenuBg() {
-    if (document.getElementById('main-menu').style.display === 'none') return;
-    const c = document.getElementById('main-menu-bg-canvas');
-    if (!c) return;
-    const cx = c.getContext('2d');
-    c.width = 900; c.height = 500;
-    cx.clearRect(0, 0, c.width, c.height);
-    const t = Date.now() * 0.001;
-    const offIso = (wx, wy, wz, camX, camY) => iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
-    drawHeli('dolphin', 0, 0, 0, t * 0.25, Math.sin(t * 0.4) * 0.07, Math.cos(t * 0.35) * 0.07, t * 8, 0, 0, {
-        targetCtx: cx, targetIso: offIso, scaleOverride: 5,
-    });
-    requestAnimationFrame(_animMainMenuBg);
-}
-
-// ─── heli info screen ────────────────────────────────────────────────────────
-let _selectedHeliInfoId = null;
-
-const _heliFluff = {
-    dolphin: 'Ein wendiger Küstenwachthubschrauber — ideal für schnelle Einsätze in schwierigem Gelände. Leicht, präzise, reaktionsschnell. Das bevorzugte Werkzeug erfahrener Piloten.',
-    jayhawk: 'Das Arbeitstier der Seenotrettung. Trägt schwere Lasten über weite Strecken, auch bei rauem Wetter. Einmal in Fahrt gebracht, ist er schwer aufzuhalten.',
-    chinook: 'Zwei Rotoren, keine Ausrede. Der CH-47 ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Chinook.',
-};
-
-function toHeliInfo() {
-    document.getElementById('main-menu').style.display = 'none';
-    _selectedHeliInfoId = null;
-    _buildHeliInfoCards();
-    document.getElementById('heli-info').style.display = 'flex';
-    _animHeliInfo();
-}
-
-function _buildHeliInfoCards() {
-    const area = document.getElementById('heli-cards-area');
-    area.innerHTML = '';
-    const panel = document.getElementById('heli-detail-panel');
-    panel.classList.remove('visible');
-    panel.innerHTML = '';
-    HELI_TYPES.filter(ht => ht.id !== 'glider').forEach(ht => {
-        const card = document.createElement('div');
-        card.className = 'heli-card';
-        card.id = 'heli-card-' + ht.id;
-        card.innerHTML = `<canvas id="heli-info-cv-${ht.id}" width="254" height="180"></canvas>
-            <div class="heli-card-label">${ht.selectLabel}</div>`;
-        card.addEventListener('mouseenter', () => G.menuHover[ht.id] = true);
-        card.addEventListener('mouseleave', () => G.menuHover[ht.id] = false);
-        card.addEventListener('click', () => _selectHeliInfo(ht.id));
-        area.appendChild(card);
-    });
-}
-
-function _selectHeliInfo(id) {
-    const types = HELI_TYPES.filter(ht => ht.id !== 'glider');
-    const panel = document.getElementById('heli-detail-panel');
-    if (_selectedHeliInfoId === id) {
-        _selectedHeliInfoId = null;
-        types.forEach(ht => {
-            document.getElementById('heli-card-' + ht.id).classList.remove('collapsed');
-        });
-        panel.classList.remove('visible');
-        return;
-    }
-    _selectedHeliInfoId = id;
-    types.forEach(ht => {
-        const card = document.getElementById('heli-card-' + ht.id);
-        if (ht.id === id) card.classList.remove('collapsed');
-        else card.classList.add('collapsed');
-    });
-    const ht = HELI_TYPES.find(h => h.id === id);
-    const spd = Math.min(100, Math.round(ht.accel / 0.00117 * 100));
-    const agi = Math.min(100, Math.round(ht.tiltSpeed / 0.05 * 100));
-    const cap = Math.min(100, Math.round(ht.maxLoad / 20 * 100));
-    const end = Math.min(100, Math.max(0, Math.round((0.012 - ht.fuelRate) / 0.012 * 90 + 10)));
-    const bar = (lbl, pct) => `<div class="heli-stat-row">
-        <span class="heli-stat-label">${lbl}</span>
-        <div class="heli-stat-bar"><div class="heli-stat-fill" data-pct="${pct}"></div></div>
-    </div>`;
-    panel.innerHTML = `
-        <div class="heli-detail-name">${ht.selectLabel}</div>
-        <div class="heli-detail-sub">${ht.selectSub}</div>
-        <div class="heli-detail-fluff">${_heliFluff[id] || ''}</div>
-        ${bar('GESCHW.', spd)}${bar('AGILITÄT', agi)}${bar('KAPAZITÄT', cap)}${bar('AUSDAUER', end)}
-        <div style="font-size:12px;color:#333;letter-spacing:2px;margin-top:16px">${ht.canCarryCargo ? '✦ CARGOFÄHIG' : ''}</div>`;
-    panel.classList.add('visible');
-    setTimeout(() => {
-        panel.querySelectorAll('.heli-stat-fill').forEach(el => {
-            el.style.width = el.dataset.pct + '%';
-        });
-    }, 60);
-}
-
-function _animHeliInfo() {
-    if (document.getElementById('heli-info').style.display === 'none') return;
-    HELI_TYPES.filter(ht => ht.id !== 'glider').forEach(ht => {
-        const c = document.getElementById('heli-info-cv-' + ht.id);
-        if (!c) return;
-        G.menuAngles[ht.id] += G.menuHover[ht.id] ? 0.012
-            : (Math.abs(-0.075 - G.menuAngles[ht.id]) > 0.01 ? (-0.075 - G.menuAngles[ht.id]) * 0.1 : 0);
-        const cx = c.getContext('2d');
-        c.width = 254; c.height = 180;
-        cx.clearRect(0, 0, 254, 180);
-        const offIso = (wx, wy, wz, camX, camY) => iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
-        drawHeli(ht.id, 0, 0, 0, G.menuAngles[ht.id], 0, 0, 0, 0, 0, {
-            targetCtx: cx, targetIso: offIso, scaleOverride: ht.previewScale * 0.6,
-        });
-    });
-    requestAnimationFrame(_animHeliInfo);
-}
-
-// ─── credits screen ──────────────────────────────────────────────────────────
-let _creditsParticles = null;
-
-function toCredits() {
-    document.getElementById('main-menu').style.display = 'none';
-    _buildCredits();
-    document.getElementById('credits-screen').style.display = 'flex';
-    _creditsParticles = null;
-    _animCredits();
-}
-
-function _buildCredits() {
-    const inner = document.getElementById('credits-inner');
-    inner.innerHTML = '';
-    const sections = [
-        { role: 'GAME DESIGN & DEVELOPMENT', names: [{ n: 'Max Mustermann', h: true }] },
-        { role: 'KONZEPT & STORY', names: [{ n: 'Erika Musterfrau', h: false }] },
-        { role: 'ISOMETRIC ART', names: [{ n: 'John Doe', h: false }] },
-        { role: 'SOUND & MUSIK', names: [{ n: 'Jane Doe', h: false }] },
-        { role: 'BETA TESTING', names: [{ n: 'Lena Muster', h: false }, { n: 'Tom Test', h: false }] },
-        { role: 'SPECIAL THANKS', names: [{ n: 'Koffein', h: false }, { n: 'Das Internet', h: false }] },
-    ];
-    const title = document.createElement('div');
-    title.className = 'credits-title';
-    title.textContent = 'CREDITS';
-    inner.appendChild(title);
-    let delay = 0.15;
-    sections.forEach(s => {
-        const sec = document.createElement('div');
-        sec.className = 'credits-section';
-        const role = document.createElement('div');
-        role.className = 'credits-role';
-        role.textContent = s.role;
-        sec.appendChild(role);
-        s.names.forEach(nm => {
-            const el = document.createElement('div');
-            el.className = 'credits-name' + (nm.h ? ' highlight' : '');
-            el.textContent = nm.n;
-            el.style.animationDelay = delay + 's';
-            delay += 0.18;
-            sec.appendChild(el);
-        });
-        inner.appendChild(sec);
-        const div = document.createElement('div');
-        div.className = 'credits-divider';
-        inner.appendChild(div);
-    });
-    const made = document.createElement('div');
-    made.className = 'credits-made-with';
-    made.textContent = 'MADE WITH \u2665 IN JAVASCRIPT';
-    inner.appendChild(made);
-    const copy = document.createElement('div');
-    copy.className = 'credits-copyright';
-    copy.textContent = '\u00a9 2026 i.thie softworks \u2014 All rights reserved.';
-    inner.appendChild(copy);
-}
-
-function _animCredits() {
-    if (document.getElementById('credits-screen').style.display === 'none') return;
-    const c = document.getElementById('credits-canvas');
-    if (!c) return;
-    c.width = window.innerWidth; c.height = window.innerHeight;
-    const ctx2 = c.getContext('2d');
-    ctx2.clearRect(0, 0, c.width, c.height);
-    const t = Date.now() * 0.001;
-    // Scanlines
-    for (let i = 0; i < 5; i++) {
-        const y = ((t * 35 + i * c.height / 5) % c.height);
-        ctx2.strokeStyle = `rgba(0,220,70,${0.018 + i * 0.004})`;
-        ctx2.lineWidth = 1;
-        ctx2.beginPath(); ctx2.moveTo(0, y); ctx2.lineTo(c.width, y); ctx2.stroke();
-    }
-    // Floating particles
-    if (!_creditsParticles) {
-        _creditsParticles = Array.from({ length: 55 }, () => ({
-            x: Math.random() * c.width, y: Math.random() * c.height,
-            vy: 0.15 + Math.random() * 0.35,
-            alpha: 0.08 + Math.random() * 0.22,
-            size: 1 + Math.random() * 1.5,
-            freq: 0.6 + Math.random() * 2,
-            color: Math.random() > 0.72 ? '#ff6600' : '#00cc44',
-        }));
-    }
-    _creditsParticles.forEach(p => {
-        p.y -= p.vy;
-        if (p.y < -4) p.y = c.height + 4;
-        ctx2.globalAlpha = p.alpha * (0.5 + Math.sin(t * p.freq) * 0.4);
-        ctx2.fillStyle = p.color;
-        ctx2.fillRect(p.x, p.y, p.size, p.size);
-    });
-    ctx2.globalAlpha = 1;
-    requestAnimationFrame(_animCredits);
+    animMainMenuBg();
 }
 
 function backFromHeliSelect() {
@@ -3067,78 +2868,6 @@ function backFromHeliSelect() {
     toCampaignSelect();
 }
 
-// ─── menu animations ─────────────────────────────────────────────────────────
-function drawMenuHeli() {
-    if (zstate.gameStarted) return;
-    const c = document.getElementById('menu-heli-big');
-    if (!c) return;
-    const cx = c.getContext('2d');
-    c.width = 800;
-    c.height = 300;
-    cx.clearRect(0, 0, 800, 300);
-    const t = Date.now() * 0.001;
-    const offIso = (wx, wy, wz, camX, camY) => iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
-    drawHeli('dolphin', 1.5, 1.5, 0.8, t * 0.5, Math.sin(t) * 0.1, Math.cos(t) * 0.1, t * 12, 0, 0, {
-        targetCtx: cx,
-        targetIso: offIso,
-        scaleOverride: 3,
-    });
-    const splashVisible = document.getElementById('splash').style.display !== 'none';
-    if (splashVisible) requestAnimationFrame(drawMenuHeli);
-}
-
-function animateHeliPreviews() {
-    if (document.getElementById('heli-select').style.display === 'none') return;
-    HELI_TYPES.forEach(ht => {
-        if (G.menuHover[ht.id]) {
-            G.menuAngles[ht.id] += 0.012;
-        } else {
-            let diff = -0.075 - G.menuAngles[ht.id];
-            G.menuAngles[ht.id] += Math.abs(diff) > 0.01 ? diff * 0.1 : 0;
-        }
-        const c = document.getElementById('icon-' + ht.id);
-        if (c) {
-            const cx = c.getContext('2d');
-            c.width = 300;
-            c.height = 200;
-            cx.clearRect(0, 0, 300, 200);
-            const offIso = (wx, wy, wz, camX, camY) => iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
-            drawHeli(ht.id, 0, 0, 0, G.menuAngles[ht.id], 0, 0, 0, 0, 0, {
-                targetCtx: cx,
-                targetIso: offIso,
-                scaleOverride: ht.previewScale,
-            });
-        }
-    });
-    requestAnimationFrame(animateHeliPreviews);
-}
-
-// Generate heli select buttons from HELI_TYPES (rebuilt per campaign)
-function buildHeliSelect(campaignType) {
-    const container = document.getElementById('heli-options');
-    if (!container) return;
-    container.innerHTML = '';
-    const isGlider = campaignType === 'glider';
-    const types = isGlider
-        ? HELI_TYPES.filter(ht => ht.id === 'glider')
-        : HELI_TYPES.filter(ht => ht.id !== 'glider');
-    container.style.gridTemplateColumns = types.length === 1 ? '1fr' : '1fr 1fr 1fr';
-    container.style.width = types.length === 1 ? '350px' : '900px';
-    document.querySelector('#heli-select .subtitle').textContent =
-        isGlider ? 'SELECT AIRCRAFT' : 'SELECT AIRFRAME';
-    types.forEach(ht => {
-        const div = document.createElement('div');
-        div.className = 'grid-box';
-        div.setAttribute('onclick', `startGame('${ht.id}')`);
-        div.setAttribute('onmouseenter', `setHover('${ht.id}', true)`);
-        div.setAttribute('onmouseleave', `setHover('${ht.id}', false)`);
-        div.innerHTML = `<canvas id="icon-${ht.id}" class="mini-canvas" width="300" height="200"></canvas>
-            <div class="box-label">${ht.selectLabel}</div>
-            <div class="box-sub">${ht.selectSub}</div>
-            <div class="box-sub" style="color: #aaa">${ht.selectCap}</div>`;
-        container.appendChild(div);
-    });
-}
 buildHeliSelect('normal'); // initial build for splash screen background
 
 window.onkeydown = e => (G.keys[e.code] = true);

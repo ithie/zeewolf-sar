@@ -33,6 +33,7 @@ export interface HeliType {
     selectLabel: string;    // e.g. "MH-65 DOLPHIN"
     selectSub: string;      // e.g. "Agile / Fast"
     selectCap: string;      // e.g. "Cap: 3 (Lightweight)"
+    description?: string;
 }
 
 export const HELI_TYPES: HeliType[] = [
@@ -56,6 +57,7 @@ export const HELI_TYPES: HeliType[] = [
         selectLabel: 'MH-65 DOLPHIN',
         selectSub: 'Agile / Fast',
         selectCap: 'Cap: 3 (Lightweight)',
+        description: 'Ein wendiger Küstenwachthubschrauber — ideal für schnelle Einsätze in schwierigem Gelände. Leicht, präzise, reaktionsschnell. Das bevorzugte Werkzeug erfahrener Piloten.',
     },
     {
         id: 'jayhawk',
@@ -77,6 +79,7 @@ export const HELI_TYPES: HeliType[] = [
         selectLabel: 'MH-60T JAYHAWK',
         selectSub: 'Heavy / Stable',
         selectCap: 'Cap: 10 (Heavy Lift)',
+        description: 'Das Arbeitstier der Seenotrettung. Trägt schwere Lasten über weite Strecken, auch bei rauem Wetter. Einmal in Fahrt gebracht, ist er schwer aufzuhalten.',
     },
     {
         id: 'chinook',
@@ -98,6 +101,7 @@ export const HELI_TYPES: HeliType[] = [
         selectLabel: 'CH-47 CHINOOK',
         selectSub: 'Tandem / Ultra Heavy',
         selectCap: 'Cap: 20 (Heavy Lift)',
+        description: 'Zwei Rotoren, keine Ausrede. Der CH-47 ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Chinook.',
     },
     {
         id: 'glider',
