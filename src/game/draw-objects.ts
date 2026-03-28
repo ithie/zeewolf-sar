@@ -12,11 +12,7 @@
 
 import type { IsoFn, SceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
-import {
-    FUEL_TRUCK_CHASSIS_DEF,
-    FUEL_TRUCK_TANK_DEF,
-    FUEL_TRUCK_CAB_DEF,
-} from './defs';
+import { FUEL_TRUCK_CHASSIS_DEF, FUEL_TRUCK_TANK_DEF, FUEL_TRUCK_CAB_DEF } from './models/fuel-truck';
 
 export interface WindState {
     x: number;

@@ -1,25 +1,18 @@
-type Particle = { x: number; y: number; vy: number; alpha: number; size: number; freq: number; color: string };
-
-let _creditsParticles: Particle[] | null = null;
-
 export const toCredits = () => {
-    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('main-menu')!.style.display = 'none';
     _buildCredits();
-    document.getElementById('credits-screen').style.display = 'flex';
-    _creditsParticles = null;
-    _animCredits();
+    document.getElementById('credits-screen')!.style.display = 'flex';
 };
 
 const _buildCredits = () => {
-    const inner = document.getElementById('credits-inner');
+    const inner = document.getElementById('credits-inner')!;
     inner.innerHTML = '';
     const sections = [
-        { role: 'GAME DESIGN & DEVELOPMENT', names: ['Yarrick'] },
-        { role: 'ISOMETRIC ART', names: ['Yarrick'] },
-        { role: 'SOUND & MUSIK', names: ['Yarrick', 'Jay "G" Man'] },
-        { role: 'BETA TESTING', names: ['Da Harp', 'Jay', 'DBuhn'] },
-        { role: 'SPECIAL THANKS', names: ['Claude', 'Das Internet'] },
-        { role: 'INSPIRED BY', names: ['Zeewolf (Binary Asylum, 1994)'] },
+        { role: 'SPIELDESIGN & ENTWICKLUNG', names: ['Yarrick'] },
+        { role: 'KAMPAGNEN-DESIGN', names: ['Yarrick', 'Jay "G" Man'] },
+        { role: 'SOUND & MUSIK', names: ['Gaunt'] },
+        { role: 'BETA-TEST', names: ['Da Harp', 'Jay "G" Man', 'DBuhn'] },
+        { role: 'INSPIRIERT VON', names: ['Zeewolf (Binary Asylum, 1994)'] },
     ];
     const title = document.createElement('div');
     title.className = 'credits-title';
@@ -52,46 +45,7 @@ const _buildCredits = () => {
     inner.appendChild(made);
     const copy = document.createElement('div');
     copy.className = 'credits-copyright';
-    copy.textContent = '\u00a9 2026 i.thie softworks \u2014 All rights reserved.';
+    copy.textContent = '\u00a9 2026 i.thie softworks \u2014 Alle Rechte vorbehalten.';
     inner.appendChild(copy);
 };
 
-const _animCredits = () => {
-    if (document.getElementById('credits-screen').style.display === 'none') return;
-    const c = document.getElementById('credits-canvas') as HTMLCanvasElement;
-    if (!c) return;
-    c.width = window.innerWidth;
-    c.height = window.innerHeight;
-    const ctx = c.getContext('2d');
-    ctx.clearRect(0, 0, c.width, c.height);
-    const t = Date.now() * 0.001;
-    for (let i = 0; i < 5; i++) {
-        const y = (t * 35 + (i * c.height) / 5) % c.height;
-        ctx.strokeStyle = `rgba(0,220,70,${0.018 + i * 0.004})`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(c.width, y);
-        ctx.stroke();
-    }
-    if (!_creditsParticles) {
-        _creditsParticles = Array.from({ length: 55 }, () => ({
-            x: Math.random() * c.width,
-            y: Math.random() * c.height,
-            vy: 0.15 + Math.random() * 0.35,
-            alpha: 0.08 + Math.random() * 0.22,
-            size: 1 + Math.random() * 1.5,
-            freq: 0.6 + Math.random() * 2,
-            color: Math.random() > 0.72 ? '#ff6600' : '#00cc44',
-        }));
-    }
-    _creditsParticles.forEach(p => {
-        p.y -= p.vy;
-        if (p.y < -4) p.y = c.height + 4;
-        ctx.globalAlpha = p.alpha * (0.5 + Math.sin(t * p.freq) * 0.4);
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-    });
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(_animCredits);
-};

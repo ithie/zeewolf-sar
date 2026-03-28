@@ -13,17 +13,17 @@ export const initHeliInfoScreen = (G: any, drawHeli: (...args: any[]) => void) =
 let _selectedHeliInfoId: string | null = null;
 
 export const toHeliInfo = () => {
-    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('main-menu')!.style.display = 'none';
     _selectedHeliInfoId = null;
     _buildHeliInfoCards();
-    document.getElementById('heli-info').style.display = 'flex';
+    document.getElementById('heli-info')!.style.display = 'flex';
     _animHeliInfo();
 };
 
 const _buildHeliInfoCards = () => {
-    const area = document.getElementById('heli-cards-area');
+    const area = document.getElementById('heli-cards-area')!;
     area.innerHTML = '';
-    const panel = document.getElementById('heli-detail-panel');
+    const panel = document.getElementById('heli-detail-panel')!;
     panel.classList.remove('visible');
     panel.innerHTML = '';
     HELI_TYPES.filter(ht => ht.id !== 'glider').forEach(ht => {
@@ -41,22 +41,22 @@ const _buildHeliInfoCards = () => {
 
 const _selectHeliInfo = (id: string) => {
     const types = HELI_TYPES.filter(ht => ht.id !== 'glider');
-    const panel = document.getElementById('heli-detail-panel');
+    const panel = document.getElementById('heli-detail-panel')!;
     if (_selectedHeliInfoId === id) {
         _selectedHeliInfoId = null;
         types.forEach(ht => {
-            document.getElementById('heli-card-' + ht.id).classList.remove('collapsed');
+            document.getElementById('heli-card-' + ht.id)!.classList.remove('collapsed');
         });
         panel.classList.remove('visible');
         return;
     }
     _selectedHeliInfoId = id;
     types.forEach(ht => {
-        const card = document.getElementById('heli-card-' + ht.id);
+        const card = document.getElementById('heli-card-' + ht.id)!;
         if (ht.id === id) card.classList.remove('collapsed');
         else card.classList.add('collapsed');
     });
-    const ht = HELI_TYPES.find(h => h.id === id);
+    const ht = HELI_TYPES.find(h => h.id === id)!;
     const spd = Math.min(100, Math.round(ht.accel / 0.00117 * 100));
     const agi = Math.min(100, Math.round(ht.tiltSpeed / 0.05 * 100));
     const cap = Math.min(100, Math.round(ht.maxLoad / 20 * 100));
@@ -80,16 +80,17 @@ const _selectHeliInfo = (id: string) => {
 };
 
 const _animHeliInfo = () => {
-    if (document.getElementById('heli-info').style.display === 'none') return;
+    if (document.getElementById('heli-info')!.style.display === 'none') return;
     HELI_TYPES.filter(ht => ht.id !== 'glider').forEach(ht => {
-        const c = document.getElementById('heli-info-cv-' + ht.id) as HTMLCanvasElement;
+        const c = document.getElementById('heli-info-cv-' + ht.id) as HTMLCanvasElement | null;
         if (!c) return;
         _G.menuAngles[ht.id] += _G.menuHover[ht.id] ? 0.012
             : (Math.abs(-0.075 - _G.menuAngles[ht.id]) > 0.01 ? (-0.075 - _G.menuAngles[ht.id]) * 0.1 : 0);
-        const cx = c.getContext('2d');
+        const cx = c.getContext('2d')!;
         c.width = 254; c.height = 180;
         cx.clearRect(0, 0, 254, 180);
-        const offIso = (wx, wy, wz, camX, camY) => iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
+        const offIso = (wx: number, wy: number, wz: number, camX: number, camY: number) =>
+            iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
         _drawHeli(ht.id, 0, 0, 0, _G.menuAngles[ht.id], 0, 0, 0, 0, 0, {
             targetCtx: cx, targetIso: offIso, scaleOverride: ht.previewScale * 0.6,
         });

@@ -3,8 +3,11 @@
 // The game logic must not contain any `if (type === 'jayhawk')` etc.
 // Import HELI_TYPES and use getHeliType(id) instead.
 
-import { JAYHAWK_DEF, DOLPHIN_DEF, CHINOOK_DEF, GLIDER_DEF } from './defs';
 import type { DEF } from './defs';
+import { JAYHAWK_DEF } from './models/jayhawk';
+import { DOLPHIN_DEF } from './models/dolphin';
+import { CHINOOK_DEF } from './models/chinook';
+import { GLIDER_DEF } from './models/glider';
 
 export interface HeliType {
     id: string;
@@ -55,8 +58,8 @@ export const HELI_TYPES: HeliType[] = [
         extraRotorDebris: false,
         canCarryCargo: false,
         selectLabel: 'MH-65 DOLPHIN',
-        selectSub: 'Agile / Fast',
-        selectCap: 'Cap: 3 (Lightweight)',
+        selectSub: 'Wendig / Schnell',
+        selectCap: 'Kap.: 3 (Leichtgewicht)',
         description: 'Ein wendiger Küstenwachthubschrauber — ideal für schnelle Einsätze in schwierigem Gelände. Leicht, präzise, reaktionsschnell. Das bevorzugte Werkzeug erfahrener Piloten.',
     },
     {
@@ -77,8 +80,8 @@ export const HELI_TYPES: HeliType[] = [
         extraRotorDebris: false,
         canCarryCargo: true,
         selectLabel: 'MH-60T JAYHAWK',
-        selectSub: 'Heavy / Stable',
-        selectCap: 'Cap: 10 (Heavy Lift)',
+        selectSub: 'Schwer / Stabil',
+        selectCap: 'Kap.: 10 (Schwerlast)',
         description: 'Das Arbeitstier der Seenotrettung. Trägt schwere Lasten über weite Strecken, auch bei rauem Wetter. Einmal in Fahrt gebracht, ist er schwer aufzuhalten.',
     },
     {
@@ -99,8 +102,8 @@ export const HELI_TYPES: HeliType[] = [
         extraRotorDebris: true,
         canCarryCargo: true,
         selectLabel: 'CH-47 CHINOOK',
-        selectSub: 'Tandem / Ultra Heavy',
-        selectCap: 'Cap: 20 (Heavy Lift)',
+        selectSub: 'Tandem / Extraschwer',
+        selectCap: 'Kap.: 20 (Schwerlast)',
         description: 'Zwei Rotoren, keine Ausrede. Der CH-47 ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Chinook.',
     },
     {
@@ -120,7 +123,7 @@ export const HELI_TYPES: HeliType[] = [
         rotorOffsets: [],
         extraRotorDebris: false,
         canCarryCargo: false,
-        selectLabel: 'ASK-21 GLIDER',
+        selectLabel: 'ASK-21 SEGLER',
         selectSub: 'Motorlos / Thermisch',
         selectCap: '✈ Easteregg',
     },

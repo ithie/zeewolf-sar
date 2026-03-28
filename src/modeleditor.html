@@ -208,11 +208,14 @@
 </div>
 
 <script type="module">
-import {
-  HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF,
-  JAYHAWK_DEF, DOLPHIN_DEF, CHINOOK_DEF, GLIDER_DEF,
-  CARRIER_HULL_DEF, CARRIER_TOWER_DEF,
-} from '/src/game/defs.ts';
+import { HANGAR_DEF } from '/src/game/models/hangar.ts';
+import { LIGHTHOUSE_DEF } from '/src/game/models/lighthouse.ts';
+import { SAILBOAT_DEF } from '/src/game/models/sailboat.ts';
+import { JAYHAWK_DEF } from '/src/game/models/jayhawk.ts';
+import { DOLPHIN_DEF } from '/src/game/models/dolphin.ts';
+import { CHINOOK_DEF } from '/src/game/models/chinook.ts';
+import { GLIDER_DEF } from '/src/game/models/glider.ts';
+import { CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from '/src/game/models/carrier.ts';
 import { createSceneRenderer } from '/src/game/scene-renderer.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────

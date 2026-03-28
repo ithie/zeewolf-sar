@@ -2,12 +2,16 @@ import { iso } from './render';
 import { campaignHandler, soundHandler, zinit } from './main';
 import { zstate } from './state';
 
-import { HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF, CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from './defs';
+import { HANGAR_DEF } from './models/hangar';
+import { LIGHTHOUSE_DEF } from './models/lighthouse';
+import { SAILBOAT_DEF } from './models/sailboat';
+import { CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from './models/carrier';
 import { createSceneRenderer } from './scene-renderer';
 import { HELI_TYPES, getHeliType } from './heli-types';
 import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
 import { toCredits } from './ui/credits-screen';
+import { startMenuParticles, stopMenuParticles } from './ui/menu-particles';
 import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen';
 import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select';
 
@@ -1444,6 +1448,7 @@ function selectCampaign(index) {
 
 function startGame(type) {
     if (zstate.gameStarted) return;
+    stopMenuParticles();
     soundHandler.play('tutorial');
     G.heli.type = type;
     const _heliType = getHeliType(type);
@@ -2861,6 +2866,7 @@ function toMainMenu() {
     });
     document.getElementById('main-menu').style.display = 'flex';
     animMainMenuBg();
+    startMenuParticles();
 }
 
 function backFromHeliSelect() {
@@ -2879,6 +2885,7 @@ window.onresize = () => {
 window.onresize();
 window.onload = () => {
     zinit();
+    startMenuParticles();
     document.addEventListener('pointerdown', () => soundHandler.play('main', true), { once: true });
     drawMenuHeli();
 };
