@@ -15,15 +15,17 @@ const makeSingleFile = (): Plugin => ({
 
         for (const chunk of Object.values(bundle)) {
             if (chunk.type === 'asset' && chunk.fileName.endsWith('.css')) {
+                const css = chunk.source as string;
                 newHtml = newHtml.replace(
                     new RegExp(`<link[^>]*?href="[^"]*?${chunk.fileName}"[^>]*?>`),
-                    `<style>\n${chunk.source}\n</style>`
+                    () => `<style>\n${css}\n</style>`
                 );
                 delete bundle[chunk.fileName];
             } else if (chunk.type === 'chunk' && chunk.isEntry) {
+                const code = chunk.code;
                 newHtml = newHtml.replace(
                     new RegExp(`<script[^>]*?src="[^"]*?${chunk.fileName}"[^>]*?></script>`),
-                    `<script type="module">\n${chunk.code}\n</script>`
+                    () => `<script type="module">\n${code}\n</script>`
                 );
                 delete bundle[chunk.fileName];
             }
