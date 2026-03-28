@@ -32,18 +32,16 @@ const makeSingleFile = (): Plugin => ({
     },
 });
 
-export default defineConfig(({ mode }) => {
-    const isEditorBuild = mode === 'editor';
-
+export default defineConfig(() => {
     return {
         plugins: [makeSingleFile()],
         build: {
-            outDir: isEditorBuild ? 'dist/editor' : 'dist/',
+            outDir: 'dist/',
 
             emptyOutDir: false,
 
             rollupOptions: {
-                input: isEditorBuild ? resolve(__dirname, 'editor.html') : resolve(__dirname, 'index.html'),
+                input: resolve(__dirname, 'index.html'),
             },
             assetsInlineLimit: 100000000,
         },

@@ -14,5 +14,3 @@ const iso = (
 };
 
 export { iso };
-
-window.iso = iso;

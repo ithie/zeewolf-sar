@@ -1,8 +1,12 @@
 import { CampaignExport } from '@/shared/types';
+import { COMMANDER_SVG } from './commander-svg';
+
+document.getElementById('briefing-commander-img')!.innerHTML = COMMANDER_SVG;
 import Tutorial from './campaigns/tutorial.json';
 import AddCamp from './campaigns/addCamp.json';
 import ArchipelDemo from './campaigns/archipeldemo.json';
 import Glider from './campaigns/glider.json';
+import Julian from './campaigns/julian.json';
 import { decompressTerrain } from '../shared/utils';
 import ZsynthPlayer from '../tracker/ZsynthPlayer';
 import SoundTutorial from './music/clike.json';
@@ -45,7 +49,7 @@ const soundHandler = (() => {
     };
 })();
 
-const campaignHandler = () => {
+const createCampaignHandler = () => {
     let cachedTerrain: { terrain: number[][]; gridSize: number } | null = null;
 
     const campaigns: CampaignExport[] = [
@@ -53,6 +57,7 @@ const campaignHandler = () => {
         ArchipelDemo as unknown as CampaignExport,
         AddCamp as unknown as CampaignExport,
         Glider as unknown as CampaignExport,
+        Julian as unknown as CampaignExport,
     ];
 
     const campaignState = {
@@ -117,9 +122,9 @@ const campaignHandler = () => {
     };
 };
 
-window.campaignHandler = campaignHandler();
-window.soundHandler = soundHandler;
-window.zinit = () => {
+export const campaignHandler = createCampaignHandler();
+export { soundHandler };
+export const zinit = () => {
     const handle = (key: string, visibility: 'flex' | 'none') => {
         document.getElementById(key).style.display = visibility;
     };

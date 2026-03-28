@@ -1,4 +1,4 @@
-const zstate = () => {
+const createZstate = () => {
     const state = {
         gameStarted: false,
         crashed: false,
@@ -14,4 +14,4 @@ const zstate = () => {
     return state;
 };
 
-window.zstate = zstate();
+export const zstate = createZstate();

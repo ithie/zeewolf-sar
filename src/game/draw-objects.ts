@@ -229,12 +229,13 @@ export function createDrawObjects(
         cx: number,
         cy: number,
         outfit?: string,
+        colors?: { shirt: string; pants: string },
     ) {
         const base = iso(pX, pY, pZ, cx, cy);
         const headR = 2.5, torsoW = 5, torsoH = 7, legW = 2, legH = 6;
         const isRescuer = outfit === 'rescuer';
-        const colorShirt = isRescuer ? '#ff6600' : '#5a786e';
-        const colorPants = isRescuer ? '#ff6600' : '#3b4a6b';
+        const colorShirt = colors?.shirt ?? (isRescuer ? '#ff6600' : '#5a786e');
+        const colorPants = colors?.pants ?? (isRescuer ? '#ff6600' : '#3b4a6b');
         const colorArm = isRescuer ? '#ff6600' : '#f2d0a4';
         const drawX = base.x, drawY = base.y;
 
@@ -525,32 +526,40 @@ export function createDrawObjects(
             actualCtx.lineTo(tTop.x, tTop.y);
             actualCtx.lineTo(tBack.x, tBack.y);
             actualCtx.fill();
-            // Fenestron (detailed — 8 spinning blades)
-            const fenCenter = p(-1.7, 0.01, 0.82);
-            const fenR = 5.5 * s;
-            actualCtx.fillStyle = '#1a1a1a';
-            actualCtx.beginPath();
-            actualCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
-            actualCtx.fill();
+            // Fenestron — perspective-correct ellipse by projecting world-space axes.
+            // Disc plane is local XZ (perpendicular to heli's Y axis).
+            // ax = forward axis (foreshortens with view angle), bx = up axis (stable).
+            const fenCen = p(-1.6, 0.01, 0.72);
+            const fenE1  = p(-1.6 + 0.24, 0.01, 0.72);
+            const fenE2  = p(-1.6, 0.01, 0.72 + 0.24);
+            const fax = fenE1.x - fenCen.x, fay = fenE1.y - fenCen.y;
+            const fbx = fenE2.x - fenCen.x, fby = fenE2.y - fenCen.y;
+            const fenEllipse = (fill: string | null, stroke: string | null, lw: number, scale: number) => {
+                actualCtx.beginPath();
+                for (let i = 0; i <= 24; i++) {
+                    const a = (i / 24) * Math.PI * 2;
+                    const ex = fenCen.x + fax * Math.cos(a) * scale + fbx * Math.sin(a) * scale;
+                    const ey = fenCen.y + fay * Math.cos(a) * scale + fby * Math.sin(a) * scale;
+                    i === 0 ? actualCtx.moveTo(ex, ey) : actualCtx.lineTo(ex, ey);
+                }
+                actualCtx.closePath();
+                if (fill)   { actualCtx.fillStyle = fill; actualCtx.fill(); }
+                if (stroke) { actualCtx.strokeStyle = stroke; actualCtx.lineWidth = lw; actualCtx.stroke(); }
+            };
+            fenEllipse('#1a1a1a', null, 0, 1.0);
             actualCtx.strokeStyle = 'rgba(210,235,255,0.7)';
             actualCtx.lineWidth = 1.2 * s;
             actualCtx.lineCap = 'round';
             for (let i = 0; i < 8; i++) {
                 const a = hRotor * 2.0 + i * (Math.PI / 4);
+                const ca = Math.cos(a), sa = Math.sin(a);
                 actualCtx.beginPath();
-                actualCtx.moveTo(fenCenter.x + Math.cos(a) * fenR * 0.25, fenCenter.y + Math.sin(a) * fenR * 0.25);
-                actualCtx.lineTo(fenCenter.x + Math.cos(a) * fenR * 0.88, fenCenter.y + Math.sin(a) * fenR * 0.88);
+                actualCtx.moveTo(fenCen.x + fax * ca * 0.25 + fbx * sa * 0.25, fenCen.y + fay * ca * 0.25 + fby * sa * 0.25);
+                actualCtx.lineTo(fenCen.x + fax * ca * 0.88 + fbx * sa * 0.88, fenCen.y + fay * ca * 0.88 + fby * sa * 0.88);
                 actualCtx.stroke();
             }
-            actualCtx.fillStyle = '#444';
-            actualCtx.beginPath();
-            actualCtx.arc(fenCenter.x, fenCenter.y, 1.8 * s, 0, Math.PI * 2);
-            actualCtx.fill();
-            actualCtx.strokeStyle = fillColor;
-            actualCtx.lineWidth = 1.5 * s;
-            actualCtx.beginPath();
-            actualCtx.arc(fenCenter.x, fenCenter.y, fenR, 0, Math.PI * 2);
-            actualCtx.stroke();
+            fenEllipse('#444', null, 0, 0.33);
+            fenEllipse(null, fillColor, 1.5 * s, 1.0);
             // Main rotor
             actualCtx.strokeStyle = 'rgba(220,245,255,0.5)';
             actualCtx.lineWidth = 2;
