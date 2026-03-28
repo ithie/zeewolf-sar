@@ -22,7 +22,7 @@ const makeSingleFile = (): Plugin => ({
                 );
                 delete bundle[chunk.fileName];
             } else if (chunk.type === 'chunk' && chunk.isEntry) {
-                const code = chunk.code;
+                const code = chunk.code.replace('isMuted:!0', 'isMuted:!1').replace('isMuted: true', 'isMuted: false');
                 newHtml = newHtml.replace(
                     new RegExp(`<script[^>]*?src="[^"]*?${chunk.fileName}"[^>]*?></script>`),
                     () => `<script type="module">\n${code}\n</script>`

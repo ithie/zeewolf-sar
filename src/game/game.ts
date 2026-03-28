@@ -2879,6 +2879,7 @@ window.onresize = () => {
 window.onresize();
 window.onload = () => {
     zinit();
+    document.addEventListener('pointerdown', () => soundHandler.play('main', true), { once: true });
     drawMenuHeli();
 };
 

@@ -14,30 +14,12 @@ const _buildCredits = () => {
     const inner = document.getElementById('credits-inner');
     inner.innerHTML = '';
     const sections = [
-        { role: 'GAME DESIGN & DEVELOPMENT', names: [{ n: 'Yarrick', h: true }] },
-        { role: 'ISOMETRIC ART', names: [{ n: 'Yarrick', h: false }] },
-        {
-            role: 'SOUND & MUSIK',
-            names: [
-                { n: 'Yarrick', h: false },
-                { n: 'Jay "G" Man', h: false },
-            ],
-        },
-        {
-            role: 'BETA TESTING',
-            names: [
-                { n: 'Da Harp', h: false },
-                { n: 'Jay', h: false },
-                { n: 'DBuhn', h: false },
-            ],
-        },
-        {
-            role: 'SPECIAL THANKS',
-            names: [
-                { n: 'Claude', h: false },
-                { n: 'Das Internet', h: false },
-            ],
-        },
+        { role: 'GAME DESIGN & DEVELOPMENT', names: ['Yarrick'] },
+        { role: 'ISOMETRIC ART', names: ['Yarrick'] },
+        { role: 'SOUND & MUSIK', names: ['Yarrick', 'Jay "G" Man'] },
+        { role: 'BETA TESTING', names: ['Da Harp', 'Jay', 'DBuhn'] },
+        { role: 'SPECIAL THANKS', names: ['Claude', 'Das Internet'] },
+        { role: 'INSPIRED BY', names: ['Zeewolf (Binary Asylum, 1994)'] },
     ];
     const title = document.createElement('div');
     title.className = 'credits-title';
@@ -53,8 +35,8 @@ const _buildCredits = () => {
         sec.appendChild(role);
         s.names.forEach(nm => {
             const el = document.createElement('div');
-            el.className = 'credits-name' + (nm.h ? ' highlight' : '');
-            el.textContent = nm.n;
+            el.className = 'credits-name';
+            el.textContent = nm;
             el.style.animationDelay = delay + 's';
             delay += 0.18;
             sec.appendChild(el);
