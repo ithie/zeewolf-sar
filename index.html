@@ -641,6 +641,81 @@
                 letter-spacing: 2px;
                 margin-top: 10px;
             }
+            /* ─── touch controls ──────────────────────────────────────────────────────── */
+            #touch-controls {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 199;
+                display: none;
+                justify-content: space-between;
+                align-items: flex-end;
+                padding: 12px 16px;
+                pointer-events: none;
+            }
+            .touch-pad {
+                display: grid;
+                grid-template-columns: repeat(3, 58px);
+                grid-template-rows: repeat(3, 58px);
+                gap: 5px;
+                pointer-events: all;
+            }
+            .touch-btn {
+                background: rgba(255, 102, 0, 0.06);
+                border: 1px solid rgba(255, 102, 0, 0.25);
+                border-radius: 8px;
+                color: rgba(255, 102, 0, 0.5);
+                font-family: monospace;
+                font-size: 18px;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                touch-action: none;
+                user-select: none;
+                -webkit-user-select: none;
+                padding: 0;
+                margin: 0;
+                line-height: 1;
+                transition: background 0.08s, border-color 0.08s, color 0.08s, box-shadow 0.08s;
+                text-shadow: 0 0 8px rgba(255, 102, 0, 0.4);
+            }
+            .touch-btn.active {
+                background: rgba(255, 102, 0, 0.18);
+                border-color: rgba(255, 102, 0, 0.85);
+                color: #ff6600;
+                text-shadow: 0 0 12px #ff6600, 0 0 24px rgba(255, 102, 0, 0.5);
+                box-shadow: 0 0 16px rgba(255, 102, 0, 0.3), inset 0 0 12px rgba(255, 102, 0, 0.08);
+            }
+            /* ─── responsive (landscape mobile) ──────────────────────────────────────── */
+            @media (max-width: 1100px) {
+                .grid-container,
+                .campaign-grid { width: min(1100px, 92vw); }
+                #heli-info-stage { width: min(1100px, 92vw); }
+            }
+            @media (max-height: 520px) {
+                .title { font-size: clamp(26px, 7vh, 64px); margin-bottom: 2px; }
+                .subtitle { font-size: 14px; margin-bottom: 12px; }
+                .start-hint { font-size: 16px; margin-top: 14px; }
+                #menu-heli-big { transform: scale(0.45); transform-origin: center top; margin-bottom: -120px; }
+                .grid-container,
+                .campaign-grid { height: auto; gap: 10px; }
+                .grid-box { font-size: 13px; }
+                .grid-box canvas { transform: scale(0.5); transform-origin: center top; margin-bottom: -80px; }
+                .box-label { font-size: 13px; margin-top: 4px; }
+                .box-sub { font-size: 11px; }
+                .menu-item { font-size: 18px; padding: 9px 28px; letter-spacing: 5px; }
+                .menu-nav { margin-top: 8px; gap: 7px; }
+                .back-btn { margin-top: 10px; padding: 8px 20px; }
+                #heli-info-stage { height: auto; flex-wrap: wrap; }
+                #heli-detail-panel.visible { max-width: 300px; padding-left: 20px; }
+                .heli-detail-fluff { font-size: 12px; }
+                #mission-briefing { align-items: flex-start; overflow-y: auto; padding: 12px 0; }
+                #briefing-content { transform: scale(0.7); transform-origin: top center; }
+                #briefing-commander-wrap { display: none; }
+            }
         </style>
     </head>
     <body>
@@ -814,6 +889,29 @@
         </div>
 
         <canvas id="gameCanvas"></canvas>
+
+        <div id="touch-controls">
+            <div class="touch-pad" id="touch-pad-left">
+                <!-- row 1: Q · E -->
+                <button class="touch-btn" data-key="KeyQ" style="grid-area:1/1">Q</button>
+                <button class="touch-btn" data-key="KeyE" style="grid-area:1/3">E</button>
+                <!-- row 2: · W · -->
+                <button class="touch-btn" data-key="KeyW" style="grid-area:2/2">▲</button>
+                <!-- row 3: A S D -->
+                <button class="touch-btn" data-key="KeyA" style="grid-area:3/1">◀</button>
+                <button class="touch-btn" data-key="KeyS" style="grid-area:3/2">▼</button>
+                <button class="touch-btn" data-key="KeyD" style="grid-area:3/3">▶</button>
+            </div>
+            <div class="touch-pad" id="touch-pad-right">
+                <!-- row 1: · ↑ · -->
+                <button class="touch-btn" data-key="ArrowUp"    style="grid-area:1/2">▲</button>
+                <!-- row 2: ← · → -->
+                <button class="touch-btn" data-key="ArrowLeft"  style="grid-area:2/1">◀</button>
+                <button class="touch-btn" data-key="ArrowRight" style="grid-area:2/3">▶</button>
+                <!-- row 3: · ↓ · -->
+                <button class="touch-btn" data-key="ArrowDown"  style="grid-area:3/2">▼</button>
+            </div>
+        </div>
 
         <script type="module" src="/src/game/game.ts"></script>
     </body>
