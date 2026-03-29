@@ -1904,7 +1904,7 @@ function drawScene() {
         const ms = 140,
             mp = 20;
         const bx = canvas.width - ms - mp,
-            by = canvas.height - ms - mp;
+            by = _isTouchDevice() ? mp : canvas.height - ms - mp;
         const sc = ms / gridSize;
 
         // Hilfsfunktion: liegt Punkt innerhalb der Minimap?
@@ -2890,10 +2890,12 @@ window.onresize = () => {
 window.onresize();
 
 const _touchEl = document.getElementById('touch-controls') as HTMLElement | null;
+const _debugToggleEl = document.getElementById('debug-toggle') as HTMLElement | null;
 const _isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const setTouchVisible = (v: boolean) => {
-    if (!_touchEl) return;
-    _touchEl.style.display = (v && _isTouchDevice()) ? 'flex' : 'none';
+    if (!_isTouchDevice()) return;
+    if (_touchEl) _touchEl.style.display = v ? 'flex' : 'none';
+    if (_debugToggleEl) _debugToggleEl.style.display = v ? 'block' : 'none';
 };
 
 const _setupJoystick = (id: string, up: string, down: string, left: string, right: string) => {
@@ -2940,6 +2942,10 @@ const _setupJoystick = (id: string, up: string, down: string, left: string, righ
 
 const setupTouchControls = () => {
     if (!_isTouchDevice()) return;
+    _debugToggleEl?.addEventListener('click', () => {
+        showCollisionBoxes = !showCollisionBoxes;
+        SceneRenderer.debugAltitude = showCollisionBoxes;
+    });
     // winch buttons (Q/E)
     document.querySelectorAll<HTMLElement>('.touch-btn').forEach(btn => {
         const key = btn.dataset.key;

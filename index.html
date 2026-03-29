@@ -658,6 +658,19 @@
                 .credits-made-with { font-size: 11px; margin-top: 14px; }
                 #credits-screen { justify-content: flex-start; padding-top: 12px; overflow-y: auto; }
             }
+            /* ─── debug toggle (mobile) ──────────────────────────────────────────────── */
+            #debug-toggle {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 60px;
+                height: 60px;
+                z-index: 198;
+                display: none;
+                border-radius: 50%;
+                opacity: 0;
+            }
             /* ─── touch controls ──────────────────────────────────────────────────────── */
             #touch-controls {
                 position: fixed;
@@ -1032,6 +1045,7 @@
         </div>
 
         <canvas id="gameCanvas"></canvas>
+        <div id="debug-toggle"></div>
 
         <div id="touch-controls">
             <div id="touch-pad-left">
