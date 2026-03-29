@@ -12,7 +12,9 @@
 
 import type { IsoFn, SceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
-import { FUEL_TRUCK_CHASSIS_DEF, FUEL_TRUCK_TANK_DEF, FUEL_TRUCK_CAB_DEF } from './models/fuel-truck';
+import FUEL_TRUCK_CHASSIS_DEF from './models/fuel_truck_chassis.zdef';
+import FUEL_TRUCK_TANK_DEF from './models/fuel_truck_tank.zdef';
+import FUEL_TRUCK_CAB_DEF from './models/fuel_truck_cab.zdef';
 
 export interface WindState {
     x: number;
@@ -348,8 +350,6 @@ export function createDrawObjects(
         tX: number,
         tY: number,
         angle: number,
-        cx: number,
-        cy: number,
         opts: DrawFuelTruckOpts = {},
     ) {
         const { z = 0, armExtend = 0, armTarget = null, getFuelingState } = opts;

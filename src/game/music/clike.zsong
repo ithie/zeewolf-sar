@@ -1,0 +1,19 @@
+bpm 135
+
+[kick]  vol=100
+0 8 16 24 32 40 48 56
+
+[snare]  vol=80
+4 12 20 28 36 44 52 60
+
+[hat]  vol=50
+2 6 10 14 18 22 26 30 34 38 42 46 50 54 58 62
+
+[synth1]  vol=70  wave=square  filter=3000  inst=lead_square
+0:A3 1:C4 2:E4 4:A3 5:C4 6:E4 8:G3 9:B3 10:D4 12:G3 13:B3 14:D4 16:F3 17:A3 18:C4 20:F3 21:A3 22:C4 24:E3 25:G3 26:B3 28:E3 29:G3 30:B3 32:A3 33:C4 36:A3 37:C4 40:G3 41:B3 44:G3 45:B3 48:F3 49:A3 50:C4 52:F3 53:A3 54:C4 56:E3 57:G3 58:B3 60:E3 61:G3 62:B3
+
+[synth2]  vol=90  wave=sawtooth  filter=800  inst=bass_gritty
+0:A1 2:A2 4:A1 6:A2 8:G1 10:G2 12:G1 14:G2 16:F1 18:F2 20:F1 22:F2 24:E1 26:E2 28:E1 30:E2 32:A1 35:A2 36:A1 38:A2 42:G2 46:G2 50:F2 54:F2 58:E2 62:E2
+
+[synth3]  vol=40  wave=square  filter=1200  inst=pluck
+1:A3 3:A3 9:G3 11:G3 17:F3 19:F3 25:E3 27:E3 33:A3 35:A3 41:G3 43:G3 49:F3 51:F3 57:E3 59:E3

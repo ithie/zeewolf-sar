@@ -4,10 +4,10 @@
 // Import HELI_TYPES and use getHeliType(id) instead.
 
 import type { DEF } from './defs';
-import { JAYHAWK_DEF } from './models/jayhawk';
-import { DOLPHIN_DEF } from './models/dolphin';
-import { CHINOOK_DEF } from './models/chinook';
-import { GLIDER_DEF } from './models/glider';
+import JAYHAWK_DEF from './models/jayhawk.zdef';
+import DOLPHIN_DEF from './models/dolphin.zdef';
+import CHINOOK_DEF from './models/chinook.zdef';
+import GLIDER_DEF from './models/glider.zdef';
 
 export interface HeliType {
     id: string;

@@ -1,40 +1,41 @@
 # Song Format
 
-Songs are stored as JSON in `src/game/music/`. They are loaded by the game at runtime and can be authored in the ZSynth Tracker.
+Songs are stored as `.zsong` files in `src/game/music/`. They are loaded by the game at build time via the Vite `zsong` plugin and can be authored in the ZSynth Tracker.
 
-## Top-level Structure
+## File Format
 
-```json
-{
-  "bpm": "110",
-  "activeData": { ... },
-  "config": { ... }
-}
+`.zsong` is a compact, line-oriented text format. One song per file.
+
+```zsong
+bpm 110
+
+[kick]    vol=80
+0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60
+
+[snare]   vol=20
+4 12 20 28 36 44 52 60
+
+[hat]     vol=63
+0 2 3 6 8 10 11 14 16 18 19 22 24 26 27 30
+
+[synth1]  vol=82  wave=sawtooth  filter=600  inst=custom
+0:A1 2:A1 4:C2 6:A1 8:F2 10:F2 12:G2 14:E2
+
+[synth2]  vol=100  wave=sawtooth  filter=2500  inst=lead_saw
+0:A1 2:A1 6:A1 8:F2 10:F2 16:A1
+
+[synth3]  vol=80  wave=square  filter=2000  inst=lead_square
 ```
 
-| Field        | Type   | Description                        |
-| ------------ | ------ | ---------------------------------- |
-| `bpm`        | string | Tempo in beats per minute          |
-| `activeData` | object | Which steps are active and what note/drum plays |
-| `config`     | object | Per-track settings (volume, synth parameters) |
+**Rules:**
 
----
-
-## activeData
-
-Each key has the format `{trackId}-{step}`, where `step` is 0–63.
-
-The value is a string: a note name for synth tracks, or a drum label for drum tracks.
-
-```json
-"activeData": {
-  "kick-4":   "KICK",
-  "snare-8":  "SNARE",
-  "hat-2":    "HI-HAT",
-  "synth1-0": "A2",
-  "synth2-4": "C3"
-}
-```
+- First line: `bpm <number>`
+- Each track starts with `[trackId]  key=val  key=val  …`
+- The line immediately after is the step data (omit the line if the track has no active steps)
+- Drum step data: space-separated step indices (0–63)
+- Synth step data: space-separated `step:note` pairs
+- Blank lines and `#`-comment lines are ignored
+- Tracks with neither config nor steps can be omitted entirely
 
 **Track IDs:** `kick`, `snare`, `hat`, `synth1`, `synth2`, `synth3`
 
@@ -42,43 +43,25 @@ The value is a string: a note name for synth tracks, or a drum label for drum tr
 
 ---
 
-## config
-
-One entry per track.
+## Track Config Fields
 
 ### Drum track
 
-```json
-"kick": { "vol": "80" }
-```
-
-| Field | Type   | Range  | Description      |
-| ----- | ------ | ------ | ---------------- |
-| `vol` | string | 0–100  | Volume (percent) |
+| Field | Range  | Description      |
+| ----- | ------ | ---------------- |
+| `vol` | 0–100  | Volume (percent) |
 
 ### Synth track
 
-```json
-"synth1": {
-  "vol":     "82",
-  "wave":    "sawtooth",
-  "filter":  "600",
-  "inst":    "bass_gritty",
-  "attack":  0.01,
-  "release": 0.35,
-  "detune":  3
-}
-```
-
-| Field     | Type   | Description                                                |
-| --------- | ------ | ---------------------------------------------------------- |
-| `vol`     | string | Volume 0–100                                               |
-| `wave`    | string | `sawtooth` · `square` · `sine` · `triangle`                |
-| `filter`  | string | Lowpass cutoff frequency in Hz                             |
-| `inst`    | string | Instrument preset key, or `"custom"` for manual settings   |
-| `attack`  | number | Envelope attack in seconds (0.001–0.3)                     |
-| `release` | number | Envelope release in seconds (0.05–1.5)                     |
-| `detune`  | number | Detune amount in cents (0–25), adds a detuned second voice |
+| Field     | Description                                                |
+| --------- | ---------------------------------------------------------- |
+| `vol`     | Volume 0–100                                               |
+| `wave`    | `sawtooth` · `square` · `sine` · `triangle`                |
+| `filter`  | Lowpass cutoff frequency in Hz                             |
+| `inst`    | Instrument preset key, or `custom` for manual settings     |
+| `attack`  | Envelope attack in seconds (0.001–0.3)                     |
+| `release` | Envelope release in seconds (0.05–1.5)                     |
+| `detune`  | Detune in cents (0–25), adds a detuned second voice        |
 
 ---
 
@@ -107,14 +90,16 @@ Selecting a preset overwrites `wave`, `filter`, `attack`, `release`, and `detune
 Songs are statically imported in `src/game/main.ts`. After saving a new song via the Tracker, add an import and register it in the `songList`:
 
 ```typescript
-import MySong from './music/mysong.json';
+import MySong from './music/mysong.zsong';
 
 const songList: Record<string, SongData> = {
+    maintheme: SoundMaintheme,
+    clike: SoundClike,
     final: SoundFinal,
-    main: SoundMainTheme,
-    tutorial: SoundTutorial,
     mysong: MySong,         // ← add here
 };
 ```
 
-The key you use here is the theme name passed to `soundHandler.play('mysong')`.
+The key you use here is the theme name passed to `soundHandler.play('mysong')`. By convention the key matches the filename stem.
+
+> **Workbench dropdowns** (Campaign Editor and Musik tab) populate their song lists by reading `src/game/music/` directly via `window.workbench.readDir`. Any `.zsong` file placed there will appear in the dropdowns immediately — no restart required. However, the game itself still requires the static import and `songList` entry above to actually play the song at runtime.

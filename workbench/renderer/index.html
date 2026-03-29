@@ -568,6 +568,7 @@
         <button class="tab-btn" data-tab="editor">Editor</button>
         <button class="tab-btn" data-tab="models">Modelle</button>
         <button class="tab-btn" data-tab="tests">Tests</button>
+        <button class="tab-btn" data-tab="music">Musik</button>
       </div>
 
       <div id="tab-content">
@@ -627,6 +628,15 @@
           </div>
           <iframe src="http://localhost:5173/src/modeleditor.html" id="iframe-models"
             sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+        </div>
+
+        <!-- Musik tab -->
+        <div id="tab-music" class="tab-pane">
+          <div id="music-nav" style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;color:var(--text-dim);flex:1">Globale Musik-Konfiguration — gespeichert in <code>src/game/music-config.json</code></span>
+            <button id="btn-music-save">Speichern</button>
+          </div>
+          <div id="music-body" style="padding:16px;display:flex;flex-direction:column;gap:20px;overflow-y:auto"></div>
         </div>
 
         <!-- Tests tab -->
@@ -897,6 +907,9 @@
 
       if (tab === 'code' && editor) {
         editor.layout();
+      }
+      if (tab === 'music') {
+        wbLoadMusicConfig();
       }
     });
   });
@@ -1375,6 +1388,89 @@
     btn.disabled = false;
   });
 
+  // ── Musik-Tab ─────────────────────────────────────────────────────────────
+  const MUSIC_SCREENS = [
+    { key: 'mainMenu', label: 'Hauptmenü',   color: '#1a2a3a', textColor: '#88ccff' },
+    { key: 'credits',  label: 'Credits',     color: '#1a1a2a', textColor: '#aa88ff' },
+    { key: 'success',  label: 'Erfolg',      color: '#1a2a1a', textColor: '#88ff88' },
+    { key: 'defeat',   label: 'Niederlage',  color: '#2a1a1a', textColor: '#ff8888' },
+  ];
+  let wbMusicConfig = { mainMenu: 'main', credits: '', success: 'final', defeat: 'final' };
+
+  const wbDrawScreenPreview = (canvas, label, color, textColor) => {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = textColor;
+    ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+    ctx.fillStyle = textColor;
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, canvas.width / 2, canvas.height / 2);
+  };
+
+  const wbRenderMusicTab = () => {
+    const body = document.getElementById('music-body');
+    body.innerHTML = '';
+    MUSIC_SCREENS.forEach(({ key, label, color, textColor }) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:14px';
+      const canvas = document.createElement('canvas');
+      canvas.width = 160; canvas.height = 70;
+      canvas.style.cssText = 'border-radius:4px;flex-shrink:0';
+      wbDrawScreenPreview(canvas, label, color, textColor);
+      const info = document.createElement('div');
+      info.style.flex = '1';
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:11px;color:var(--text-dim);margin-bottom:4px';
+      lbl.textContent = label;
+      const selRow = document.createElement('div');
+      selRow.style.cssText = 'display:flex;gap:4px;align-items:center';
+      const sel = document.createElement('select');
+      sel.style.flex = '1';
+      sel.innerHTML = wbSongOptions(wbMusicConfig[key]);
+      sel.onchange = () => { wbMusicConfig[key] = sel.value; };
+      const playBtn = document.createElement('button');
+      playBtn.className = 'ed-btn';
+      playBtn.style.cssText = 'padding:2px 8px;flex-shrink:0';
+      playBtn.textContent = '▶';
+      playBtn.onclick = () => { if (sel.value) wbPreviewPlay(sel.value); };
+      const stopBtn = document.createElement('button');
+      stopBtn.className = 'ed-btn';
+      stopBtn.style.cssText = 'padding:2px 8px;flex-shrink:0';
+      stopBtn.textContent = '■';
+      stopBtn.onclick = () => wbPreviewStop();
+      selRow.append(sel, playBtn, stopBtn);
+      info.append(lbl, selRow);
+      row.append(canvas, info);
+      body.appendChild(row);
+    });
+  };
+
+  const wbLoadMusicConfig = async () => {
+    try {
+      const raw = await window.workbench.readFile('src/game/music-config.json');
+      wbMusicConfig = JSON.parse(raw);
+    } catch {}
+    wbRenderMusicTab();
+  };
+
+  document.getElementById('btn-music-save').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-music-save');
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      await window.workbench.writeFile('src/game/music-config.json', JSON.stringify(wbMusicConfig, null, 2) + '\n');
+      btn.textContent = '✓ Gespeichert';
+      setTimeout(() => { btn.textContent = 'Speichern'; }, 1500);
+    } catch (e) {
+      btn.textContent = 'Fehler!';
+      setTimeout(() => { btn.textContent = 'Speichern'; }, 2000);
+    }
+    btn.disabled = false;
+  });
+
   // ── Editor controls panel rendering ──────────────────────────────────────
   const edDispatch = (action, data) => {
     const w = edIframe.contentWindow;
@@ -1385,6 +1481,33 @@
   };
 
   const edH = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  // ── Song key list (loaded from src/game/music/ directory) ─────────────────
+  let wbSongKeys = ['main', 'tutorial', 'final'];
+  const wbSongOptions = (selected) => {
+    const opts = ['', ...wbSongKeys];
+    return opts.map(k => `<option value="${k}"${selected===k?' selected':''}>${k || '— kein Song —'}</option>`).join('');
+  };
+  (async () => {
+    try {
+      const entries = await window.workbench.readDir('src/game/music');
+      const keys = entries
+        .filter(e => !e.isDir && e.name.endsWith('.zsong'))
+        .map(e => e.name.replace(/\.zsong$/, ''))
+        .sort();
+      if (keys.length) wbSongKeys = keys;
+    } catch {}
+  })();
+
+  // ── Music preview (ZsynthPlayer — exposed by module script below) ─────────
+  let wbPreviewPlaying = null;
+  const wbPreviewPlay = stem => {
+    if (!stem) return;
+    if (wbPreviewPlaying === stem) { window._wbZsynthStop?.(); wbPreviewPlaying = null; return; }
+    window._wbZsynthPlay?.(stem);
+    wbPreviewPlaying = stem;
+  };
+  const wbPreviewStop = () => { window._wbZsynthStop?.(); wbPreviewPlaying = null; };
 
   const edRefreshPanel = () => {
     const controls = document.getElementById('editor-controls');
@@ -1422,6 +1545,21 @@
           oninput="edDispatch('set-campaign-title',{value:this.value})">
         <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Sublines (1 pro Zeile)</label>
         <textarea rows="2" oninput="edDispatch('set-campaign-sublines',{value:this.value})">${edH(st.campaignSublines)}</textarea>
+        <label style="font-size:10px;color:var(--text-dim);margin-top:6px">Musik – Briefing</label>
+        <div style="display:flex;gap:4px;align-items:center">
+          <select style="flex:1" onchange="edDispatch('set-campaign-music-briefing',{value:this.value})">
+            ${wbSongOptions(st.musicBriefing)}
+          </select>
+          <button class="ed-btn" style="padding:2px 6px;flex-shrink:0" onclick="${st.musicBriefing ? `wbPreviewPlay('${st.musicBriefing}')` : ''}">▶</button>
+        </div>
+        <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Musik – In-Game</label>
+        <div style="display:flex;gap:4px;align-items:center">
+          <select style="flex:1" onchange="edDispatch('set-campaign-music-ingame',{value:this.value})">
+            ${wbSongOptions(st.musicIngame)}
+          </select>
+          <button class="ed-btn" style="padding:2px 6px;flex-shrink:0" onclick="${st.musicIngame ? `wbPreviewPlay('${st.musicIngame}')` : ''}">▶</button>
+        </div>
+        <button class="ed-btn" style="margin-top:4px" onclick="wbPreviewStop()">■ Stop</button>
       </div>
 
       <div class="ed-section">
@@ -1579,6 +1717,19 @@
       if (btn.dataset.tab === 'editor') setTimeout(edRefreshPanel, 100);
     });
   });
+  </script>
+
+  <script type="module">
+    import ZsynthPlayer from '/src/tracker/ZsynthPlayer';
+    const mods = import.meta.glob('/src/game/music/*.zsong');
+    const songs = {};
+    for (const [path, load] of Object.entries(mods)) {
+      const stem = path.replace('/src/game/music/', '').replace('.zsong', '');
+      songs[stem] = (await load()).default;
+    }
+    ZsynthPlayer.init(songs);
+    window._wbZsynthPlay = stem => { ZsynthPlayer.stop(); ZsynthPlayer.play(stem, 0); };
+    window._wbZsynthStop = () => ZsynthPlayer.stop();
   </script>
 </body>
 </html>

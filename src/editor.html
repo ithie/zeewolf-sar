@@ -128,6 +128,18 @@
             <input type="text" id="c_title" value="OPERATION ZEEWOLF">
             <textarea id="c_sublines">Sichere den Archipel.
 Viel Glück, Pilot.</textarea>
+            <select id="c_music_briefing">
+                <option value="">— kein Song —</option>
+                <option value="main">main</option>
+                <option value="tutorial">tutorial</option>
+                <option value="final">final</option>
+            </select>
+            <select id="c_music_ingame">
+                <option value="">— kein Song —</option>
+                <option value="main">main</option>
+                <option value="tutorial">tutorial</option>
+                <option value="final">final</option>
+            </select>
 
             <!-- Mission / object / payload lists (rendered into by module, not displayed) -->
             <div id="mission-list"></div>
@@ -176,6 +188,8 @@ Viel Glück, Pilot.</textarea>
             return {
                 campaignTitle:    document.getElementById('c_title').value,
                 campaignSublines: document.getElementById('c_sublines').value,
+                musicBriefing:    document.getElementById('c_music_briefing').value,
+                musicIngame:      document.getElementById('c_music_ingame').value,
                 missions: s.campaign.map(function(mis, i) {
                     return { idx: i, headline: mis.headline, active: i === s.curIdx };
                 }),
@@ -216,8 +230,10 @@ Viel Glück, Pilot.</textarea>
             const fire = function(id, ev) { const el = get(id); if (el) el.dispatchEvent(new Event(ev)); };
 
             switch (action) {
-                case 'set-campaign-title':    set('c_title', data.value); break;
-                case 'set-campaign-sublines': set('c_sublines', data.value); break;
+                case 'set-campaign-title':         set('c_title', data.value); break;
+                case 'set-campaign-sublines':      set('c_sublines', data.value); break;
+                case 'set-campaign-music-briefing': set('c_music_briefing', data.value); break;
+                case 'set-campaign-music-ingame':   set('c_music_ingame', data.value); break;
 
                 case 'select-mission': ed.loadMission(data.idx); break;
                 case 'add-mission':    clk('btn-add-mission'); break;

@@ -9,13 +9,32 @@ import Glider from './campaigns/glider.json';
 import Julian from './campaigns/julian.json';
 import { decompressTerrain } from '../shared/utils';
 import ZsynthPlayer from '../tracker/ZsynthPlayer';
-import SoundTutorial from './music/clike.json';
-import SoundMainTheme from './music/maintheme.json';
-import SoundFinal from './music/final.json';
+import SoundAnothermenu from './music/anothermenu.zsong';
+import SoundAnothersound from './music/anothersound.zsong';
+import SoundBriefing from './music/briefing.zsong';
+import SoundClike from './music/clike.zsong';
+import SoundDestroid from './music/destroid.zsong';
+import SoundFinal from './music/final.zsong';
+import SoundMaintheme from './music/maintheme.zsong';
+import SoundMenusound from './music/menusound.zsong';
+import SoundSpocktribute from './music/spocktribute.zsong';
 import { SongData } from '@/tracker/types';
+import MusicConfigJson from './music-config.json';
+
+export const musicConfig: { mainMenu: string; credits: string; success: string; defeat: string } = MusicConfigJson;
 
 const soundHandler = (() => {
-    const songList: Record<string, SongData> = { final: SoundFinal, main: SoundMainTheme, tutorial: SoundTutorial };
+    const songList: Record<string, SongData> = {
+        anothermenu:  SoundAnothermenu,
+        anothersound: SoundAnothersound,
+        briefing:     SoundBriefing,
+        clike:        SoundClike,
+        destroid:     SoundDestroid,
+        final:        SoundFinal,
+        maintheme:    SoundMaintheme,
+        menusound:    SoundMenusound,
+        spocktribute: SoundSpocktribute,
+    };
 
     const state: { activeTheme: string; isMuted: boolean } = {
         activeTheme: '',
@@ -110,6 +129,9 @@ const createCampaignHandler = () => {
         return cachedTerrain;
     };
 
+    const getActiveCampaignMusic = (): { briefing?: string; ingame?: string } =>
+        campaigns[campaignState.activeCampaign]?.music ?? {};
+
     return {
         getCampaigns,
         campaign: {
@@ -118,6 +140,7 @@ const createCampaignHandler = () => {
             setActiveMission,
         },
         getCurrentMissionData,
+        getActiveCampaignMusic,
         getTerrain,
     };
 };

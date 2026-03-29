@@ -14,6 +14,7 @@ export const createEmptyMission = (name = 'Mission Alpha'): Mission => {
         terrain: grid,
         objects: [{ type: 'pad', x: 10, y: 10 }],
         spawnObject: 'pad',
+        objectives: [],
         payloads: [],
         foliage: [],
         rain: false,

@@ -7,8 +7,18 @@ A declarative, renderer-agnostic way to describe 3D isometric objects as ordered
 ## File Locations
 
 - **Interfaces & helpers** (`DEF`, `DEFFace`, `DEFCollisionBox`, `nGonRing`, `cylFaces`): `src/game/defs.ts`
-- **Model definitions** (one file per object): `src/game/models/`
+- **Model definitions** (one `.zdef` file per object): `src/game/models/`
 - **SceneRenderer**: `src/game/scene-renderer.ts`
+
+### `.zdef` File Format
+
+Model definitions are stored as `.zdef` files — plain JSON with a `.zdef` extension. The Vite `zdef` plugin transforms them at build time into ES modules (`export default <json>`), so they can be imported directly:
+
+```typescript
+import HANGAR_DEF from './models/hangar.zdef';
+```
+
+TypeScript types are provided by `src/zdef.d.ts` (ambient wildcard declaration). No runtime parser is needed.
 
 ---
 

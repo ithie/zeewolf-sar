@@ -1,11 +1,12 @@
 import { iso } from './render';
-import { campaignHandler, soundHandler, zinit } from './main';
+import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
 import { zstate } from './state';
 
-import { HANGAR_DEF } from './models/hangar';
-import { LIGHTHOUSE_DEF } from './models/lighthouse';
-import { SAILBOAT_DEF } from './models/sailboat';
-import { CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from './models/carrier';
+import HANGAR_DEF from './models/hangar.zdef';
+import LIGHTHOUSE_DEF from './models/lighthouse.zdef';
+import SAILBOAT_DEF from './models/sailboat.zdef';
+import CARRIER_HULL_DEF from './models/carrier_hull.zdef';
+import CARRIER_TOWER_DEF from './models/carrier_tower.zdef';
 import { createSceneRenderer } from './scene-renderer';
 import { HELI_TYPES, getHeliType } from './heli-types';
 import { createDrawObjects } from './draw-objects';
@@ -16,12 +17,12 @@ import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen';
 import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select';
 import { I18N } from './i18n';
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
+const ctx = canvas.getContext('2d')!;
 ctx.imageSmoothingEnabled = false;
-const isoFn = (wx, wy, wz, cx, cy) => iso(wx, wy, wz, cx, cy, { canvas, tileW, tileH, stepH });
+const isoFn = (wx: number, wy: number, wz: number, cx: number, cy: number) => iso(wx, wy, wz, cx, cy, { canvas, tileW, tileH, stepH });
 const SceneRenderer = createSceneRenderer(ctx, isoFn);
-const { drawFace, drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } =
+const { drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } =
     createDrawObjects(ctx, isoFn, tileW, tileH, SceneRenderer);
 
 // ─── state ───────────────────────────────────────────────────────────────────
@@ -107,9 +108,6 @@ function hasLighthouse() {
 }
 function hasPad() {
     return !!getObjectByType('pad');
-}
-function hasBoats() {
-    return getObjectsByType('boat').length > 0;
 }
 function isStartsOnCarrier() {
     return campaignHandler.getCurrentMissionData().spawnObject === 'carrier';
@@ -1287,7 +1285,7 @@ function isVisible(objX, objY, margin = 16) {
 // ─── screens ────────────────────────────────────────────────────────────────
 function triggerCrash(reason) {
     if (zstate.crashed) return;
-    soundHandler.play('final', false);
+    soundHandler.play(musicConfig.defeat || 'final', false);
     spawnExplosion(G.heli, G.particles, G.debris, G.points, G.CARRIER);
     zstate.crashed = true;
     setTimeout(() => {
@@ -1310,6 +1308,8 @@ function showBriefing() {
     sublinesEl.innerHTML =
         Array.isArray(sublines) && sublines.length ? sublines.map(s => `▸ ${s}`).join('<br>') : '';
     document.getElementById('briefing-body').textContent = briefing || '';
+    const briefingSong = campaignHandler.getActiveCampaignMusic().briefing;
+    if (briefingSong) soundHandler.play(briefingSong, true);
     document.getElementById('mission-briefing').style.display = 'flex';
 }
 
@@ -1323,7 +1323,7 @@ function missionComplete() {
     if (next === 'DONE') {
         document.getElementById('campaign-complete-name').textContent = next?.campaignTitle || '';
         document.getElementById('campaign-complete-screen').style.display = 'flex';
-        soundHandler.play('final', false);
+        soundHandler.play(musicConfig.success || 'final', false);
         return;
     }
     const { gridSize, objects: nextObjects } = next;
@@ -1392,12 +1392,12 @@ function returnToBase() {
             );
         });
     document.getElementById('campaign-grid').innerHTML = campaigns.join('');
-    soundHandler.play('main', true);
+    soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
 }
 
 // ─── campaign / G.heli select ──────────────────────────────────────────────────
 function toCampaignSelect() {
-    soundHandler.play('main');
+    soundHandler.play(musicConfig.mainMenu || 'maintheme', false);
     document.getElementById('splash').style.display = 'none';
     document.getElementById('main-menu').style.display = 'none';
     const campaigns = [];
@@ -1450,7 +1450,7 @@ function selectCampaign(index) {
 function startGame(type) {
     if (zstate.gameStarted) return;
     stopMenuParticles();
-    soundHandler.play('tutorial');
+    soundHandler.play(campaignHandler.getActiveCampaignMusic().ingame || 'clike', false);
     G.heli.type = type;
     const _heliType = getHeliType(type);
     G.heli.maxLoad    = _heliType.maxLoad;
@@ -1686,8 +1686,6 @@ function drawScene() {
     let coneWidth = 0.3 + alt * 0.05;
     let range = 10 + alt * 2.0;
     let intensity = Math.floor(255 * Math.max(0.1, 1.0 - alt / 15));
-    const litColor = `rgb(${intensity}, ${intensity}, ${intensity - 50})`;
-
     // terrain tiles
     for (let x = Math.floor(rx - 14); x < rx + 14; x++) {
         for (let y = Math.floor(ry - 14); y < ry + 14; y++) {
@@ -1744,7 +1742,7 @@ function drawScene() {
     });
     if (hasPad() && isVisible(G.PAD.xMin + 3, G.PAD.yMin + 3)) drawHangar();
     if (hasPad() && G.fuelTruck && isVisible(G.fuelTruck.x, G.fuelTruck.y, 20))
-        drawFuelTruck(G.fuelTruck.x, G.fuelTruck.y, G.fuelTruck.angle, camX, camY, {
+        drawFuelTruck(G.fuelTruck.x, G.fuelTruck.y, G.fuelTruck.angle, {
             z: G.PAD ? G.PAD.z : 0,
             armExtend: G.fuelTruck.arm,
             armTarget: { x: G.heli.x, y: G.heli.y },
@@ -2887,7 +2885,7 @@ window.onresize();
 window.onload = () => {
     zinit();
     startMenuParticles();
-    document.addEventListener('pointerdown', () => soundHandler.play('main', true), { once: true });
+    document.addEventListener('pointerdown', () => soundHandler.play(musicConfig.mainMenu || 'maintheme', true), { once: true });
     drawMenuHeli();
 };
 

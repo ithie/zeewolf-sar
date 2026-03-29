@@ -1,5 +1,6 @@
 import ZsynthPlayer from './ZsynthPlayer';
 import { SongData, TRACK_DEFS, NOTES, INSTRUMENTS, STEPS } from './types';
+import { parseZsong, songToZsong } from '../shared/zsong';
 
 // Internal format: key = `${trackId}-${step}`, value = note name (synths) or drum label (drums)
 let activeData: Record<string, string> = {};
@@ -266,12 +267,13 @@ const Main = {
             }
         });
         (document.getElementById('io-field') as HTMLTextAreaElement).value =
-            JSON.stringify({ bpm, activeData, config }, null, 2);
+            songToZsong({ bpm, activeData, config });
     },
 
     importJSON: () => {
         try {
-            const raw = JSON.parse((document.getElementById('io-field') as HTMLTextAreaElement).value);
+            const text = (document.getElementById('io-field') as HTMLTextAreaElement).value.trim();
+            const raw = text.startsWith('{') ? JSON.parse(text) : parseZsong(text);
             if ((document.getElementById('bpm') as HTMLInputElement)) {
                 (document.getElementById('bpm') as HTMLInputElement).value = raw.bpm || '110';
             }

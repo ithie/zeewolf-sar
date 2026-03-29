@@ -1,0 +1,16 @@
+bpm 110
+
+[kick]
+0 4 16 20 32 36 48 52
+
+[snare]
+2 18 34 50
+
+[hat]
+3 6 19 22 35 38 51 54
+
+[synth1]  wave=square  filter=2692  sustain=hold
+0:A3 6:A3 10:A3 16:A3 22:A3 26:A3 32:A3 38:A3 42:A3 48:A3 54:A3 58:A3
+
+[synth2]  wave=sawtooth  filter=800  sustain=once
+0:A3 4:G3 9:A3 12:G3 16:A3 20:G3 25:A3 28:G3 32:A3 36:G3 41:A3 44:G3 48:A3 52:G3 57:A3 60:G3

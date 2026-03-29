@@ -1,7 +1,10 @@
+import { soundHandler, musicConfig } from '../main';
+
 export const toCredits = () => {
     document.getElementById('main-menu')!.style.display = 'none';
     _buildCredits();
     document.getElementById('credits-screen')!.style.display = 'flex';
+    if (musicConfig.credits) soundHandler.play(musicConfig.credits, true);
 };
 
 const _buildCredits = () => {

@@ -46,11 +46,15 @@
         <canvas id="viewerCanvas"></canvas>
 
         <script type="module">
-            import {
-                HANGAR_DEF, LIGHTHOUSE_DEF, SAILBOAT_DEF,
-                JAYHAWK_DEF, DOLPHIN_DEF, CHINOOK_DEF, GLIDER_DEF,
-                CARRIER_HULL_DEF, CARRIER_TOWER_DEF,
-            } from '/src/game/defs.ts';
+            import HANGAR_DEF from '/src/game/models/hangar.zdef';
+            import LIGHTHOUSE_DEF from '/src/game/models/lighthouse.zdef';
+            import SAILBOAT_DEF from '/src/game/models/sailboat.zdef';
+            import JAYHAWK_DEF from '/src/game/models/jayhawk.zdef';
+            import DOLPHIN_DEF from '/src/game/models/dolphin.zdef';
+            import CHINOOK_DEF from '/src/game/models/chinook.zdef';
+            import GLIDER_DEF from '/src/game/models/glider.zdef';
+            import CARRIER_HULL_DEF from '/src/game/models/carrier_hull.zdef';
+            import CARRIER_TOWER_DEF from '/src/game/models/carrier_tower.zdef';
             import { createSceneRenderer } from '/src/game/scene-renderer.ts';
             import { createDrawObjects } from '/src/game/draw-objects.ts';
 

@@ -891,12 +891,18 @@ export const initUI = () => {
 
         state.curIdx = savedIdx;
 
+        const briefingSong = getEl<HTMLSelectElement>('c_music_briefing').value;
+        const ingameSong   = getEl<HTMLSelectElement>('c_music_ingame').value;
         const exportData = {
             type: state.type || 'ZEEWOLF_CAMPAIGN',
             campaignTitle: getInput('c_title').value,
             campaignSublines: getEl<HTMLTextAreaElement>('c_sublines')
                 .value.split('\n')
                 .filter(l => l.trim()),
+            ...(briefingSong || ingameSong ? { music: {
+                ...(briefingSong ? { briefing: briefingSong } : {}),
+                ...(ingameSong   ? { ingame:   ingameSong   } : {}),
+            } } : {}),
             levels: data,
         };
         getEl<HTMLTextAreaElement>('output').value = JSON.stringify(exportData);
@@ -911,6 +917,8 @@ export const initUI = () => {
             const parsed = JSON.parse(raw);
             getInput('c_title').value = parsed.campaignTitle || 'Imported Campaign';
             getEl<HTMLTextAreaElement>('c_sublines').value = (parsed.campaignSublines || []).join('\n');
+            getEl<HTMLSelectElement>('c_music_briefing').value = parsed.music?.briefing || '';
+            getEl<HTMLSelectElement>('c_music_ingame').value   = parsed.music?.ingame   || '';
             state.type = parsed.type;
             state.campaign = parsed.levels.map((m: any) => {
                 const base = {

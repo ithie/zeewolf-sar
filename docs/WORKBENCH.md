@@ -123,14 +123,51 @@ The following IPC channels are registered in the main process. They are not call
 
 ---
 
+## Campaign Editor
+
+Embedded in the **Editor** tab. Provides full mission editing with a sidebar panel on the left.
+
+Campaign-level fields:
+
+| Field            | Control    | Description                                                   |
+| ---------------- | ---------- | ------------------------------------------------------------- |
+| Title            | text input | `campaignTitle` — shown on the campaign select screen         |
+| Sublines         | textarea   | `campaignSublines` — one subtitle per line                    |
+| Musik – Briefing | dropdown   | Song played when the mission briefing screen opens (optional) |
+| Musik – In-Game  | dropdown   | Song played when the mission itself starts (optional)         |
+
+Each music dropdown has a ▶ play button to preview the selected song in the browser (requires the Vite dev server to be running). A **■ Stop** button stops playback.
+
+---
+
+## Musik Tab
+
+A dedicated tab for assigning background music to global game screens. Changes are saved to `src/game/music-config.json`.
+
+| Screen      | Config key  | Default      |
+| ----------- | ----------- | ------------ |
+| Hauptmenü   | `mainMenu`  | `maintheme`  |
+| Credits     | `credits`   | (none)       |
+| Erfolg      | `success`   | `final`      |
+| Niederlage  | `defeat`    | `final`      |
+
+Each screen shows a color-coded canvas preview and a song dropdown. The dropdown is populated from all `.zsong` files in `src/game/music/`. Each row has ▶ and ■ buttons for live preview (requires the Vite dev server).
+
+Click **Speichern** to write the config to disk.
+
+> **Note:** Song preview uses ZsynthPlayer loaded directly via `<script type="module">` in the workbench renderer — no separate iframe needed. Preview will not work if the dev server is not running.
+
+---
+
 ## Model Editor
 
 An interactive editor for the game's isometric DEF geometry (`src/modeleditor.html`).
 
 - Browse all preset models: Hangar, Lighthouse, Sailboat, Carrier (Hull + Tower), Fuel Truck, and all helicopters
+- Open any `.zdef` file from `src/game/models/` directly via the native file dialog
 - Add, select, move, and delete vertices and faces directly on the isometric canvas
 - Per-face controls: color picker, stroke color, normal direction for backface culling
-- Export the current DEF as JSON for use in `src/game/models/`
+- Save the current DEF as a `.zdef` file directly into `src/game/models/`
 
 The Model Editor is served by Vite and embedded as an iframe in the Workbench. It uses the same `SceneRenderer` and DEF pipeline as the game.
 

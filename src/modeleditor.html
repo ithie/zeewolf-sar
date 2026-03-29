@@ -208,14 +208,18 @@
 </div>
 
 <script type="module">
-import { HANGAR_DEF } from '/src/game/models/hangar.ts';
-import { LIGHTHOUSE_DEF } from '/src/game/models/lighthouse.ts';
-import { SAILBOAT_DEF } from '/src/game/models/sailboat.ts';
-import { JAYHAWK_DEF } from '/src/game/models/jayhawk.ts';
-import { DOLPHIN_DEF } from '/src/game/models/dolphin.ts';
-import { CHINOOK_DEF } from '/src/game/models/chinook.ts';
-import { GLIDER_DEF } from '/src/game/models/glider.ts';
-import { CARRIER_HULL_DEF, CARRIER_TOWER_DEF } from '/src/game/models/carrier.ts';
+import HANGAR_DEF from '/src/game/models/hangar.zdef';
+import LIGHTHOUSE_DEF from '/src/game/models/lighthouse.zdef';
+import SAILBOAT_DEF from '/src/game/models/sailboat.zdef';
+import JAYHAWK_DEF from '/src/game/models/jayhawk.zdef';
+import DOLPHIN_DEF from '/src/game/models/dolphin.zdef';
+import CHINOOK_DEF from '/src/game/models/chinook.zdef';
+import GLIDER_DEF from '/src/game/models/glider.zdef';
+import CARRIER_HULL_DEF from '/src/game/models/carrier_hull.zdef';
+import CARRIER_TOWER_DEF from '/src/game/models/carrier_tower.zdef';
+import FUEL_TRUCK_CHASSIS_DEF from '/src/game/models/fuel_truck_chassis.zdef';
+import FUEL_TRUCK_TANK_DEF from '/src/game/models/fuel_truck_tank.zdef';
+import FUEL_TRUCK_CAB_DEF from '/src/game/models/fuel_truck_cab.zdef';
 import { createSceneRenderer } from '/src/game/scene-renderer.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -230,8 +234,11 @@ const PRESETS = {
   dolphin:       { def: DOLPHIN_DEF,       label: 'Dolphin (MH-65)',  isStatic: false, movementType: 'heli' },
   chinook:       { def: CHINOOK_DEF,       label: 'Chinook (CH-47)',  isStatic: false, movementType: 'heli' },
   glider:        { def: GLIDER_DEF,        label: 'Glider (ASK-21)',  isStatic: false, movementType: 'plane' },
-  carrier_hull:  { def: CARRIER_HULL_DEF,  label: 'Carrier Hull',     isStatic: false, movementType: 'ship' },
-  carrier_tower: { def: CARRIER_TOWER_DEF, label: 'Carrier Tower',    isStatic: false, movementType: 'ship' },
+  carrier_hull:       { def: CARRIER_HULL_DEF,       label: 'Carrier Hull',          isStatic: false, movementType: 'ship' },
+  carrier_tower:      { def: CARRIER_TOWER_DEF,      label: 'Carrier Tower',         isStatic: false, movementType: 'ship' },
+  fuel_truck_chassis: { def: FUEL_TRUCK_CHASSIS_DEF, label: 'Fuel Truck (Chassis)',  isStatic: true,  movementType: 'none' },
+  fuel_truck_tank:    { def: FUEL_TRUCK_TANK_DEF,    label: 'Fuel Truck (Tank)',     isStatic: true,  movementType: 'none' },
+  fuel_truck_cab:     { def: FUEL_TRUCK_CAB_DEF,     label: 'Fuel Truck (Cab)',      isStatic: true,  movementType: 'none' },
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────

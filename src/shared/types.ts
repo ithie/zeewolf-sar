@@ -48,6 +48,7 @@ export interface CampaignExport {
     type: string;
     campaignTitle: string;
     campaignSublines: string[];
+    music?: { briefing?: string; ingame?: string };
     levels: Omit<Mission, 'terrain'> & { terrain: string; gridSize: number }[];
 }
 

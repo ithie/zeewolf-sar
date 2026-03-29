@@ -9,16 +9,41 @@ Campaigns are stored as JSON in `src/game/campaigns/`. Each file contains one ca
   "type": "tutorial",
   "campaignTitle": "TUTORIAL",
   "campaignSublines": ["Erste Flugversuche"],
+  "music": {
+    "briefing": "main",
+    "ingame": "tutorial"
+  },
   "levels": [ ... ]
 }
 ```
 
-| Field               | Type     | Description                                  |
-| ------------------- | -------- | -------------------------------------------- |
-| `type`              | string   | Internal identifier (used for routing)       |
-| `campaignTitle`     | string   | Displayed title on the campaign select screen|
-| `campaignSublines`  | string[] | Subtitle lines shown below the title         |
-| `levels`            | array    | Ordered list of mission levels               |
+| Field              | Type     | Description                                           |
+| ------------------ | -------- | ----------------------------------------------------- |
+| `type`             | string   | Internal identifier (used for routing)                |
+| `campaignTitle`    | string   | Displayed title on the campaign select screen         |
+| `campaignSublines` | string[] | Subtitle lines shown below the title                  |
+| `music`            | object   | Optional. Per-campaign music assignments (see below)  |
+| `levels`           | array    | Ordered list of mission levels                        |
+
+---
+
+## Music
+
+The optional `music` field assigns songs to specific campaign phases. Both sub-fields are optional; if omitted, the current music simply continues playing.
+
+```json
+"music": {
+  "briefing": "main",
+  "ingame": "tutorial"
+}
+```
+
+| Field      | Type   | Description                                                    |
+| ---------- | ------ | -------------------------------------------------------------- |
+| `briefing` | string | Song key to start when the mission briefing screen is shown    |
+| `ingame`   | string | Song key to start when the mission itself begins               |
+
+Song keys correspond to filenames (without `.json`) in `src/game/music/`. The Workbench Campaign Editor exposes dropdowns for both fields.
 
 ---
 

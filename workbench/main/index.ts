@@ -153,7 +153,7 @@ app.whenReady().then(async () => {
     const result = await dialog.showOpenDialog({
       title: 'Song öffnen',
       defaultPath: path.join(PROJECT_ROOT, 'src/game/music'),
-      filters: [{ name: 'Song JSON', extensions: ['json'] }],
+      filters: [{ name: 'ZSong', extensions: ['zsong'] }],
       properties: ['openFile'],
     });
     if (result.canceled || !result.filePaths.length) return { cancelled: true };
@@ -168,8 +168,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('show-save-song-dialog', async (_event, defaultName?: string) => {
     const result = await dialog.showSaveDialog({
       title: 'Song speichern',
-      defaultPath: path.join(PROJECT_ROOT, 'src/game/music', defaultName ?? 'neuer_song.json'),
-      filters: [{ name: 'Song JSON', extensions: ['json'] }],
+      defaultPath: path.join(PROJECT_ROOT, 'src/game/music', defaultName ?? 'neuer_song.zsong'),
+      filters: [{ name: 'ZSong', extensions: ['zsong'] }],
     });
     if (result.canceled || !result.filePath) return { cancelled: true };
     const filename = path.basename(result.filePath);
@@ -184,7 +184,7 @@ app.whenReady().then(async () => {
     const result = await dialog.showOpenDialog({
       title: 'Modell öffnen',
       defaultPath: modelsDir,
-      filters: [{ name: 'Model JSON', extensions: ['json'] }],
+      filters: [{ name: 'ZDef', extensions: ['zdef'] }],
       properties: ['openFile'],
     });
     if (result.canceled || !result.filePaths.length) return { cancelled: true };
@@ -200,8 +200,8 @@ app.whenReady().then(async () => {
     await fs.mkdir(modelsDir, { recursive: true });
     const result = await dialog.showSaveDialog({
       title: 'Modell speichern',
-      defaultPath: path.join(modelsDir, defaultName ?? 'neues_modell.json'),
-      filters: [{ name: 'Model JSON', extensions: ['json'] }],
+      defaultPath: path.join(modelsDir, defaultName ?? 'neues_modell.zdef'),
+      filters: [{ name: 'ZDef', extensions: ['zdef'] }],
     });
     if (result.canceled || !result.filePath) return { cancelled: true };
     const filename = path.basename(result.filePath);
