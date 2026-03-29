@@ -2867,6 +2867,7 @@ function toMainMenu() {
         if (el) el.style.display = 'none';
     });
     document.getElementById('main-menu').style.display = 'flex';
+    soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     animMainMenuBg();
     startMenuParticles();
 }
@@ -2880,6 +2881,8 @@ buildHeliSelect('normal'); // initial build for splash screen background
 
 window.onkeydown = e => (G.keys[e.code] = true);
 window.onkeyup = e => (G.keys[e.code] = false);
+document.addEventListener('selectstart', e => e.preventDefault());
+document.addEventListener('dragstart', e => e.preventDefault());
 window.onresize = () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -2893,8 +2896,51 @@ const setTouchVisible = (v: boolean) => {
     _touchEl.style.display = (v && _isTouchDevice()) ? 'flex' : 'none';
 };
 
+const _setupJoystick = (id: string, up: string, down: string, left: string, right: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const knob = el.querySelector('.joystick-knob') as HTMLElement;
+    const keys = [up, down, left, right];
+    let active = false, cx = 0, cy = 0, jr = 0;
+    const setKeys = (dx: number, dy: number) => {
+        const dead = jr * 0.18;
+        (G.keys as Record<string, boolean>)[up]    = dy < -dead;
+        (G.keys as Record<string, boolean>)[down]  = dy >  dead;
+        (G.keys as Record<string, boolean>)[left]  = dx < -dead;
+        (G.keys as Record<string, boolean>)[right] = dx >  dead;
+    };
+    el.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        el.setPointerCapture(e.pointerId);
+        const r = el.getBoundingClientRect();
+        cx = r.left + r.width / 2;
+        cy = r.top  + r.height / 2;
+        jr = r.width / 2;
+        active = true;
+        knob.style.transition = 'none';
+    });
+    el.addEventListener('pointermove', e => {
+        if (!active) return;
+        const dx = e.clientX - cx, dy = e.clientY - cy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const clamped = Math.min(dist, jr * 0.55) / dist;
+        knob.style.transform = `translate(calc(-50% + ${dx * clamped}px), calc(-50% + ${dy * clamped}px))`;
+        setKeys(dx, dy);
+    });
+    const release = () => {
+        if (!active) return;
+        active = false;
+        knob.style.transition = 'transform 0.12s ease-out';
+        knob.style.transform = 'translate(-50%, -50%)';
+        keys.forEach(k => { (G.keys as Record<string, boolean>)[k] = false; });
+    };
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+};
+
 const setupTouchControls = () => {
     if (!_isTouchDevice()) return;
+    // winch buttons (Q/E)
     document.querySelectorAll<HTMLElement>('.touch-btn').forEach(btn => {
         const key = btn.dataset.key;
         if (!key) return;
@@ -2911,6 +2957,9 @@ const setupTouchControls = () => {
         btn.addEventListener('pointerup', release);
         btn.addEventListener('pointercancel', release);
     });
+    // joysticks
+    _setupJoystick('joystick-left',  'KeyW', 'KeyS', 'KeyA', 'KeyD');
+    _setupJoystick('joystick-right', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
 };
 
 window.onload = () => {

@@ -22,6 +22,7 @@
                 margin: 0;
                 overflow: hidden;
                 user-select: none;
+                -webkit-user-select: none;
             }
             #mission-briefing {
                 position: absolute;
@@ -647,6 +648,16 @@
                 letter-spacing: 2px;
                 margin-top: 10px;
             }
+            /* ─── credits responsive ─────────────────────────────────────────────────── */
+            @media (max-height: 520px) {
+                .credits-title { font-size: 26px; letter-spacing: 8px; margin-bottom: 16px; }
+                .credits-section { margin: 4px 0; }
+                .credits-role { font-size: 9px; letter-spacing: 3px; margin-bottom: 2px; }
+                .credits-name { font-size: 14px; letter-spacing: 2px; }
+                .credits-divider { margin: 8px auto; }
+                .credits-made-with { font-size: 11px; margin-top: 14px; }
+                #credits-screen { justify-content: flex-start; padding-top: 12px; overflow-y: auto; }
+            }
             /* ─── touch controls ──────────────────────────────────────────────────────── */
             #touch-controls {
                 position: fixed;
@@ -660,13 +671,61 @@
                 padding: 12px 16px;
                 pointer-events: none;
             }
-            .touch-pad {
-                display: grid;
-                grid-template-columns: repeat(3, 58px);
-                grid-template-rows: repeat(3, 58px);
-                gap: 5px;
+            #touch-pad-left {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
                 pointer-events: all;
             }
+            #touch-winch {
+                display: flex;
+                gap: 6px;
+            }
+            .touch-winch-btn {
+                flex: 1;
+                height: 44px;
+                font-size: 13px;
+                letter-spacing: 1px;
+                opacity: 0.75;
+            }
+            .joystick {
+                width: 130px;
+                height: 130px;
+                border-radius: 50%;
+                border: 1px solid rgba(255, 102, 0, 0.28);
+                background: rgba(255, 102, 0, 0.04);
+                box-shadow: 0 0 24px rgba(255, 102, 0, 0.07), inset 0 0 30px rgba(0,0,0,0.35);
+                position: relative;
+                touch-action: none;
+                pointer-events: all;
+            }
+            .joystick-knob {
+                width: 52px;
+                height: 52px;
+                border-radius: 50%;
+                background: rgba(255, 102, 0, 0.14);
+                border: 1px solid rgba(255, 102, 0, 0.55);
+                box-shadow: 0 0 14px rgba(255, 102, 0, 0.22);
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                pointer-events: none;
+                transition: transform 0.12s ease-out;
+            }
+            .js-n, .js-s, .js-w, .js-e {
+                position: absolute;
+                color: rgba(255, 102, 0, 0.28);
+                font-size: 11px;
+                font-family: monospace;
+                font-weight: bold;
+                pointer-events: none;
+                line-height: 1;
+            }
+            .js-n { top: 7px;    left: 50%; transform: translateX(-50%); }
+            .js-s { bottom: 7px; left: 50%; transform: translateX(-50%); }
+            .js-w { left: 7px;   top: 50%;  transform: translateY(-50%); }
+            .js-e { right: 7px;  top: 50%;  transform: translateY(-50%); }
             .touch-btn {
                 background: rgba(255, 102, 0, 0.06);
                 border: 1px solid rgba(255, 102, 0, 0.25);
@@ -975,25 +1034,21 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="touch-controls">
-            <div class="touch-pad" id="touch-pad-left">
-                <!-- row 1: Q · E -->
-                <button class="touch-btn" data-key="KeyQ" style="grid-area: 1/1">Q</button>
-                <button class="touch-btn" data-key="KeyE" style="grid-area: 1/3">E</button>
-                <!-- row 2: · W · -->
-                <button class="touch-btn" data-key="KeyW" style="grid-area: 2/2">▲</button>
-                <!-- row 3: A S D -->
-                <button class="touch-btn" data-key="KeyA" style="grid-area: 3/1">◀</button>
-                <button class="touch-btn" data-key="KeyS" style="grid-area: 3/2">▼</button>
-                <button class="touch-btn" data-key="KeyD" style="grid-area: 3/3">▶</button>
+            <div id="touch-pad-left">
+                <div id="touch-winch">
+                    <button class="touch-btn touch-winch-btn" data-key="KeyQ">Q ↑</button>
+                    <button class="touch-btn touch-winch-btn" data-key="KeyE">E ↓</button>
+                </div>
+                <div class="joystick" id="joystick-left">
+                    <span class="js-n">W</span><span class="js-s">S</span>
+                    <span class="js-w">A</span><span class="js-e">D</span>
+                    <div class="joystick-knob"></div>
+                </div>
             </div>
-            <div class="touch-pad" id="touch-pad-right">
-                <!-- row 1: · ↑ · -->
-                <button class="touch-btn" data-key="ArrowUp" style="grid-area: 1/2">▲</button>
-                <!-- row 2: ← · → -->
-                <button class="touch-btn" data-key="ArrowLeft" style="grid-area: 2/1">◀</button>
-                <button class="touch-btn" data-key="ArrowRight" style="grid-area: 2/3">▶</button>
-                <!-- row 3: · ↓ · -->
-                <button class="touch-btn" data-key="ArrowDown" style="grid-area: 3/2">▼</button>
+            <div class="joystick" id="joystick-right">
+                <span class="js-n">▲</span><span class="js-s">▼</span>
+                <span class="js-w">◀</span><span class="js-e">▶</span>
+                <div class="joystick-knob"></div>
             </div>
         </div>
 
