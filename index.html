@@ -544,7 +544,10 @@
                 justify-content: center;
                 align-items: center;
                 z-index: 200;
-                overflow: hidden;
+                overflow-x: hidden;
+                overflow-y: auto;
+                padding: 24px 0;
+                box-sizing: border-box;
                 cursor: default;
             }
             #credits-canvas {
@@ -780,6 +783,10 @@
                 .grid-container,
                 .campaign-grid {
                     width: min(1100px, 92vw);
+                }
+                #heli-options {
+                    width: min(900px, 92vw) !important;
+                    grid-template-columns: repeat(3, 1fr) !important;
                 }
                 #heli-info-stage {
                     width: min(1100px, 92vw);
