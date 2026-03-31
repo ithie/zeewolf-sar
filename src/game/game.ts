@@ -782,7 +782,29 @@ function handleParticles(dt: number) {
     const gH = getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
     const rotors = getRotorPositions();
     if (G.heli.rotorRPM > 0.8) {
-        if (G.heli.z < 2.5 && gH > 0.1) {
+        if (_partyMode) {
+            // confetti: 3 colourful dots per rotor, fly upward and outward
+            rotors.forEach(rotor => {
+                for (let i = 0; i < 3; i++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const col = _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
+                    const r = parseInt(col.slice(1,3),16), g2 = parseInt(col.slice(3,5),16), b = parseInt(col.slice(5,7),16);
+                    G.particles.push({
+                        x: rotor.x + Math.cos(a) * 0.5,
+                        y: rotor.y + Math.sin(a) * 0.5,
+                        z: G.heli.z - 0.3 + Math.random() * 0.6,
+                        vx: Math.cos(a) * 0.12,
+                        vy: Math.sin(a) * 0.12,
+                        vz: 0.02 + Math.random() * 0.06,
+                        gravity: -0.003,
+                        size: 2,
+                        life: 0.8 + Math.random() * 0.4,
+                        color: `${r}, ${g2}, ${b}`,
+                        isConfetti: true,
+                    });
+                }
+            });
+        } else if (G.heli.z < 2.5 && gH > 0.1) {
             rotors.forEach(rotor => {
                 const a = Math.random() * Math.PI * 2;
                 G.particles.push({
@@ -812,6 +834,30 @@ function handleParticles(dt: number) {
             });
         }
     }
+    // party: trees shoot confetti upward, drifting with wind
+    if (_partyMode && G.TREES_MAP && G.TREES_MAP.length > 0) {
+        const emit = Math.min(4, Math.ceil(G.TREES_MAP.length / 8));
+        for (let i = 0; i < emit; i++) {
+            const t = G.TREES_MAP[Math.floor(Math.random() * G.TREES_MAP.length)];
+            const topZ = (t.gz ?? 0) + (t.s ?? 1) * 2.2;
+            const col = _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
+            const [pr, pg, pb] = [parseInt(col.slice(1,3),16), parseInt(col.slice(3,5),16), parseInt(col.slice(5,7),16)];
+            G.particles.push({
+                x: t.x + (Math.random() - 0.5) * 0.4,
+                y: t.y + (Math.random() - 0.5) * 0.4,
+                z: topZ,
+                vx: G.wind.x * 0.4 + (Math.random() - 0.5) * 0.03,
+                vy: G.wind.y * 0.4 + (Math.random() - 0.5) * 0.03,
+                vz: 0.04 + Math.random() * 0.05,
+                gravity: -0.004,
+                size: 2,
+                life: 1.0 + Math.random() * 0.5,
+                color: `${pr}, ${pg}, ${pb}`,
+                isConfetti: true,
+            });
+        }
+    }
+
     G.particles.forEach(p => {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
@@ -1129,6 +1175,10 @@ function updatePhysics(dt: number) {
 
     G.heli.vx *= Math.pow(G.heli.friction, dt);
     G.heli.vy *= Math.pow(G.heli.friction, dt);
+    if (!inAir) {
+        G.heli.vx = 0;
+        G.heli.vy = 0;
+    }
     G.heli.x += G.heli.vx * dt;
     G.heli.y += G.heli.vy * dt;
     G.heli.z += G.heli.vz * dt;
@@ -1336,6 +1386,8 @@ function missionComplete() {
     successEl.style.display = 'flex';
     successEl.onclick = () => {
         successEl.style.display = 'none';
+        if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+        _partyMode = false;
         zstate.gameStarted = false;
         setTouchVisible(false);
         zstate.crashed = false;
@@ -1726,6 +1778,11 @@ function drawScene() {
                 fill = isPad ? '#444' : h[0] > 0 ? `rgb(${c - 10},${c + 30},${c - 10})` : '#003d7a';
                 if (rain && h[0] < 0) fill = '#002244';
             }
+            if (_partyMode && !isNight && !isPad) {
+                const tileOffset = Math.abs(x * 173 + y * 251) % 800;
+                const phase = Math.floor((Date.now() + tileOffset * 320) / 280);
+                fill = _PARTY_PALETTE[phase % _PARTY_PALETTE.length];
+            }
             ctx.fillStyle = fill;
             ctx.beginPath();
             ctx.moveTo(p[0].x, p[0].y);
@@ -1757,7 +1814,7 @@ function drawScene() {
 
     // Test-Bäume
     G.TREES_MAP.forEach(t => {
-        if (isVisible(t.x, t.y, 14)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind);
+        if (isVisible(t.x, t.y, 14)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, _partyMode && t.type !== 'dead');
     });
 
     // Vögel
@@ -1800,6 +1857,9 @@ function drawScene() {
         } else if (p.isMetal) {
             ctx.fillStyle = `rgb(${p.color})`;
             ctx.fillRect(pos.x - 1.5, pos.y - 1.5, 3, 3);
+        } else if (p.isConfetti) {
+            ctx.fillStyle = `rgb(${p.color})`;
+            ctx.fillRect(pos.x - 2, pos.y - 2, 4, 4);
         } else {
             ctx.fillStyle = `rgb(${p.color})`;
             ctx.beginPath();
@@ -1842,9 +1902,11 @@ function drawScene() {
             const winchTipZ = G.activePayload
                 ? G.activePayload.z + (G.activePayload.type === 'person' ? 0.35 : 0)
                 : Math.max(getGround(rs.x, rs.y), G.heli.z - G.heli.winch);
-            drawPerson(rs.x, rs.y, winchTipZ, 0, false, camX, camY, 'rescuer');
+            drawPerson(rs.x, rs.y, winchTipZ, 0, false, camX, camY, 'rescuer',
+                _partyMode ? { shirt: '#ffffff', pants: '#ffffff' } : undefined);
         }
 
+        if (_partyMode && Math.floor(Date.now() / 80) % 2 === 0) _refreshPartyColors();
         drawHeli(
             G.heli.type,
             G.heli.x,
@@ -1856,7 +1918,10 @@ function drawScene() {
             G.heli.rotationPos,
             camX,
             camY,
-            { shadowGetGround: (x, y) => getGround(x, y) }
+            {
+                shadowGetGround: (x, y) => getGround(x, y),
+                ...(_partyMode ? { fillColor: _partyColors[0], strokeColor: _partyColors[1] } : {}),
+            }
         );
 
         renderRain();
@@ -1967,9 +2032,82 @@ function drawScene() {
         ctx.textAlign = 'left';
     }
 
+    if (_partyMode) drawDiscoBall();
+
     requestAnimationFrame(drawScene);
 }
 
+const _drawDiscoBall = (() => {
+    // Pre-bake tile positions so we don't recompute every frame
+    type Tile = { row: number; col: number; phi: number; basePhi: number; ringR: number; tileW: number; tileH: number };
+    let _tiles: Tile[] = [];
+    const ROWS = 9, BASE_COLS = 14, R = 38;
+    for (let row = 0; row < ROWS; row++) {
+        const phi = ((row + 0.5) / ROWS) * Math.PI;
+        const ringR = Math.sin(phi);
+        const cols = Math.max(4, Math.round(BASE_COLS * ringR));
+        for (let col = 0; col < cols; col++) {
+            _tiles.push({ row, col, phi, basePhi: (col / cols) * Math.PI * 2, ringR, tileW: R * 0.22 * ringR, tileH: R * 0.16 });
+        }
+    }
+    return () => {
+        const w = canvas.width, h = canvas.height;
+        const cx = w / 2, cy = R + 12;
+        const t = Date.now() / 1000;
+
+        ctx.save();
+
+        // String
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, cy - R); ctx.stroke();
+
+        // Reflection spots scattered across the canvas
+        for (let i = 0; i < 18; i++) {
+            const angle = (i / 18) * Math.PI * 2 + t * 0.6;
+            const dist = 80 + i * 28;
+            const sx = cx + Math.cos(angle + Math.sin(t * 0.4 + i)) * dist * (w / 800);
+            const sy = cy + Math.sin(angle * 1.3 + t * 0.3) * dist * 0.9;
+            if (sx < 0 || sx > w || sy < 0 || sy > h) continue;
+            const col = _PARTY_PALETTE[(i + Math.floor(t * 3)) % _PARTY_PALETTE.length];
+            ctx.globalAlpha = 0.18 + 0.12 * Math.sin(t * 4 + i);
+            ctx.fillStyle = col;
+            ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Ball body
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+
+        // Mirror tiles
+        _tiles.forEach(({ row, basePhi, phi, ringR, tileW, tileH }) => {
+            const theta = basePhi + t * 1.1;
+            const z3d = ringR * Math.sin(theta);
+            if (z3d < 0) return; // back face culling
+            const x3d = ringR * Math.cos(theta);
+            const sx = cx + x3d * R;
+            const sy = cy - Math.cos(phi) * R;
+            const brightness = 0.3 + z3d * 0.7;
+            const colorIdx = Math.abs(row * 5 + Math.floor(basePhi * 3) + Math.floor(t * 5)) % _PARTY_PALETTE.length;
+            ctx.globalAlpha = brightness;
+            ctx.fillStyle = _PARTY_PALETTE[colorIdx];
+            ctx.fillRect(sx - tileW / 2, sy - tileH / 2, tileW, tileH);
+        });
+
+        // Highlight gloss
+        ctx.globalAlpha = 1;
+        const hl = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.35, 0, cx, cy, R);
+        hl.addColorStop(0, 'rgba(255,255,255,0.55)');
+        hl.addColorStop(0.4, 'rgba(255,255,255,0.05)');
+        hl.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = hl;
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+
+        ctx.restore();
+    };
+})();
+const drawDiscoBall = _drawDiscoBall;
 
 // ─── draw all G.payloads ───────────────────────────────────────────────────────
 function drawPayloadObjects(hangingOnly = false, ropeOnly = false) {
@@ -2879,7 +3017,32 @@ function backFromHeliSelect() {
 
 buildHeliSelect('normal'); // initial build for splash screen background
 
-window.onkeydown = e => (G.keys[e.code] = true);
+let _partyMode = false;
+let _partySeq = '';
+let _partyColors: string[] = [];
+const _PARTY_PALETTE = [
+    '#ff0044','#ff6600','#ffcc00','#00ff88','#00ccff','#cc44ff','#ff44cc','#44ffcc',
+];
+const _randomPartyColor = () => _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
+const _refreshPartyColors = () => { _partyColors = Array.from({ length: 8 }, _randomPartyColor); };
+
+window.onkeydown = e => {
+    G.keys[e.code] = true;
+    if (zstate.gameStarted && !zstate.introActive) {
+        _partySeq = (_partySeq + e.key.toUpperCase()).slice(-5);
+        if (_partySeq === 'PARTY') {
+            _partyMode = !_partyMode;
+            _partySeq = '';
+            if (_partyMode) {
+                _refreshPartyColors();
+                showMsg('🎉 PARTY MODE 🎉');
+                soundHandler.play('partytime', true);
+            } else {
+                soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+            }
+        }
+    }
+};
 window.onkeyup = e => (G.keys[e.code] = false);
 document.addEventListener('selectstart', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());

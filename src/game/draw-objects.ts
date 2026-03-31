@@ -104,7 +104,15 @@ export function createDrawObjects(
         gz = 0,
         type = 'pine',
         wind: WindState = { x: 0, y: 0, phase: 0 },
+        partyMode = false,
     ) {
+        const _PARTY_GREENS = ['#00ff44','#44ff00','#88ff00','#33ff33','#00ff88','#66ff22','#00cc44','#aaff00'];
+        const _treeSpeed = 0.0008 + (Math.abs(Math.round(tX * 7 + tY * 13)) % 7) * 0.00022;
+        const _treeOff   = Math.abs(tX * 31 + tY * 17) % 80;
+        const _pg = (z: number) =>
+            _PARTY_GREENS[Math.floor(Date.now() * _treeSpeed + z * 5 + _treeOff) % _PARTY_GREENS.length];
+        const _pgDark = (z: number) =>
+            _PARTY_GREENS[Math.floor(Date.now() * _treeSpeed + z * 5 + _treeOff + 3) % _PARTY_GREENS.length];
         if (gz < 0.05) gz = 0.05;
         const z0 = gz;
         const trunkH = 0.5 * scale;
@@ -140,11 +148,11 @@ export function createDrawObjects(
                     const p = iso(tX, tY, cz, cx, cy);
                     const ox = swayX * l.sway * (1 - t * 0.5);
                     const oy = swayY * l.sway * (1 - t * 0.5);
-                    ctx.fillStyle = l.shadow;
+                    ctx.fillStyle = partyMode ? _pgDark(cz) : l.shadow;
                     ctx.beginPath();
                     ctx.ellipse(p.x + ox + 2, p.y + oy + 1, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillStyle = l.color;
+                    ctx.fillStyle = partyMode ? _pg(cz) : l.color;
                     ctx.beginPath();
                     ctx.ellipse(p.x + ox, p.y + oy, (r * tileW) / 2, (r * tileH) / 2, 0, 0, Math.PI * 2);
                     ctx.fill();
@@ -163,11 +171,12 @@ export function createDrawObjects(
             ].forEach(blob => {
                 const p = iso(tX + blob.dx * 0.3, tY, crownZ + blob.dz, cx, cy);
                 const ox = sw + blob.dx * 10, oy = sh;
-                ctx.fillStyle = blob.scol;
+                const _bz = crownZ + blob.dz;
+                ctx.fillStyle = partyMode ? _pgDark(_bz) : blob.scol;
                 ctx.beginPath();
                 ctx.ellipse(p.x + ox + 3, p.y + oy + 2, (blob.r * tileW) / 2, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillStyle = blob.col;
+                ctx.fillStyle = partyMode ? _pg(_bz) : blob.col;
                 ctx.beginPath();
                 ctx.ellipse(p.x + ox, p.y + oy, (blob.r * tileW) / 2, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
                 ctx.fill();
@@ -182,7 +191,7 @@ export function createDrawObjects(
             ].forEach(blob => {
                 const p = iso(tX + blob.dx * 0.4, tY, bz + blob.dz * scale, cx, cy);
                 const ox = swayX * 0.4, oy = swayY * 0.4;
-                ctx.fillStyle = blob.col;
+                ctx.fillStyle = partyMode ? _pg(bz + blob.dz * scale) : blob.col;
                 ctx.beginPath();
                 ctx.ellipse(p.x + ox, p.y + oy, ((blob.r * tileW) / 2) * 1.3, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
                 ctx.fill();
@@ -249,11 +258,24 @@ export function createDrawObjects(
         ctx.arc(drawX, headY, headR, 0, Math.PI * 2);
         ctx.fill();
         if (isRescuer) {
-            ctx.strokeStyle = '#111';
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.arc(drawX, headY, headR, Math.PI * 0.9, Math.PI * 0.1, false);
-            ctx.stroke();
+            const isTravolta = colorShirt === '#ffffff';
+            if (isTravolta) {
+                // Black lapels — Saturday Night Fever suit
+                ctx.fillStyle = '#111';
+                ctx.beginPath();
+                ctx.moveTo(drawX, torsoY + 1);
+                ctx.lineTo(drawX - 2, torsoY + 4);
+                ctx.lineTo(drawX, torsoY + 3);
+                ctx.lineTo(drawX + 2, torsoY + 4);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.strokeStyle = '#111';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.arc(drawX, headY, headR, Math.PI * 0.9, Math.PI * 0.1, false);
+                ctx.stroke();
+            }
         }
         if (isWaving) {
             const waveOffset = Math.sin(Date.now() * 0.015) * 3;

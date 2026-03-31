@@ -99,8 +99,12 @@
         <option value="dolphin">Dolphin (MH-65)</option>
         <option value="chinook">Chinook (CH-47)</option>
         <option value="glider">Glider (ASK-21)</option>
+        <option value="bo105">Bo-105</option>
         <option value="carrier_hull">Carrier Hull</option>
         <option value="carrier_tower">Carrier Tower</option>
+        <option value="fuel_truck_chassis">Fuel Truck (Chassis)</option>
+        <option value="fuel_truck_tank">Fuel Truck (Tank)</option>
+        <option value="fuel_truck_cab">Fuel Truck (Cab)</option>
       </select>
       <div class="row" style="margin-top:5px">
         <label>ID:</label>
@@ -217,6 +221,7 @@ import CHINOOK_DEF from '/src/game/models/chinook.zdef';
 import GLIDER_DEF from '/src/game/models/glider.zdef';
 import CARRIER_HULL_DEF from '/src/game/models/carrier_hull.zdef';
 import CARRIER_TOWER_DEF from '/src/game/models/carrier_tower.zdef';
+import BO105_DEF from '/src/game/models/bo105.zdef';
 import FUEL_TRUCK_CHASSIS_DEF from '/src/game/models/fuel_truck_chassis.zdef';
 import FUEL_TRUCK_TANK_DEF from '/src/game/models/fuel_truck_tank.zdef';
 import FUEL_TRUCK_CAB_DEF from '/src/game/models/fuel_truck_cab.zdef';
@@ -236,6 +241,7 @@ const PRESETS = {
   glider:        { def: GLIDER_DEF,        label: 'Glider (ASK-21)',  isStatic: false, movementType: 'plane' },
   carrier_hull:       { def: CARRIER_HULL_DEF,       label: 'Carrier Hull',          isStatic: false, movementType: 'ship' },
   carrier_tower:      { def: CARRIER_TOWER_DEF,      label: 'Carrier Tower',         isStatic: false, movementType: 'ship' },
+  bo105:              { def: BO105_DEF,              label: 'Bo-105',                isStatic: false, movementType: 'heli' },
   fuel_truck_chassis: { def: FUEL_TRUCK_CHASSIS_DEF, label: 'Fuel Truck (Chassis)',  isStatic: true,  movementType: 'none' },
   fuel_truck_tank:    { def: FUEL_TRUCK_TANK_DEF,    label: 'Fuel Truck (Tank)',     isStatic: true,  movementType: 'none' },
   fuel_truck_cab:     { def: FUEL_TRUCK_CAB_DEF,     label: 'Fuel Truck (Cab)',      isStatic: true,  movementType: 'none' },

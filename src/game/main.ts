@@ -18,6 +18,7 @@ import SoundFinal from './music/final.zsong';
 import SoundMaintheme from './music/maintheme.zsong';
 import SoundMenusound from './music/menusound.zsong';
 import SoundSpocktribute from './music/spocktribute.zsong';
+import SoundPartytime from './music/partytime.zsong';
 import { SongData } from '@/tracker/types';
 import MusicConfigJson from './music-config.json';
 
@@ -34,6 +35,7 @@ const soundHandler = (() => {
         maintheme:    SoundMaintheme,
         menusound:    SoundMenusound,
         spocktribute: SoundSpocktribute,
+        partytime:    SoundPartytime,
     };
 
     const state: { activeTheme: string; isMuted: boolean } = {
