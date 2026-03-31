@@ -1405,6 +1405,8 @@ function missionComplete() {
 }
 
 function returnToBase() {
+    if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    _partyMode = false;
     zstate.gameStarted = false;
     setTouchVisible(false);
     zstate.crashed = false;
@@ -3000,6 +3002,7 @@ function handleCollisionBoxes() {
 
 // ─── main menu ───────────────────────────────────────────────────────────────
 function toMainMenu() {
+    _partyMode = false;
     ['splash','campaign-select','heli-select','heli-info','credits-screen'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
