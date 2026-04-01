@@ -18,13 +18,13 @@ Physics-based flight, winch operations, dynamic weather, procedural terrain, car
 
 ## Controls
 
-| Key          | Action                                      |
-| ------------ | ------------------------------------------- |
-| W            | Start engine / Increase collective (ascend) |
-| S            | Decrease collective (descend) / Stop engine |
-| Arrow Keys   | Pitch & Roll                                |
-| A / D        | Yaw (turn left / right)                     |
-| Q / E        | Winch up / down                             |
+| Key        | Action                                      |
+| ---------- | ------------------------------------------- |
+| W          | Start engine / Increase collective (ascend) |
+| S          | Decrease collective (descend) / Stop engine |
+| Arrow Keys | Pitch & Roll                                |
+| A / D      | Yaw (turn left / right)                     |
+| Q / E      | Winch up / down                             |
 
 ---
 
@@ -33,9 +33,9 @@ Physics-based flight, winch operations, dynamic weather, procedural terrain, car
 - **Isometric renderer** with painter's-algorithm depth sorting, backface culling, and declarative geometry (DEF system)
 - **Physics-based flight** — inertia, tilt, wind drift, ground effect
 - **Three helicopters** with distinct handling profiles:
-  - *SA 365 Dauphin* — agile, lightweight, no cargo
-  - *MH-60T Jayhawk* — heavy-lift workhorse, cargo-capable
-  - *CH-47 Chinook* — tandem rotor, maximum capacity
+    - _SA 365 Dauphin_ — agile, lightweight, no cargo
+    - _MH-60T Jayhawk_ — heavy-lift workhorse, cargo-capable
+    - _CH-47 Chinook_ — tandem rotor, maximum capacity
 - **Winch & rescue** — lower a rescuer, pick up survivors, haul them to safety
 - **Cargo transport** — sling loads with pendulum physics
 - **Fuel management** — refuel at fuel trucks on carrier or pad

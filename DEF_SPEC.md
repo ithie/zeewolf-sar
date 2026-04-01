@@ -110,10 +110,10 @@ There is **no per-face sort within an instance** — this is intentional to pres
 
 ```typescript
 interface DEFInstance {
-    x: number;      // world position
+    x: number; // world position
     y: number;
-    z: number;      // world height offset (added to all face z coords)
-    angle: number;  // rotation in radians around Z axis
+    z: number; // world height offset (added to all face z coords)
+    angle: number; // rotation in radians around Z axis
     colors?: Record<string, string>; // face id → color override (see Palette System)
     drawFn?: (camX: number, camY: number) => void; // optional draw callback (see below)
 }
@@ -148,7 +148,10 @@ To share a single DEF across objects that differ only in color, pass a `colors` 
 
 ```javascript
 SceneRenderer.add(PERSON_DEF, {
-    x, y, z, angle,
+    x,
+    y,
+    z,
+    angle,
     colors: { suit: '#ff6600', pants: '#ff6600' }, // face id → color override
 });
 ```
@@ -163,7 +166,10 @@ For elements that cannot be expressed as static geometry — animated parts, spr
 
 ```javascript
 SceneRenderer.add(HELI_DEF, {
-    x, y, z, angle,
+    x,
+    y,
+    z,
+    angle,
     drawFn: (cx, cy) => drawRotors(x, y, z, angle, rotorAngle, cx, cy),
 });
 SceneRenderer.flush(camX, camY);
@@ -173,7 +179,10 @@ SceneRenderer.flush(camX, camY);
 
 ```javascript
 SceneRenderer.add(null, {
-    x, y, z: 0, angle: 0,
+    x,
+    y,
+    z: 0,
+    angle: 0,
     drawFn: (cx, cy) => drawTree(x, y, cx, cy, scale, wind, type),
 });
 ```

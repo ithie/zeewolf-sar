@@ -1,7 +1,10 @@
-const STORAGE_KEY = 'zeewolf_session';
+export const STORAGE_KEY = 'zeewolf_session';
+
+export const CONSENT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 
 export interface PlayerSession {
     cookieConsent: boolean | null;
+    consentTimestamp: number | null;  // Date.now() at time of consent
     playerName: string;
     campaignsDone: number;
     missionsDone: number;
@@ -23,8 +26,13 @@ export const RANKS: Rank[] = [
     { name: 'Major',        pips: '◆',     minCampaigns: 3, minMissions: 15 },
 ];
 
+export const isConsentExpired = (s: PlayerSession): boolean =>
+    s.cookieConsent !== null &&
+    (s.consentTimestamp === null || Date.now() - s.consentTimestamp > CONSENT_TTL_MS);
+
 const _default = (): PlayerSession => ({
     cookieConsent: null,
+    consentTimestamp: null,
     playerName: '',
     campaignsDone: 0,
     missionsDone: 0,

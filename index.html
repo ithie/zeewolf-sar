@@ -74,6 +74,12 @@
                 box-shadow: -8px 8px 40px rgba(0, 0, 0, 0.8);
                 z-index: 1;
             }
+            #briefing-address {
+                font-size: 13px;
+                color: #cc9900;
+                letter-spacing: 3px;
+                margin-bottom: 6px;
+            }
             #briefing-headline {
                 font-size: 28px;
                 color: #ff6600;
@@ -517,16 +523,18 @@
                 justify-content: center;
                 align-items: center;
                 z-index: 1000;
+                pointer-events: all;
             }
             #cookie-inner {
                 background: #080808;
                 border: 1px solid #2a2a2a;
                 border-top: 2px solid #cc9900;
-                padding: 32px 44px;
-                max-width: 460px;
+                padding: 28px 32px;
+                width: min(460px, calc(100vw - 32px));
+                box-sizing: border-box;
                 display: flex;
                 flex-direction: column;
-                gap: 16px;
+                gap: 14px;
                 font-size: 14px;
                 color: #777;
                 line-height: 1.75;
@@ -534,7 +542,8 @@
             }
             #cookie-buttons {
                 display: flex;
-                gap: 14px;
+                flex-wrap: wrap;
+                gap: 12px;
                 margin-top: 6px;
                 justify-content: center;
             }
@@ -591,6 +600,11 @@
                 font-weight: bold;
                 letter-spacing: 6px;
                 text-shadow: 0 0 24px rgba(255, 204, 0, 0.5);
+            }
+            #rankup-address {
+                font-size: 16px;
+                color: #aaa;
+                letter-spacing: 4px;
             }
             @keyframes rankup-pulse {
                 0%, 100% { transform: scale(1); }
@@ -1229,6 +1243,7 @@
             <div id="briefing-content">
                 <img id="briefing-map" src="" alt="Mission Map" />
                 <div id="briefing-text">
+                    <div id="briefing-address"></div>
                     <div id="briefing-headline"></div>
                     <div id="briefing-sublines"></div>
                     <div id="briefing-body"></div>
@@ -1298,6 +1313,10 @@
                 </div>
                 <div id="import-code-msg" style="font-size: 12px; letter-spacing: 2px; min-height: 18px; margin-top: 4px"></div>
             </div>
+            <div style="margin-top: 20px; border-top: 1px solid #1a1a2e; padding-top: 16px; width: 100%">
+                <button id="delete-session-btn" class="settings-btn" style="background: #1a0000; border-color: #500; color: #c44" onclick="deleteSessionData()">SPIELSTAND LÖSCHEN</button>
+                <div id="delete-session-msg" style="font-size: 12px; letter-spacing: 2px; color: #c44; min-height: 18px; margin-top: 6px"></div>
+            </div>
             <div class="back-btn" onclick="fromSettings()">&#9664; ZURÜCK</div>
         </div>
 
@@ -1306,6 +1325,7 @@
             <div id="rankup-label">BEFÖRDERUNG</div>
             <div id="rankup-badge"></div>
             <div id="rankup-title"></div>
+            <div id="rankup-address"></div>
             <p class="start-hint" style="color: #cc9900; margin-top: 10px">WEITER</p>
         </div>
 
@@ -1325,12 +1345,15 @@
                     oder an Dritte weitergegeben. Rechtsgrundlage: Art.&nbsp;6 Abs.&nbsp;1 lit.&nbsp;a DSGVO.
                 </p>
                 <p style="color: #444; font-size: 12px">
-                    Die Einwilligung kann jederzeit durch Löschen des Browser-Speichers (localStorage) widerrufen werden.
+                    Eine erteilte Einwilligung kann jederzeit durch Klicken auf
+                    <strong style="color: #555">„WIDERRUFEN & LÖSCHEN"</strong> widerrufen werden.
+                    Alle gespeicherten Daten werden dabei unwiderruflich gelöscht.
                     Das Spiel ist auch ohne Spielstand vollständig nutzbar.
                 </p>
                 <div id="cookie-buttons">
                     <button class="approve" onclick="approveCookies()">AKZEPTIEREN</button>
                     <button class="decline" onclick="declineCookies()">ABLEHNEN</button>
+                    <button class="decline" style="background: #1a0000; border-color: #500; color: #c44" onclick="confirmDeleteSession()">WIDERRUFEN & LÖSCHEN</button>
                 </div>
             </div>
         </div>

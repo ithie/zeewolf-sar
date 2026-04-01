@@ -14,11 +14,11 @@ npm run dev
 
 The Workbench consists of three layers:
 
-| Layer | Location | Description |
-| ----- | -------- | ----------- |
-| Main process | `workbench/main/index.ts` | Electron main — IPC handlers, dialogs, file I/O |
-| Preload | `workbench/main/preload.ts` | Exposes `window.workbench` API to renderer via contextBridge |
-| Renderer | `workbench/renderer/index.html` | UI shell — hosts iframes for editor, tracker, code editor |
+| Layer        | Location                        | Description                                                  |
+| ------------ | ------------------------------- | ------------------------------------------------------------ |
+| Main process | `workbench/main/index.ts`       | Electron main — IPC handlers, dialogs, file I/O              |
+| Preload      | `workbench/main/preload.ts`     | Exposes `window.workbench` API to renderer via contextBridge |
+| Renderer     | `workbench/renderer/index.html` | UI shell — hosts iframes for editor, tracker, code editor    |
 
 The renderer and all iframes are served from `http://localhost:5173` (Vite). Because they share the same origin, iframes can access `window.parent.workbench` directly.
 
@@ -106,20 +106,20 @@ Runs `git push` and returns stdout.
 
 The following IPC channels are registered in the main process. They are not called directly — use the `window.workbench` API instead.
 
-| Channel              | Description                                      |
-| -------------------- | ------------------------------------------------ |
-| `read-file`          | Read file relative to project root               |
-| `write-file`         | Write file relative to project root              |
-| `read-dir`           | List directory relative to project root          |
-| `show-open-dialog`   | Campaign open dialog                             |
-| `show-save-dialog`   | Campaign save dialog                             |
-| `save-campaign-file` | Write campaign + auto-register in main.ts        |
-| `show-open-song-dialog` | Song open dialog                              |
-| `show-save-song-dialog` | Song save dialog                              |
-| `git-branch`         | Get current branch                               |
-| `git-pull`           | Pull from remote                                 |
-| `git-commit`         | Stage all and commit                             |
-| `git-push`           | Push to remote                                   |
+| Channel                 | Description                               |
+| ----------------------- | ----------------------------------------- |
+| `read-file`             | Read file relative to project root        |
+| `write-file`            | Write file relative to project root       |
+| `read-dir`              | List directory relative to project root   |
+| `show-open-dialog`      | Campaign open dialog                      |
+| `show-save-dialog`      | Campaign save dialog                      |
+| `save-campaign-file`    | Write campaign + auto-register in main.ts |
+| `show-open-song-dialog` | Song open dialog                          |
+| `show-save-song-dialog` | Song save dialog                          |
+| `git-branch`            | Get current branch                        |
+| `git-pull`              | Pull from remote                          |
+| `git-commit`            | Stage all and commit                      |
+| `git-push`              | Push to remote                            |
 
 ---
 
@@ -144,12 +144,12 @@ Each music dropdown has a ▶ play button to preview the selected song in the br
 
 A dedicated tab for assigning background music to global game screens. Changes are saved to `src/game/music-config.json`.
 
-| Screen      | Config key  | Default      |
-| ----------- | ----------- | ------------ |
-| Hauptmenü   | `mainMenu`  | `maintheme`  |
-| Credits     | `credits`   | (none)       |
-| Erfolg      | `success`   | `final`      |
-| Niederlage  | `defeat`    | `final`      |
+| Screen     | Config key | Default     |
+| ---------- | ---------- | ----------- |
+| Hauptmenü  | `mainMenu` | `maintheme` |
+| Credits    | `credits`  | (none)      |
+| Erfolg     | `success`  | `final`     |
+| Niederlage | `defeat`   | `final`     |
 
 Each screen shows a color-coded canvas preview and a song dropdown. The dropdown is populated from all `.zsong` files in `src/game/music/`. Each row has ▶ and ■ buttons for live preview (requires the Vite dev server).
 

@@ -16,7 +16,9 @@ declare global {
         approveCookies:     () => void;
         declineCookies:     () => void;
         dismissRankUp:      () => void;
-        applySaveCode:      () => void;
+        applySaveCode:          () => void;
+        deleteSessionData:      () => void;
+        confirmDeleteSession:   () => void;
     }
 }
 

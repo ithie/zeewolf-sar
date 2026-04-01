@@ -1,4 +1,4 @@
-import { CampaignExport } from '@/shared/types';
+import { CampaignExport, MissionData } from '@/shared/types';
 import { COMMANDER_SVG } from './commander-svg';
 
 document.getElementById('briefing-commander-img')!.innerHTML = COMMANDER_SVG;
@@ -114,7 +114,7 @@ const createCampaignHandler = () => {
         campaignState.activeMission = index;
     };
 
-    const getCurrentMissionData = () => {
+    const getCurrentMissionData = (): MissionData => {
         const missionData = campaigns[campaignState.activeCampaign].levels[campaignState.activeMission];
         return { ...missionData, campaignType: campaigns[campaignState.activeCampaign].type };
     };
@@ -151,7 +151,7 @@ export const campaignHandler = createCampaignHandler();
 export { soundHandler };
 export const zinit = () => {
     const handle = (key: string, visibility: 'flex' | 'none') => {
-        document.getElementById(key).style.display = visibility;
+        document.getElementById(key)!.style.display = visibility;
     };
     const muteUnmute = document.getElementById('audio-mute');
     if (!muteUnmute) {

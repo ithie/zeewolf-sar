@@ -1,5 +1,33 @@
 # Changelog
 
+## v23.2 — Data Deletion
+
+### New
+
+- **Delete save state**: Settings screen now includes a "SPIELSTAND LÖSCHEN" button with a two-step confirmation; deletes all localStorage data and reloads the page
+- **Revoke & delete in cookie banner**: Cookie banner now includes a "WIDERRUFEN & LÖSCHEN" button for explicit, direct withdrawal of consent and deletion of stored data — no longer requires navigating browser settings
+- Cookie banner withdrawal text updated to reference the in-app button instead of browser storage
+
+### Technical
+
+- New i18n strings: `DELETE_SESSION`, `DELETE_CONFIRM`, `SESSION_DELETED`
+- `deleteSessionData()` / `confirmDeleteSession()` exposed on `window`
+- Full TypeScript compliance: all ~210 previously unreported type errors resolved (implicit `any` parameters, DOM null assertions, CSS string types, missing `Mission` interface fields)
+
+---
+
+## v23.1 — Privacy Fixes
+
+### Fixes
+
+- **Cookie consent**: declining now clears localStorage immediately
+- **Consent expiry**: banner re-appears after 2 weeks (TTL stored as timestamp)
+- **Cookie banner**: no longer click-through; responsive on small screens
+- **Tutorial unlock**: completing the tutorial now correctly unlocks the next campaign
+- Party mode now resets correctly on all mission-end paths (was missing failure/abort)
+
+---
+
 ## v23 — Party & Progression
 
 ### New
@@ -33,7 +61,7 @@
 - Rescuer wears a white suit (John Travolta / Night Fever)
 - Trees and bushes flash in random greens, colour waves upward per height layer
 - Helipad stays grey
-- Custom music: *Stayin' Alive*-inspired ZSynth track
+- Custom music: _Stayin' Alive_-inspired ZSynth track
 - Resets on mission end (success or failure)
 
 #### Bo-105 Model
@@ -54,9 +82,3 @@
 - Global window type declarations in `src/game/window.d.ts`
 - App version injected from `package.json` via Vite `define`; splash screen reads version dynamically
 - Documentation: [`docs/SESSION_SYSTEM.md`](./docs/SESSION_SYSTEM.md)
-
----
-
-## v1–v22
-
-No changelog available for earlier versions.

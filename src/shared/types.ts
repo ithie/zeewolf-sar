@@ -25,16 +25,26 @@ export type Objective =
     | { type: 'rescue_all' }
     | { type: 'land_at'; target: 'pad' | 'carrier' | 'boat' };
 
+export type MissionPayload = {
+    type: 'person' | 'crate';
+    x: number;
+    y: number;
+    attachTo?: { objectType: 'carrier' | 'boat'; objectIdx: number };
+    npcTarget?: boolean;
+};
+
 export interface Mission {
     headline: string;
+    sublines?: string[];
     briefing: string;
+    previewBase64?: string;
     gridSize: number;
     terrain: number[][];
 
     spawnObject: 'pad' | 'carrier';
     objectives: Objective[];
     objects: MissionObject[];
-    payloads: { type: 'person' | 'crate'; x: number; y: number }[];
+    payloads: MissionPayload[];
     foliage: { x: number; y: number; s: number; type: string }[];
 
     rain: boolean;
@@ -44,12 +54,23 @@ export interface Mission {
     windVar: boolean;
 }
 
+export type MissionData = Omit<Mission, 'terrain' | 'foliage'> & {
+    terrain: string;
+    gridSize: number;
+    foliage: string | { x: number; y: number; s: number; type: string }[];
+    campaignType: string;
+};
+
 export interface CampaignExport {
     type: string;
     campaignTitle: string;
     campaignSublines: string[];
     music?: { briefing?: string; ingame?: string };
-    levels: Omit<Mission, 'terrain'> & { terrain: string; gridSize: number }[];
+    levels: (Omit<Mission, 'terrain' | 'foliage'> & {
+        terrain: string;
+        gridSize: number;
+        foliage: string | { x: number; y: number; s: number; type: string }[];
+    })[];
 }
 
 export interface Vector3 {

@@ -47,39 +47,39 @@ bpm 110
 
 ### Drum track
 
-| Field | Range  | Description      |
-| ----- | ------ | ---------------- |
-| `vol` | 0–100  | Volume (percent) |
+| Field | Range | Description      |
+| ----- | ----- | ---------------- |
+| `vol` | 0–100 | Volume (percent) |
 
 ### Synth track
 
-| Field     | Description                                                |
-| --------- | ---------------------------------------------------------- |
-| `vol`     | Volume 0–100                                               |
-| `wave`    | `sawtooth` · `square` · `sine` · `triangle`                |
-| `filter`  | Lowpass cutoff frequency in Hz                             |
-| `inst`    | Instrument preset key, or `custom` for manual settings     |
-| `attack`  | Envelope attack in seconds (0.001–0.3)                     |
-| `release` | Envelope release in seconds (0.05–1.5)                     |
-| `detune`  | Detune in cents (0–25), adds a detuned second voice        |
+| Field     | Description                                            |
+| --------- | ------------------------------------------------------ |
+| `vol`     | Volume 0–100                                           |
+| `wave`    | `sawtooth` · `square` · `sine` · `triangle`            |
+| `filter`  | Lowpass cutoff frequency in Hz                         |
+| `inst`    | Instrument preset key, or `custom` for manual settings |
+| `attack`  | Envelope attack in seconds (0.001–0.3)                 |
+| `release` | Envelope release in seconds (0.05–1.5)                 |
+| `detune`  | Detune in cents (0–25), adds a detuned second voice    |
 
 ---
 
 ## Instrument Presets
 
-| Key           | Label        | Wave      | Filter  |
-| ------------- | ------------ | --------- | ------- |
-| `lead_square` | LEAD Square  | square    | 2500 Hz |
-| `lead_saw`    | LEAD Saw     | sawtooth  | 3000 Hz |
-| `supersaw`    | SUPERSAW     | sawtooth  | 4000 Hz |
-| `bass_deep`   | BASS Deep    | sine      | 400 Hz  |
-| `bass_gritty` | BASS Gritty  | sawtooth  | 600 Hz  |
-| `bass_wobble` | BASS Wobble  | sawtooth  | 500 Hz  |
-| `pluck`       | PLUCK        | square    | 1200 Hz |
-| `pad_warm`    | PAD Warm     | triangle  | 1800 Hz |
-| `pad_cold`    | PAD Cold     | square    | 1500 Hz |
-| `arp_bright`  | ARP Bright   | square    | 3500 Hz |
-| `organ`       | ORGAN        | sine      | 5000 Hz |
+| Key           | Label       | Wave     | Filter  |
+| ------------- | ----------- | -------- | ------- |
+| `lead_square` | LEAD Square | square   | 2500 Hz |
+| `lead_saw`    | LEAD Saw    | sawtooth | 3000 Hz |
+| `supersaw`    | SUPERSAW    | sawtooth | 4000 Hz |
+| `bass_deep`   | BASS Deep   | sine     | 400 Hz  |
+| `bass_gritty` | BASS Gritty | sawtooth | 600 Hz  |
+| `bass_wobble` | BASS Wobble | sawtooth | 500 Hz  |
+| `pluck`       | PLUCK       | square   | 1200 Hz |
+| `pad_warm`    | PAD Warm    | triangle | 1800 Hz |
+| `pad_cold`    | PAD Cold    | square   | 1500 Hz |
+| `arp_bright`  | ARP Bright  | square   | 3500 Hz |
+| `organ`       | ORGAN       | sine     | 5000 Hz |
 
 Selecting a preset overwrites `wave`, `filter`, `attack`, `release`, and `detune`. Setting any of those manually afterwards switches the instrument dropdown to `"custom"`.
 
@@ -96,7 +96,7 @@ const songList: Record<string, SongData> = {
     maintheme: SoundMaintheme,
     clike: SoundClike,
     final: SoundFinal,
-    mysong: MySong,         // ← add here
+    mysong: MySong, // ← add here
 };
 ```
 

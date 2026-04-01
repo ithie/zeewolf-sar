@@ -17,13 +17,13 @@ Campaigns are stored as JSON in `src/game/campaigns/`. Each file contains one ca
 }
 ```
 
-| Field              | Type     | Description                                           |
-| ------------------ | -------- | ----------------------------------------------------- |
-| `type`             | string   | Internal identifier (used for routing)                |
-| `campaignTitle`    | string   | Displayed title on the campaign select screen         |
-| `campaignSublines` | string[] | Subtitle lines shown below the title                  |
-| `music`            | object   | Optional. Per-campaign music assignments (see below)  |
-| `levels`           | array    | Ordered list of mission levels                        |
+| Field              | Type     | Description                                          |
+| ------------------ | -------- | ---------------------------------------------------- |
+| `type`             | string   | Internal identifier (used for routing)               |
+| `campaignTitle`    | string   | Displayed title on the campaign select screen        |
+| `campaignSublines` | string[] | Subtitle lines shown below the title                 |
+| `music`            | object   | Optional. Per-campaign music assignments (see below) |
+| `levels`           | array    | Ordered list of mission levels                       |
 
 ---
 
@@ -38,10 +38,10 @@ The optional `music` field assigns songs to specific campaign phases. Both sub-f
 }
 ```
 
-| Field      | Type   | Description                                                    |
-| ---------- | ------ | -------------------------------------------------------------- |
-| `briefing` | string | Song key to start when the mission briefing screen is shown    |
-| `ingame`   | string | Song key to start when the mission itself begins               |
+| Field      | Type   | Description                                                 |
+| ---------- | ------ | ----------------------------------------------------------- |
+| `briefing` | string | Song key to start when the mission briefing screen is shown |
+| `ingame`   | string | Song key to start when the mission itself begins            |
 
 Song keys correspond to filenames (without `.json`) in `src/game/music/`. The Workbench Campaign Editor exposes dropdowns for both fields.
 
@@ -69,21 +69,21 @@ Each entry in `levels` describes one playable mission.
 }
 ```
 
-| Field         | Type    | Description                                                   |
-| ------------- | ------- | ------------------------------------------------------------- |
-| `headline`    | string  | Mission title shown in briefing                               |
-| `briefing`    | string  | Briefing text                                                 |
-| `gridSize`    | number  | Width and height of the terrain grid in tiles                 |
-| `terrain`     | string  | Run-length encoded elevation data (see below)                 |
-| `spawnObject` | string  | Where the helicopter spawns: `"pad"` or `"carrier"`           |
-| `objects`     | array   | Placed scene objects (pads, carriers, boats, lighthouses)     |
-| `payloads`    | array   | Rescue targets (persons or crates)                            |
-| `foliage`     | array   | Decorative vegetation                                         |
-| `rain`        | boolean | Rain effect active                                            |
-| `night`       | boolean | Night mode active                                             |
-| `windDir`     | number  | Wind direction in degrees (0 = North, 90 = East)              |
-| `windStr`     | number  | Wind strength (0 = calm, higher = stronger)                   |
-| `windVar`     | boolean | Randomly varying wind                                         |
+| Field         | Type    | Description                                               |
+| ------------- | ------- | --------------------------------------------------------- |
+| `headline`    | string  | Mission title shown in briefing                           |
+| `briefing`    | string  | Briefing text                                             |
+| `gridSize`    | number  | Width and height of the terrain grid in tiles             |
+| `terrain`     | string  | Run-length encoded elevation data (see below)             |
+| `spawnObject` | string  | Where the helicopter spawns: `"pad"` or `"carrier"`       |
+| `objects`     | array   | Placed scene objects (pads, carriers, boats, lighthouses) |
+| `payloads`    | array   | Rescue targets (persons or crates)                        |
+| `foliage`     | array   | Decorative vegetation                                     |
+| `rain`        | boolean | Rain effect active                                        |
+| `night`       | boolean | Night mode active                                         |
+| `windDir`     | number  | Wind direction in degrees (0 = North, 90 = East)          |
+| `windStr`     | number  | Wind strength (0 = calm, higher = stronger)               |
+| `windVar`     | boolean | Randomly varying wind                                     |
 
 ---
 
@@ -115,23 +115,23 @@ Landing and spawn point for the helicopter.
 
 ```json
 {
-  "type":   "carrier",
-  "x":      40,
-  "y":      60,
-  "angle":  0,
-  "path":   "circle",
-  "speed":  0.5,
-  "radius": 15
+    "type": "carrier",
+    "x": 40,
+    "y": 60,
+    "angle": 0,
+    "path": "circle",
+    "speed": 0.5,
+    "radius": 15
 }
 ```
 
-| Field    | Type   | Description                                          |
-| -------- | ------ | ---------------------------------------------------- |
-| `x`, `y` | number | Starting grid position                               |
-| `angle`  | number | Initial heading in degrees                           |
+| Field    | Type   | Description                                              |
+| -------- | ------ | -------------------------------------------------------- |
+| `x`, `y` | number | Starting grid position                                   |
+| `angle`  | number | Initial heading in degrees                               |
 | `path`   | string | Movement pattern: `"circle"` · `"straight"` · `"static"` |
-| `speed`  | number | Movement speed                                       |
-| `radius` | number | Circle radius (for `"circle"` path)                  |
+| `speed`  | number | Movement speed                                           |
+| `radius` | number | Circle radius (for `"circle"` path)                      |
 
 ### Boat
 
@@ -155,10 +155,10 @@ Rescue targets the player must winch up and deliver.
 { "type": "person", "x": 27, "y": 30 }
 ```
 
-| Field    | Type   | Values              |
-| -------- | ------ | ------------------- |
+| Field    | Type   | Values                 |
+| -------- | ------ | ---------------------- |
 | `type`   | string | `"person"` · `"crate"` |
-| `x`, `y` | number | Grid position       |
+| `x`, `y` | number | Grid position          |
 
 ---
 
@@ -170,8 +170,8 @@ Decorative vegetation, not interactable.
 { "x": 12, "y": 18, "s": 1.2, "type": "tree" }
 ```
 
-| Field    | Type   | Description         |
-| -------- | ------ | ------------------- |
-| `x`, `y` | number | Grid position       |
-| `s`      | number | Scale factor        |
-| `type`   | string | Vegetation type     |
+| Field    | Type   | Description     |
+| -------- | ------ | --------------- |
+| `x`, `y` | number | Grid position   |
+| `s`      | number | Scale factor    |
+| `type`   | string | Vegetation type |

@@ -22,12 +22,22 @@ export const I18N = {
     PARTY_ON:           '🎉 PARTY MODE 🎉',
     UNLOCK_ALL:         '🔓 ALL CAMPAIGNS UNLOCKED',
 
+    // Anrede
+    PILOT_ADDRESS:      (rank: string, callsign: string) => callsign ? `${rank} ${callsign}` : rank,
+    BRIEFING_ADDRESS:   (rank: string, callsign: string) =>
+        callsign ? `Ihre Mission, ${rank} ${callsign}` : `Ihre Mission`,
+
     // Session / Einstellungen
     SAVE_CODE_INVALID:  'UNGÜLTIGER CODE',
     SAVE_CODE_LOADED:   'SPIELSTAND GELADEN',
     NO_SAVE_STATE:      '  |  KEIN SPEICHERSTAND',
     STATS:              (c: number, m: number) => `KAMPAGNEN: ${c}  |  MISSIONEN: ${m}`,
     CAMPAIGN_LOCKED:    '[ GESPERRT ]',
+
+    // Datenschutz
+    DELETE_SESSION:     'SPIELSTAND LÖSCHEN',
+    DELETE_CONFIRM:     'WIRKLICH LÖSCHEN?',
+    SESSION_DELETED:    'GELÖSCHT – SEITE WIRD NEU GELADEN…',
 
     // Crashgründe
     CRASH_WATER:        'WASSERAUFPRALL',

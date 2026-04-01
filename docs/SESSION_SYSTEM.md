@@ -8,11 +8,11 @@ ZEEWOLF: SAR optionally saves player progress locally in the browser (localStora
 
 The session system consists of three parts:
 
-| Component | File | Responsibility |
-| --- | --- | --- |
-| Data model & encoding | `src/game/session.ts` | Load, save, rank, save code |
-| UI integration | `src/game/game.ts` | Settings screen, cookie banner, rank overlay |
-| Strings | `src/game/i18n.ts` | All player-facing text |
+| Component             | File                  | Responsibility                               |
+| --------------------- | --------------------- | -------------------------------------------- |
+| Data model & encoding | `src/game/session.ts` | Load, save, rank, save code                  |
+| UI integration        | `src/game/game.ts`    | Settings screen, cookie banner, rank overlay |
+| Strings               | `src/game/i18n.ts`    | All player-facing text                       |
 
 ---
 
@@ -20,12 +20,12 @@ The session system consists of three parts:
 
 ```typescript
 interface PlayerSession {
-    cookieConsent:            boolean | null;  // null = not yet decided
-    playerName:               string;          // callsign, max. 8 chars, A–Z
-    campaignsDone:            number;          // campaigns completed (excl. Tutorial)
-    missionsDone:             number;          // missions completed (excl. Tutorial)
-    unlockedCampaignIndices:  number[];        // indices of unlocked campaigns
-    allUnlocked:              boolean;         // UNLOCK easter egg activated
+    cookieConsent: boolean | null; // null = not yet decided
+    playerName: string; // callsign, max. 8 chars, A–Z
+    campaignsDone: number; // campaigns completed (excl. Tutorial)
+    missionsDone: number; // missions completed (excl. Tutorial)
+    unlockedCampaignIndices: number[]; // indices of unlocked campaigns
+    allUnlocked: boolean; // UNLOCK easter egg activated
 }
 ```
 
@@ -35,12 +35,12 @@ Stored under the key `zeewolf_session` in `localStorage`. Only written when `coo
 
 ## Ranks
 
-| Rank | Insignia | Condition |
-| --- | --- | --- |
-| Leutnant | ★ | Start |
-| Oberleutnant | ★ ★ | 1 campaign + 3 missions |
-| Hauptmann | ★ ★ ★ | 2 campaigns + 8 missions |
-| Major | ◆ | 3 campaigns + 15 missions |
+| Rank         | Insignia | Condition                 |
+| ------------ | -------- | ------------------------- |
+| Leutnant     | ★        | Start                     |
+| Oberleutnant | ★ ★      | 1 campaign + 3 missions   |
+| Hauptmann    | ★ ★ ★    | 2 campaigns + 8 missions  |
+| Major        | ◆        | 3 campaigns + 15 missions |
 
 - The Tutorial does **not** count toward rank progression.
 - Replaying a campaign or mission counts each time.
@@ -63,7 +63,7 @@ Player progress can be exported as a compact 9-character code and imported on an
 
 ### Format
 
-```
+```bash
 XXXXX-XXXX
 ```
 
@@ -71,11 +71,11 @@ XXXXX-XXXX
 
 ### Encoding (45 bits → 9 × Base32 characters)
 
-| Bits | Content | Range |
-| --- | --- | --- |
-| 0–1 | Rank index | 0–3 |
-| 2–4 | Highest unlocked campaign | 0–7 |
-| 5–44 | Callsign (8 × 5 bits) | A–Z = 0–25, null terminator = 26 |
+| Bits | Content                   | Range                            |
+| ---- | ------------------------- | -------------------------------- |
+| 0–1  | Rank index                | 0–3                              |
+| 2–4  | Highest unlocked campaign | 0–7                              |
+| 5–44 | Callsign (8 × 5 bits)     | A–Z = 0–25, null terminator = 26 |
 
 **Alphabet:** Standard Base32 (RFC 4648): `ABCDEFGHIJKLMNOPQRSTUVWXYZ234567`
 
@@ -96,9 +96,9 @@ The callsign is stored character by character as a 5-bit value (A=0 … Z=25). C
 
 A consent banner is shown on first visit, in accordance with Art. 6(1)(a) GDPR.
 
-| Choice | Effect |
-| --- | --- |
-| Accept | Save state is persisted in `localStorage` |
+| Choice  | Effect                                            |
+| ------- | ------------------------------------------------- |
+| Accept  | Save state is persisted in `localStorage`         |
 | Decline | Game fully playable, but no persistent save state |
 
 Consent can be revoked at any time by clearing browser storage (`localStorage.clear()`). **No data is transmitted to any server or shared with third parties.**

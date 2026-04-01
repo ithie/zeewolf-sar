@@ -1,6 +1,6 @@
 import { iso } from './render';
 import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
-import { loadSession, saveSession, getRank, isCampaignUnlocked, encodeSession, decodeSession, type PlayerSession, type Rank } from './session';
+import { loadSession, saveSession, getRank, isCampaignUnlocked, encodeSession, decodeSession, isConsentExpired, STORAGE_KEY, type PlayerSession, type Rank } from './session';
 import { zstate } from './state';
 
 import HANGAR_DEF from './models/hangar.zdef';
@@ -81,11 +81,13 @@ const G = {
     TREES_MAP: null as any,
     PAD: null as any,
     START_POS: null as any,
-    fuelTruck: { state: 'PARKED', x: 0, y: 0, angle: 0, arm: 0, parkX: 0, parkY: 0, parkAngle: 0, t: 0, wps: null, wpI: 0 },
+    fuelTruck: { state: 'PARKED', x: 0, y: 0, angle: 0, arm: 0, parkX: 0, parkY: 0, parkAngle: 0, t: 0, wps: null as null, wpI: 0, targetX: null as number | null, targetY: null as number | null },
 };
 
 // parkedHelis is constant shape — destructure once for readability
 const { parkedHelis } = G;
+
+type GameState = typeof G;
 
 initHeliInfoScreen(G, drawHeli);
 initHeliSelect(G, drawHeli);
@@ -95,10 +97,10 @@ initHeliSelect(G, drawHeli);
 function getObjects() {
     return campaignHandler.getCurrentMissionData().objects || [];
 }
-function getObjectByType(type) {
+function getObjectByType(type: string) {
     return getObjects().find(o => o.type === type) || null;
 }
-function getObjectsByType(type) {
+function getObjectsByType(type: string) {
     return getObjects().filter(o => o.type === type);
 }
 function hasCarrier() {
@@ -115,14 +117,14 @@ function isStartsOnCarrier() {
 }
 
 // ─── grid / terrain ──────────────────────────────────────────────────────────
-function initGrid(size, points) {
+function initGrid(size: number, points: number[][]) {
     for (let x = 0; x <= size; x++) {
         points[x] = [];
         for (let y = 0; y <= size; y++) points[x][y] = 0;
     }
 }
 
-function generateTerrain(points, PAD) {
+function generateTerrain(points: number[][], PAD: { xMin: number; xMax: number; yMin: number; yMax: number; z: number } | null) {
     const { terrain, gridSize } = campaignHandler.getTerrain();
     for (let x = 0; x <= gridSize; x++) {
         for (let y = 0; y <= gridSize; y++) {
@@ -133,7 +135,7 @@ function generateTerrain(points, PAD) {
     }
 }
 
-function getGround(fx, fy, points = G.points, CARRIER = G.CARRIER) {
+function getGround(fx: number, fy: number, points = G.points, CARRIER = G.CARRIER) {
     if (CARRIER && CARRIER.x !== undefined) {
         let local = getCarrierLocal(fx, fy, CARRIER);
         if (
@@ -165,7 +167,7 @@ function getGround(fx, fy, points = G.points, CARRIER = G.CARRIER) {
 }
 
 // ─── carrier ────────────────────────────────────────────────────────────────
-function getCarrierLocal(globX, globY, CARRIER = G.CARRIER) {
+function getCarrierLocal(globX: number, globY: number, CARRIER = G.CARRIER) {
     let dx = globX - CARRIER.x,
         dy = globY - CARRIER.y;
     let ang = -CARRIER.angle;
@@ -208,7 +210,7 @@ function updateCarrierPos(CARRIER: any, seaTimeRef: any, forceUpdate = false, dt
     }
 }
 
-function initVessel(obj, vessel, seaTimeRef) {
+function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
     const angleRad = (obj.angle ?? 0) * (Math.PI / 180);
     vessel.w = obj.type === 'carrier' ? 3.5 : 1.5;
     vessel.l = obj.type === 'carrier' ? 8.0 : 3.0;
@@ -270,7 +272,7 @@ function initVessel(obj, vessel, seaTimeRef) {
     }
 }
 
-function initCarrierFromMission(G) {
+function initCarrierFromMission(G: GameState) {
     const carrierObj = getObjectByType('carrier');
     if (!carrierObj) return;
     const seaTimeRef = {
@@ -285,7 +287,7 @@ function initCarrierFromMission(G) {
     updateCarrierPos(G.CARRIER, seaTimeRef, true);
 }
 
-function initBoatsFromMission(G) {
+function initBoatsFromMission(G: GameState) {
     const allObjects = getObjects();
     G.BOATS = getObjectsByType('boat').map(obj => {
         const objIdx = allObjects.indexOf(obj);
@@ -349,7 +351,7 @@ function updateBoats(BOATS: any[], dt: number) {
 }
 
 // ─── G.payloads ────────────────────────────────────────────────────────────────
-function initPayloadsFromMission(G) {
+function initPayloadsFromMission(G: GameState) {
     const missionData = campaignHandler.getCurrentMissionData();
     G.objectives = missionData.objectives || [];
     const { payloads: missionPayloads } = missionData;
@@ -366,7 +368,7 @@ function initPayloadsFromMission(G) {
                 px = G.CARRIER.x;
                 py = G.CARRIER.y;
             } else if (p.attachTo.objectType === 'boat') {
-                const attachedBoat = G.BOATS.find(b => b._objIdx === p.attachTo.objectIdx);
+                const attachedBoat = G.BOATS.find(b => b._objIdx === p.attachTo!.objectIdx);
                 if (attachedBoat) {
                     px = attachedBoat.x;
                     py = attachedBoat.y;
@@ -424,7 +426,7 @@ function updateWind(wind: any, dt: number) {
 
 // ─── G.debris ──────────────────────────────────────────────────────────────────
 
-function spawnExplosion(heli, particles, debris, points, CARRIER) {
+function spawnExplosion(heli: typeof G.heli, particles: any[], debris: any[], points: number[][], CARRIER: any) {
     const impactSpeed = Math.hypot(heli.vx, heli.vy, heli.vz || 0);
     const intensity = Math.min(1.0, impactSpeed / 0.25);
     const count = Math.floor(30 + intensity * 80);
@@ -541,7 +543,7 @@ function spawnExplosion(heli, particles, debris, points, CARRIER) {
     }
 }
 
-function updateDebris(G) {
+function updateDebris(G: GameState) {
     G.debris.forEach(d => {
         d.x += d.vx;
         d.y += d.vy;
@@ -579,7 +581,7 @@ function updateDebris(G) {
     G.debris = G.debris.filter(d => d.life > 0);
 }
 
-function drawDebris(debris, camX, camY, ctx, canvas) {
+function drawDebris(debris: any[], camX: number, camY: number, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
     debris.forEach(d => {
         const pos = iso(d.x, d.y, d.z, camX, camY, { stepH, tileW, tileH, canvas });
         const cosA = Math.cos(d.angle),
@@ -609,30 +611,6 @@ function drawDebris(debris, camX, camY, ctx, canvas) {
         ctx.globalAlpha = 1.0;
     });
 }
-// ─── NPC helis removed ───────────────────────────────────────────────────────
-
-function getCarrierPadWorld(padIdx, CARRIER) {
-    const dw = CARRIER.w + 1.2;
-    const px = -dw + 0.5 + 1.4;
-    const py = [-4.5, 0.0, 4.5][padIdx] ?? 0;
-    const cosA = Math.cos(CARRIER.angle),
-        sinA = Math.sin(CARRIER.angle);
-    return {
-        x: CARRIER.x + px * cosA - py * sinA,
-        y: CARRIER.y + px * sinA + py * cosA,
-        z: CARRIER.zDeck,
-    };
-}
-
-function getCarrierSlotWorld(slot, CARRIER) {
-    const cosA = Math.cos(CARRIER.angle),
-        sinA = Math.sin(CARRIER.angle);
-    return {
-        x: CARRIER.x + slot.xRel * cosA - slot.yRel * sinA,
-        y: CARRIER.y + slot.xRel * sinA + slot.yRel * cosA,
-        z: CARRIER.zDeck,
-    };
-}
 // ─── birds ───────────────────────────────────────────────────────────────────
 // G.flocks initialized in G object
 
@@ -644,7 +622,7 @@ function initBirds() {
     const spawnCx = G.START_POS ? G.START_POS.x : gridSize / 2;
     const spawnCy = G.START_POS ? G.START_POS.y : gridSize / 2;
     for (let f = 0; f < numFlocks; f++) {
-        let fx, fy;
+        let fx = 0, fy = 0;
         // Erst versuchen: Land in der Nähe
         let found = false;
         for (let attempt = 0; attempt < 30; attempt++) {
@@ -688,8 +666,8 @@ function updateBirds() {
     const { gridSize } = campaignHandler.getTerrain();
     G.flocks.forEach(flock => {
         // Heli-Nähe prüfen
-        const cx = flock.birds.reduce((s, b) => s + b.x, 0) / flock.birds.length;
-        const cy = flock.birds.reduce((s, b) => s + b.y, 0) / flock.birds.length;
+        const cx = flock.birds.reduce((s: number, b: any) => s + b.x, 0) / flock.birds.length;
+        const cy = flock.birds.reduce((s: number, b: any) => s + b.y, 0) / flock.birds.length;
         const distToHeli = Math.hypot(G.heli.x - cx, G.heli.y - cy);
         const heliLoud = G.heli.rotorRPM > 0.3;
         if (heliLoud && distToHeli < 8) {
@@ -701,12 +679,12 @@ function updateBirds() {
 
         // Schwarm-Zielrichtung
         const flockAngle = Math.atan2(
-            flock.birds.reduce((s, b) => s + b.vy, 0),
-            flock.birds.reduce((s, b) => s + b.vx, 0)
+            flock.birds.reduce((s: number, b: any) => s + b.vy, 0),
+            flock.birds.reduce((s: number, b: any) => s + b.vx, 0)
         );
         const baseSpd = flock.fleeing ? 0.035 : 0.014;
 
-        flock.birds.forEach(bird => {
+        flock.birds.forEach((bird: any) => {
             // Fluchtvector weg vom Heli
             let targetAngle = flockAngle;
             if (flock.fleeing) {
@@ -750,9 +728,9 @@ function updateBirds() {
     });
 }
 
-function drawBirds(camX, camY) {
+function drawBirds(camX: number, camY: number) {
     G.flocks.forEach(flock => {
-        flock.birds.forEach(bird => {
+        flock.birds.forEach((bird: any) => {
             if (!isVisible(bird.x, bird.y, 20)) return;
             const pos = iso(bird.x, bird.y, bird.z, camX, camY, { stepH, tileW, tileH, canvas });
             // Flügelschlag: M-Form
@@ -1318,54 +1296,57 @@ function updatePhysics(dt: number) {
 }
 
 // ─── UI helpers ──────────────────────────────────────────────────────────────
-function showMsg(txt) {
-    let m = document.getElementById('msg');
+function showMsg(txt: string) {
+    const m = document.getElementById('msg')!;
     m.innerHTML = txt;
-    m.style.opacity = 1;
+    m.style.opacity = '1';
     setTimeout(() => {
-        m.style.opacity = 0;
+        m.style.opacity = '0';
     }, 2000);
 }
 
-function isVisible(objX, objY, margin = 16) {
+function isVisible(objX: number, objY: number, margin = 16) {
     const rx = zstate.introActive ? G.START_POS.x : G.heli.x;
     const ry = zstate.introActive ? G.START_POS.y : G.heli.y;
     return Math.abs(objX - rx) < margin && Math.abs(objY - ry) < margin;
 }
 
 // ─── screens ────────────────────────────────────────────────────────────────
-function triggerCrash(reason) {
+function triggerCrash(reason: string) {
     if (zstate.crashed) return;
     soundHandler.play(musicConfig.defeat || 'final', false);
     spawnExplosion(G.heli, G.particles, G.debris, G.points, G.CARRIER);
     zstate.crashed = true;
     setTimeout(() => {
-        document.getElementById('campaign-failed-reason').innerHTML = reason;
-        document.getElementById('campaign-failed-screen').style.display = 'flex';
+        document.getElementById('campaign-failed-reason')!.innerHTML = reason;
+        document.getElementById('campaign-failed-screen')!.style.display = 'flex';
     }, 1800); // Explosion erst austoben lassen
 }
 
 function showBriefing() {
     const { headline, sublines, briefing, previewBase64 } = campaignHandler.getCurrentMissionData();
-    const mapEl = document.getElementById('briefing-map');
+    const mapEl = document.getElementById('briefing-map') as HTMLImageElement;
     if (previewBase64) {
         mapEl.src = previewBase64;
         mapEl.style.display = 'block';
     } else {
         mapEl.style.display = 'none';
     }
-    document.getElementById('briefing-headline').textContent = headline || 'MISSION BRIEFING';
-    const sublinesEl = document.getElementById('briefing-sublines');
+    const rank = getRank(_session);
+    document.getElementById('briefing-address')!.textContent =
+        I18N.BRIEFING_ADDRESS(rank.name, _session.playerName).toUpperCase();
+    document.getElementById('briefing-headline')!.textContent = headline || 'MISSION BRIEFING';
+    const sublinesEl = document.getElementById('briefing-sublines')!;
     sublinesEl.innerHTML =
         Array.isArray(sublines) && sublines.length ? sublines.map(s => `▸ ${s}`).join('<br>') : '';
-    document.getElementById('briefing-body').textContent = briefing || '';
+    document.getElementById('briefing-body')!.textContent = briefing || '';
     const briefingSong = campaignHandler.getActiveCampaignMusic().briefing;
     if (briefingSong) soundHandler.play(briefingSong, true);
-    document.getElementById('mission-briefing').style.display = 'flex';
+    document.getElementById('mission-briefing')!.style.display = 'flex';
 }
 
 function dismissBriefing() {
-    document.getElementById('mission-briefing').style.display = 'none';
+    document.getElementById('mission-briefing')!.style.display = 'none';
     launchMission();
 }
 
@@ -1376,40 +1357,44 @@ function missionComplete() {
 
     // ── session tracking ────────────────────────────────────────────────────
     let rankUpRank: Rank | null = null;
+
+    // Unlock next campaign on completion — always, including tutorial
+    if (next === 'DONE') {
+        const allCampaigns = campaignHandler.getCampaigns();
+        for (let i = _selectedCampaignIndex + 1; i < allCampaigns.length; i++) {
+            if ((allCampaigns[i] as any).type !== 'glider') {
+                if (!_session.unlockedCampaignIndices.includes(i))
+                    _session.unlockedCampaignIndices.push(i);
+                break;
+            }
+        }
+    }
+
+    // Rank progression — tutorial does not count
     if (!isTutorial) {
         const prevRank = getRank(_session);
         _session.missionsDone++;
-        if (next === 'DONE') {
-            _session.campaignsDone++;
-            // unlock the next non-glider campaign
-            const allCampaigns = campaignHandler.getCampaigns();
-            for (let i = _selectedCampaignIndex + 1; i < allCampaigns.length; i++) {
-                if ((allCampaigns[i] as any).type !== 'glider') {
-                    if (!_session.unlockedCampaignIndices.includes(i))
-                        _session.unlockedCampaignIndices.push(i);
-                    break;
-                }
-            }
-        }
-        saveSession(_session);
+        if (next === 'DONE') _session.campaignsDone++;
         const newRank = getRank(_session);
         if (newRank.name !== prevRank.name) rankUpRank = newRank;
     }
 
+    saveSession(_session);
+
     if (next === 'DONE') {
-        document.getElementById('campaign-complete-name').textContent = '';
-        document.getElementById('campaign-complete-screen').style.display = 'flex';
+        document.getElementById('campaign-complete-name')!.textContent = '';
+        document.getElementById('campaign-complete-screen')!.style.display = 'flex';
         soundHandler.play(musicConfig.success || 'final', false);
         if (rankUpRank) showRankUp(rankUpRank);
         return;
     }
     const { gridSize, objects: nextObjects } = next;
-    const nextPad = (nextObjects || []).find(o => o.type === 'pad' || o.type === 'spawn') || { x: 10, y: 10 };
+    const nextPad = (nextObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
     G.PAD = { xMin: nextPad.x, xMax: nextPad.x + 7, yMin: nextPad.y, yMax: nextPad.y + 7, z: 0.5 };
     G.START_POS = { x: nextPad.x + 4, y: nextPad.y + 4 };
     initGrid(gridSize, G.points);
 
-    const successEl = document.getElementById('mission-success-screen');
+    const successEl = document.getElementById('mission-success-screen')!;
     successEl.style.display = 'flex';
     successEl.onclick = () => {
         successEl.style.display = 'none';
@@ -1451,23 +1436,23 @@ function returnToBase() {
     G.debris = [];
     G.totalRescued = 0;
 
-    document.getElementById('campaign-complete-screen').style.display = 'none';
-    document.getElementById('campaign-failed-screen').style.display = 'none';
-    document.getElementById('mission-success-screen').style.display = 'none';
-    document.getElementById('crash-screen').style.display = 'none';
-    document.getElementById('mission-briefing').style.display = 'none';
-    document.getElementById('campaign-select').style.display = 'flex';
-    document.getElementById('campaign-grid').innerHTML = _buildCampaignGrid().join('');
+    document.getElementById('campaign-complete-screen')!.style.display = 'none';
+    document.getElementById('campaign-failed-screen')!.style.display = 'none';
+    document.getElementById('mission-success-screen')!.style.display = 'none';
+    document.getElementById('crash-screen')!.style.display = 'none';
+    document.getElementById('mission-briefing')!.style.display = 'none';
+    document.getElementById('campaign-select')!.style.display = 'flex';
+    document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
 }
 
 // ─── campaign / G.heli select ──────────────────────────────────────────────────
 function toCampaignSelect() {
     soundHandler.play(musicConfig.mainMenu || 'maintheme', false);
-    document.getElementById('splash').style.display = 'none';
-    document.getElementById('main-menu').style.display = 'none';
-    document.getElementById('campaign-select').style.display = 'flex';
-    document.getElementById('campaign-grid').innerHTML = _buildCampaignGrid().join('');
+    document.getElementById('splash')!.style.display = 'none';
+    document.getElementById('main-menu')!.style.display = 'none';
+    document.getElementById('campaign-select')!.style.display = 'flex';
+    document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
 }
 
 function launchEasterEgg() {
@@ -1478,26 +1463,26 @@ function launchEasterEgg() {
     selectCampaign(String(index));
 }
 
-function setHover(type, state) {
+function setHover(type: string, state: boolean) {
     G.menuHover[type] = state;
 }
 
-function selectCampaign(index) {
+function selectCampaign(index: string) {
     _selectedCampaignIndex = Number(index);
-    campaignHandler.campaign.setActiveCampaign(index);
+    campaignHandler.campaign.setActiveCampaign(Number(index));
     const { gridSize, objects: selObjects, campaignType } = campaignHandler.getCurrentMissionData();
-    const selPad = (selObjects || []).find(o => o.type === 'pad' || o.type === 'spawn') || { x: 10, y: 10 };
+    const selPad = (selObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
     G.PAD = { xMin: selPad.x, xMax: selPad.x + 7, yMin: selPad.y, yMax: selPad.y + 7, z: 0.5 };
     G.START_POS = { x: selPad.x + 4, y: selPad.y + 4 };
     initGrid(gridSize, G.points);
-    document.getElementById('campaign-grid').innerHTML = '';
-    document.getElementById('campaign-select').style.display = 'none';
+    document.getElementById('campaign-grid')!.innerHTML = '';
+    document.getElementById('campaign-select')!.style.display = 'none';
     buildHeliSelect(campaignType);
-    document.getElementById('heli-select').style.display = 'flex';
+    document.getElementById('heli-select')!.style.display = 'flex';
     animateHeliPreviews();
 }
 
-function startGame(type) {
+function startGame(type: string) {
     if (zstate.gameStarted) return;
     stopMenuParticles();
     soundHandler.play(campaignHandler.getActiveCampaignMusic().ingame || 'clike', false);
@@ -1513,7 +1498,7 @@ function startGame(type) {
     generateTerrain(G.points, G.PAD);
     initCarrierFromMission(G);
     initBoatsFromMission(G);
-    document.getElementById('heli-select').style.display = 'none';
+    document.getElementById('heli-select')!.style.display = 'none';
     showBriefing();
 }
 
@@ -1597,7 +1582,7 @@ function launchMission() {
 //   parkY = PAD.yMin + 0.1   (Heck bündig mit Hangar-Rückwand)
 //   parkAngle = +PI/2        (Nase zeigt in +Y = zur Hangar-Öffnung hin)
 //
-function initFuelTruck(G) {
+function initFuelTruck(G: GameState) {
     if (!G.PAD) return;
     const ft = G.fuelTruck;
     ft.parkX = G.PAD.xMax - 5.2;
@@ -1613,7 +1598,7 @@ function initFuelTruck(G) {
     ft.wpI = 0;
 }
 
-function updateFuelTruck(G: any, dt: number) {
+function updateFuelTruck(G: GameState, dt: number) {
     if (!G.PAD) return;
     const ft = G.fuelTruck;
     const heli = G.heli;
@@ -1641,7 +1626,7 @@ function updateFuelTruck(G: any, dt: number) {
     }
 
     // Steer truck toward (tx,ty) using potential fields (attraction + hangar repulsion).
-    function navigate(tx, ty) {
+    function navigate(tx: number, ty: number) {
         const dx = tx - ft.x, dy = ty - ft.y;
         const dist = Math.hypot(dx, dy);
         if (dist < 0.01) return 0;
@@ -1809,7 +1794,7 @@ function drawScene() {
     if (hasPad() && isVisible(G.PAD.xMin, G.PAD.yMin)) drawWindsock(camX, camY);
 
     // Test-Bäume
-    G.TREES_MAP.forEach(t => {
+    G.TREES_MAP.forEach((t: any) => {
         if (isVisible(t.x, t.y, 14)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, _partyMode && t.type !== 'dead');
     });
 
@@ -1960,6 +1945,12 @@ function drawScene() {
         } else {
             ctx.fillText(`SAVED: ${G.totalRescued}/${G.goalCount}`, hX, hY + 80);
         }
+        if (_session.playerName) {
+            ctx.fillStyle = '#888';
+            ctx.font = '11px monospace';
+            ctx.fillText(_session.playerName, hX, hY + 100);
+            ctx.font = 'bold 13px monospace';
+        }
 
         // minimap
         const ms = 140,
@@ -1969,7 +1960,7 @@ function drawScene() {
         const sc = ms / gridSize;
 
         // Hilfsfunktion: liegt Punkt innerhalb der Minimap?
-        const inMM = (wx, wy) => {
+        const inMM = (wx: number, wy: number) => {
             const px = bx + wx * sc,
                 py = by + wy * sc;
             return px >= bx && px <= bx + ms && py >= by && py <= by + ms;
@@ -2164,13 +2155,12 @@ function drawPayloadObjects(hangingOnly = false, ropeOnly = false) {
     });
 }
 
-function drawVectorCarrier(cx, cy) {
+function drawVectorCarrier(cx: number, cy: number) {
     const objX = G.CARRIER.x, objY = G.CARRIER.y;
     const deckZ = G.CARRIER.zDeck;
     const angle = G.CARRIER.angle;
     const cosA = Math.cos(angle), sinA = Math.sin(angle);
-    function r(rx, ry) { return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA }; }
-    function H(p, z) { return { x: p.x, y: p.y, z }; }
+    function r(rx: number, ry: number) { return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA }; }
     // Pass 1: Hull (flush alone so deck objects always render on top)
     SceneRenderer.add(CARRIER_HULL_DEF, { x: objX, y: objY, z: 0, angle });
     SceneRenderer.flush(cx, cy);
@@ -2248,7 +2238,7 @@ function drawVectorCarrier(cx, cy) {
     drawPadLights(cx, cy, G.CARRIER.zDeck, true);
 }
 
-function drawParkedHelis(cx, cy) {
+function drawParkedHelis(cx: number, cy: number) {
     if (!hasCarrier()) return;
     const angle = G.CARRIER.angle;
     const deckZ = G.CARRIER.zDeck;
@@ -2284,13 +2274,13 @@ function drawHangar() {
     });
 }
 
-function drawPadLights(cx, cy, z, isCarrier = false) {
+function drawPadLights(cx: number, cy: number, z: number, isCarrier = false) {
     let blink = Math.floor(Date.now() / 500) % 2 === 0;
     if (isCarrier) {
         let cw = G.CARRIER.w + 1.2,
             cl = G.CARRIER.l + 1.2,
             ang = G.CARRIER.angle;
-        function r(rx, ry) {
+        function r(rx: number, ry: number) {
             return {
                 x: G.CARRIER.x + rx * Math.cos(ang) - ry * Math.sin(ang),
                 y: G.CARRIER.y + rx * Math.sin(ang) + ry * Math.cos(ang),
@@ -2313,7 +2303,7 @@ function drawPadLights(cx, cy, z, isCarrier = false) {
     }
 }
 
-function setLightsOnDeck(lights, blink, cx, cy, z) {
+function setLightsOnDeck(lights: Array<{ x: number; y: number }>, blink: boolean, cx: number, cy: number, z: number) {
     lights.forEach(l => {
         let p = iso(l.x, l.y, z + 0.05, cx, cy, { stepH, tileW, tileH, canvas });
         ctx.fillStyle = blink ? '#f00' : '#500';
@@ -2323,7 +2313,7 @@ function setLightsOnDeck(lights, blink, cx, cy, z) {
     });
 }
 
-function drawWindsock(cx, cy) {
+function drawWindsock(cx: number, cy: number) {
     let wx = G.PAD.xMin,
         wy = G.PAD.yMin + 8.8;
     let base = iso(wx, wy, getGround(wx, wy), cx, cy, { stepH, tileW, tileH, canvas });
@@ -2366,7 +2356,7 @@ function drawWindsock(cx, cy) {
     ctx.fill();
 }
 
-function drawSailboat(sX, sY, angle, cx, cy) {
+function drawSailboat(sX: number, sY: number, angle: number, cx: number, cy: number) {
     // SAILBOAT_DEF bow faces +x; game convention is bow at -y (angle=0) → offset by -π/2
     SceneRenderer.add(SAILBOAT_DEF, { x: sX, y: sY, z: 0, angle: angle - Math.PI / 2 });
     SceneRenderer.flush(cx, cy);
@@ -2375,8 +2365,8 @@ function drawSailboat(sX, sY, angle, cx, cy) {
 
 // Beflockung aus Missionsdaten laden
 // G.TREES_MAP initialized in G object
-const FOLIAGE_DECODE = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
-function decompressFoliage(str) {
+const FOLIAGE_DECODE: Record<string, string> = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
+function decompressFoliage(str: string | { x: number; y: number; s: number; type: string }[]) {
     if (!str) return [];
     if (typeof str !== 'string') return str; // bereits dekomprimiert (Array)
     return str.split('|').map(token => {
@@ -2395,12 +2385,12 @@ function initFoliageFromMission() {
         type: f.type || 'pine',
         gz: null,
     }));
-    G.TREES_MAP.forEach(t => {
+    G.TREES_MAP.forEach((t: any) => {
         t.gz = getGround(t.x, t.y, G.points, G.CARRIER);
     });
 }
 
-function drawLighthouse(cx, cy) {
+function drawLighthouse(cx: number, cy: number) {
     const _lhObj = getObjectByType('lighthouse');
     if (!_lhObj) return;
     const lhX = _lhObj.x, lhY = _lhObj.y;
@@ -2438,15 +2428,10 @@ function renderRain() {
     }
     ctx.stroke();
     if (Math.random() < 0.005) {
-        let el = document.getElementById('flash-overlay');
-        el.style.opacity = 0.8;
-        setTimeout(() => (el.style.opacity = 0), 100);
+        const el = document.getElementById('flash-overlay')!;
+        el.style.opacity = '0.8';
+        setTimeout(() => (el.style.opacity = '0'), 100);
     }
-}
-
-// ─── person ──────────────────────────────────────────────────────────────────
-function rotatePoint(x, y, rad) {
-    return { x: x * Math.cos(rad) - y * Math.sin(rad), y: x * Math.sin(rad) + y * Math.cos(rad) };
 }
 
 // ─── collision boxes ─────────────────────────────────────────────────────────
@@ -2460,12 +2445,12 @@ window.addEventListener('keydown', e => {
 
 // Draw an oriented bounding box in isometric space (debug visual).
 // wX/wY: world center, angle: rotation, ox/oy/oz: local extents min/max
-function drawCollisionBox(wX, wY, angle, oxMin, oxMax, oyMin, oyMax, ozMin, ozMax, color) {
+function drawCollisionBox(wX: number, wY: number, angle: number, oxMin: number, oxMax: number, oyMin: number, oyMax: number, ozMin: number, ozMax: number, color: string) {
     const camX = zstate.cam.x,
         camY = zstate.cam.y;
     const cosA = Math.cos(angle),
         sinA = Math.sin(angle);
-    function wp(lx, ly, lz) {
+    function wp(lx: number, ly: number, lz: number) {
         return {
             x: wX + lx * cosA - ly * sinA,
             y: wY + lx * sinA + ly * cosA,
@@ -2514,7 +2499,7 @@ function drawCollisionBox(wX, wY, angle, oxMin, oxMax, oyMin, oyMax, ozMin, ozMa
 }
 
 // Check if a world point (px, py, pz) is inside an oriented bounding box.
-function checkCollisionBox(px, py, pz, wX, wY, angle, oxMin, oxMax, oyMin, oyMax, ozMin, ozMax) {
+function checkCollisionBox(px: number, py: number, pz: number, wX: number, wY: number, angle: number, oxMin: number, oxMax: number, oyMin: number, oyMax: number, ozMin: number, ozMax: number) {
     const dx = px - wX,
         dy = py - wY;
     const cosA = Math.cos(-angle),
@@ -2525,10 +2510,10 @@ function checkCollisionBox(px, py, pz, wX, wY, angle, oxMin, oxMax, oyMin, oyMax
 }
 
 // Draw all collision boxes and check G.heli collisions (called from drawScene).
-function drawDebugOverlay(camX, camY) {
+function drawDebugOverlay(camX: number, camY: number) {
     const OPT = { stepH, tileW, tileH, canvas };
 
-    function isoP(wx, wy, wz = 0) {
+    function isoP(wx: number, wy: number, wz = 0) {
         return iso(wx, wy, wz, camX, camY, OPT);
     }
 
@@ -2567,7 +2552,7 @@ function drawDebugOverlay(camX, camY) {
     }
 
     // ── World axes at heli position ───────────────────────────────
-    function drawArrow(fromP, toP, color, label) {
+    function drawArrow(fromP: { x: number; y: number }, toP: { x: number; y: number }, color: string, label: string) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -2649,7 +2634,7 @@ function drawDebugOverlay(camX, camY) {
         ctx.arc(ftBack.x, ftBack.y, 3, 0, Math.PI * 2);
         ctx.fill();
         // Target position
-        if (ft.targetX != null) {
+        if (ft.targetX != null && ft.targetY != null) {
             const tgt = isoP(ft.targetX, ft.targetY, p.z);
             ctx.strokeStyle = 'rgba(255,255,0,0.5)';
             ctx.lineWidth = 1;
@@ -2925,7 +2910,7 @@ function handleCollisionBoxes() {
         ctx.setLineDash([3, 3]);
         const camX2 = zstate.cam.x,
             camY2 = zstate.cam.y;
-        G.TREES_MAP.forEach(t => {
+        G.TREES_MAP.forEach((t: any) => {
             if (!isVisible(t.x, t.y, 16)) return;
             const r = 0.35 * t.s;
             const h = 2.3 * t.s;
@@ -2963,7 +2948,7 @@ function handleCollisionBoxes() {
         ctx.restore();
     }
     if (!zstate.introActive && !zstate.crashed) {
-        G.TREES_MAP.forEach(t => {
+        G.TREES_MAP.forEach((t: any) => {
             if (!isVisible(t.x, t.y, 16)) return;
             const r = 0.35 * t.s;
             const h = 2.3 * t.s;
@@ -3001,14 +2986,14 @@ function toMainMenu() {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
-    document.getElementById('main-menu').style.display = 'flex';
+    document.getElementById('main-menu')!.style.display = 'flex';
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     animMainMenuBg();
     startMenuParticles();
 }
 
 function backFromHeliSelect() {
-    document.getElementById('heli-select').style.display = 'none';
+    document.getElementById('heli-select')!.style.display = 'none';
     toCampaignSelect();
 }
 
@@ -3037,6 +3022,8 @@ const _rankBadgeHtml = (rank: Rank) =>
 const showRankUp = (rank: Rank) => {
     (document.getElementById('rankup-badge') as HTMLElement).innerHTML = _rankBadgeHtml(rank);
     (document.getElementById('rankup-title') as HTMLElement).textContent = rank.name.toUpperCase();
+    (document.getElementById('rankup-address') as HTMLElement).textContent =
+        I18N.PILOT_ADDRESS(rank.name, _session.playerName).toUpperCase();
     (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'flex';
 };
 
@@ -3046,12 +3033,15 @@ const dismissRankUp = () => {
 
 const approveCookies = () => {
     _session.cookieConsent = true;
+    _session.consentTimestamp = Date.now();
     saveSession(_session);
     (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
 };
 
 const declineCookies = () => {
     _session.cookieConsent = false;
+    _session.consentTimestamp = Date.now();
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
 };
 
@@ -3124,6 +3114,19 @@ const fromSettings = () => {
     (document.getElementById('main-menu') as HTMLElement).style.display = 'flex';
 };
 
+const deleteSessionData = () => {
+    const btn = document.getElementById('delete-session-btn') as HTMLElement;
+    btn.textContent = I18N.DELETE_CONFIRM;
+    btn.onclick = confirmDeleteSession;
+};
+
+const confirmDeleteSession = () => {
+    const msg = document.getElementById('delete-session-msg') as HTMLElement;
+    msg.textContent = I18N.SESSION_DELETED;
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    setTimeout(() => window.location.reload(), 1200);
+};
+
 window.onkeydown = e => {
     G.keys[e.code] = true;
     if ((document.activeElement as HTMLElement)?.tagName === 'INPUT') return;
@@ -3153,11 +3156,12 @@ window.onkeydown = e => {
 window.onkeyup = e => (G.keys[e.code] = false);
 document.addEventListener('selectstart', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
-window.onresize = () => {
+const _resizeCanvas = () => {
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
 };
-window.onresize();
+window.onresize = _resizeCanvas;
+_resizeCanvas();
 
 const _touchEl = document.getElementById('touch-controls') as HTMLElement | null;
 const _debugToggleEl = document.getElementById('debug-toggle') as HTMLElement | null;
@@ -3266,9 +3270,13 @@ window.fromSettings   = fromSettings;
 window.approveCookies = approveCookies;
 window.declineCookies = declineCookies;
 window.dismissRankUp  = dismissRankUp;
-window.applySaveCode  = applySaveCode;
+window.applySaveCode        = applySaveCode;
+window.deleteSessionData    = deleteSessionData;
+window.confirmDeleteSession = confirmDeleteSession;
 
-// Show cookie banner if consent not yet given
-if (_session.cookieConsent === null) {
+// Show cookie banner if consent not yet given or expired (2-week TTL)
+if (_session.cookieConsent === null || isConsentExpired(_session)) {
+    _session.cookieConsent = null;     // reset consent — progress is kept in memory
+    _session.consentTimestamp = null;
     (document.getElementById('cookie-banner') as HTMLElement).style.display = 'flex';
 }
