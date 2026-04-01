@@ -150,9 +150,14 @@ workbench/
 ## Documentation
 
 - [DEF_SPEC.md](./DEF_SPEC.md) — isometric geometry system (DEF format, SceneRenderer API)
+- [docs/SESSION_SYSTEM.md](./docs/SESSION_SYSTEM.md) — session system, rank progression, save code format, GDPR
 - [docs/WORKBENCH.md](./docs/WORKBENCH.md) — Workbench architecture and `window.workbench` API
 - [docs/CAMPAIGN_FORMAT.md](./docs/CAMPAIGN_FORMAT.md) — campaign and mission JSON format
 - [docs/SONG_FORMAT.md](./docs/SONG_FORMAT.md) — ZSynth song JSON format
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 

@@ -1,5 +1,6 @@
 import { iso } from './render';
 import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
+import { loadSession, saveSession, getRank, isCampaignUnlocked, encodeSession, decodeSession, type PlayerSession, type Rank } from './session';
 import { zstate } from './state';
 
 import HANGAR_DEF from './models/hangar.zdef';
@@ -1166,7 +1167,7 @@ function updatePhysics(dt: number) {
 
     if (G.heli.fuel <= 0 && inAir) {
         if (G.heli.fuel > -1) {
-            showMsg('KEIN TREIBSTOFF!');
+            showMsg(I18N.OUT_OF_FUEL);
             G.heli.fuel = -1;
         }
         G.heli.engineOn = false;
@@ -1369,11 +1370,37 @@ function dismissBriefing() {
 }
 
 function missionComplete() {
+    const { campaignType } = campaignHandler.getCurrentMissionData();
     const next = campaignHandler.campaign.getNextMission();
+    const isTutorial = campaignType === 'tutorial';
+
+    // ── session tracking ────────────────────────────────────────────────────
+    let rankUpRank: Rank | null = null;
+    if (!isTutorial) {
+        const prevRank = getRank(_session);
+        _session.missionsDone++;
+        if (next === 'DONE') {
+            _session.campaignsDone++;
+            // unlock the next non-glider campaign
+            const allCampaigns = campaignHandler.getCampaigns();
+            for (let i = _selectedCampaignIndex + 1; i < allCampaigns.length; i++) {
+                if ((allCampaigns[i] as any).type !== 'glider') {
+                    if (!_session.unlockedCampaignIndices.includes(i))
+                        _session.unlockedCampaignIndices.push(i);
+                    break;
+                }
+            }
+        }
+        saveSession(_session);
+        const newRank = getRank(_session);
+        if (newRank.name !== prevRank.name) rankUpRank = newRank;
+    }
+
     if (next === 'DONE') {
-        document.getElementById('campaign-complete-name').textContent = next?.campaignTitle || '';
+        document.getElementById('campaign-complete-name').textContent = '';
         document.getElementById('campaign-complete-screen').style.display = 'flex';
         soundHandler.play(musicConfig.success || 'final', false);
+        if (rankUpRank) showRankUp(rankUpRank);
         return;
     }
     const { gridSize, objects: nextObjects } = next;
@@ -1401,6 +1428,7 @@ function missionComplete() {
         G.particles = [];
         G.debris = [];
         showBriefing();
+        if (rankUpRank) showRankUp(rankUpRank);
     };
 }
 
@@ -1429,25 +1457,7 @@ function returnToBase() {
     document.getElementById('crash-screen').style.display = 'none';
     document.getElementById('mission-briefing').style.display = 'none';
     document.getElementById('campaign-select').style.display = 'flex';
-
-    const campaigns = [];
-    campaignHandler
-        .getCampaigns()
-        .forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
-            if (type === 'glider') return;
-            let sublines = '';
-            campaignSublines.forEach(s => {
-                sublines += `<div class="box-sub">${s}</div>`;
-            });
-            sublines += `<div class="box-sub">Missions: ${levels.length}</div>`;
-            campaigns.push(
-                `<div class="grid-box" onclick="selectCampaign('${index}')"${type === 'tutorial' ? ` style="border-color: #ff9900"` : ''}>
-                            <div class="box-label"${type === 'tutorial' ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>
-                            ${sublines}
-                        </div>`
-            );
-        });
-    document.getElementById('campaign-grid').innerHTML = campaigns.join('');
+    document.getElementById('campaign-grid').innerHTML = _buildCampaignGrid().join('');
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
 }
 
@@ -1456,25 +1466,8 @@ function toCampaignSelect() {
     soundHandler.play(musicConfig.mainMenu || 'maintheme', false);
     document.getElementById('splash').style.display = 'none';
     document.getElementById('main-menu').style.display = 'none';
-    const campaigns = [];
-    campaignHandler
-        .getCampaigns()
-        .forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
-            if (type === 'glider') return;
-            let sublines = '';
-            campaignSublines.forEach(s => {
-                sublines += `<div class="box-sub">${s}</div>`;
-            });
-            sublines += `<div class="box-sub">Missions: ${levels.length}</div>`;
-            campaigns.push(
-                `<div class="grid-box" onclick="selectCampaign('${index}')"${type === 'tutorial' ? ` style="border-color: #ff9900"` : ''}>
-                            <div class="box-label"${type === 'tutorial' ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>
-                            ${sublines}
-                        </div>`
-            );
-        });
     document.getElementById('campaign-select').style.display = 'flex';
-    document.getElementById('campaign-grid').innerHTML = campaigns.join('');
+    document.getElementById('campaign-grid').innerHTML = _buildCampaignGrid().join('');
 }
 
 function launchEasterEgg() {
@@ -1490,6 +1483,7 @@ function setHover(type, state) {
 }
 
 function selectCampaign(index) {
+    _selectedCampaignIndex = Number(index);
     campaignHandler.campaign.setActiveCampaign(index);
     const { gridSize, objects: selObjects, campaignType } = campaignHandler.getCurrentMissionData();
     const selPad = (selObjects || []).find(o => o.type === 'pad' || o.type === 'spawn') || { x: 10, y: 10 };
@@ -1680,7 +1674,7 @@ function updateFuelTruck(G: any, dt: number) {
             G.totalRescued += heli.onboard;
             heli.onboard = 0;
             if (G.totalRescued >= G.goalCount) missionComplete();
-            else showMsg(`SECURED: ${G.totalRescued}/${G.goalCount}`);
+            else showMsg(I18N.SECURED(G.totalRescued, G.goalCount));
         }
     } else if (ft.state === 'ARM_IN') {
         ft.t = Math.min(1, ft.t + 0.016 * dt);
@@ -3029,8 +3023,118 @@ const _PARTY_PALETTE = [
 const _randomPartyColor = () => _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
 const _refreshPartyColors = () => { _partyColors = Array.from({ length: 8 }, _randomPartyColor); };
 
+// ─── session ──────────────────────────────────────────────────────────────────
+let _session: PlayerSession = loadSession();
+let _selectedCampaignIndex = 0;
+let _unlockSeq = '';
+
+const _rankBadgeHtml = (rank: Rank) =>
+    `<div class="rank-board${rank.name === 'Major' ? ' major' : ''}">` +
+    `<span class="rank-pips">${rank.pips}</span>` +
+    `<span class="rank-label">${rank.name.toUpperCase()}</span>` +
+    `</div>`;
+
+const showRankUp = (rank: Rank) => {
+    (document.getElementById('rankup-badge') as HTMLElement).innerHTML = _rankBadgeHtml(rank);
+    (document.getElementById('rankup-title') as HTMLElement).textContent = rank.name.toUpperCase();
+    (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'flex';
+};
+
+const dismissRankUp = () => {
+    (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'none';
+};
+
+const approveCookies = () => {
+    _session.cookieConsent = true;
+    saveSession(_session);
+    (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
+};
+
+const declineCookies = () => {
+    _session.cookieConsent = false;
+    (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
+};
+
+const _buildCampaignGrid = (): string[] => {
+    const campaigns: string[] = [];
+    campaignHandler.getCampaigns().forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
+        if (type === 'glider') return;
+        const locked = type !== 'tutorial' && !isCampaignUnlocked(_session, index);
+        let sublines = '';
+        campaignSublines.forEach(s => { sublines += `<div class="box-sub">${s}</div>`; });
+        sublines += `<div class="box-sub">Missionen: ${levels.length}</div>`;
+        const isTutorial = type === 'tutorial';
+        campaigns.push(
+            `<div class="grid-box${locked ? ' locked' : ''}" onclick="${locked ? '' : `selectCampaign('${index}')`}"` +
+            `${isTutorial ? ` style="border-color: #ff9900"` : ''}>` +
+            `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>` +
+            (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines) +
+            `</div>`
+        );
+    });
+    return campaigns;
+};
+
+const _refreshSettingsScreen = () => {
+    const rank = getRank(_session);
+    (document.getElementById('settings-badge') as HTMLElement).innerHTML = _rankBadgeHtml(rank);
+    (document.getElementById('settings-code-display') as HTMLElement).textContent = encodeSession(_session);
+    const statsEl = document.getElementById('settings-stats') as HTMLElement;
+    const noSave = !_session.cookieConsent ? I18N.NO_SAVE_STATE : '';
+    statsEl.textContent = I18N.STATS(_session.campaignsDone, _session.missionsDone) + noSave;
+};
+
+const toSettings = () => {
+    _refreshSettingsScreen();
+    const input = document.getElementById('player-name-input') as HTMLInputElement;
+    input.value = _session.playerName || '';
+    input.oninput = () => {
+        _session.playerName = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8);
+        input.value = _session.playerName;
+        saveSession(_session);
+        _refreshSettingsScreen();
+    };
+    (document.getElementById('import-code-input') as HTMLInputElement).value = '';
+    (document.getElementById('import-code-msg') as HTMLElement).textContent = '';
+    (document.getElementById('main-menu') as HTMLElement).style.display = 'none';
+    (document.getElementById('settings-screen') as HTMLElement).style.display = 'flex';
+};
+
+const applySaveCode = () => {
+    const input = document.getElementById('import-code-input') as HTMLInputElement;
+    const msg   = document.getElementById('import-code-msg') as HTMLElement;
+    const decoded = decodeSession(input.value.trim());
+    if (!decoded) {
+        msg.style.color = '#f44';
+        msg.textContent = I18N.SAVE_CODE_INVALID;
+        return;
+    }
+    // Overwrite progress data, keep consent
+    Object.assign(_session, decoded);
+    saveSession(_session);
+    input.value = '';
+    msg.style.color = '#5f5';
+    msg.textContent = I18N.SAVE_CODE_LOADED;
+    _refreshSettingsScreen();
+    (document.getElementById('player-name-input') as HTMLInputElement).value = _session.playerName || '';
+};
+
+const fromSettings = () => {
+    (document.getElementById('settings-screen') as HTMLElement).style.display = 'none';
+    (document.getElementById('main-menu') as HTMLElement).style.display = 'flex';
+};
+
 window.onkeydown = e => {
     G.keys[e.code] = true;
+    if ((document.activeElement as HTMLElement)?.tagName === 'INPUT') return;
+    // UNLOCK easter egg — works everywhere
+    _unlockSeq = (_unlockSeq + e.key.toUpperCase()).slice(-6);
+    if (_unlockSeq === 'UNLOCK') {
+        _session.allUnlocked = true;
+        saveSession(_session);
+        _unlockSeq = '';
+        showMsg(I18N.UNLOCK_ALL);
+    }
     if (zstate.gameStarted && !zstate.introActive) {
         _partySeq = (_partySeq + e.key.toUpperCase()).slice(-5);
         if (_partySeq === 'PARTY') {
@@ -3038,7 +3142,7 @@ window.onkeydown = e => {
             _partySeq = '';
             if (_partyMode) {
                 _refreshPartyColors();
-                showMsg('🎉 PARTY MODE 🎉');
+                showMsg(I18N.PARTY_ON);
                 soundHandler.play('partytime', true);
             } else {
                 soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
@@ -3134,7 +3238,11 @@ const setupTouchControls = () => {
     _setupJoystick('joystick-right', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
 };
 
+declare const __APP_VERSION__: string;
+
 window.onload = () => {
+    const vEl = document.getElementById('splash-version');
+    if (vEl) vEl.textContent = `v${__APP_VERSION__}`;
     zinit();
     setupTouchControls();
     startMenuParticles();
@@ -3153,3 +3261,14 @@ window.selectCampaign = selectCampaign;
 window.startGame = startGame;
 window.setHover = setHover;
 window.dismissBriefing = dismissBriefing;
+window.toSettings     = toSettings;
+window.fromSettings   = fromSettings;
+window.approveCookies = approveCookies;
+window.declineCookies = declineCookies;
+window.dismissRankUp  = dismissRankUp;
+window.applySaveCode  = applySaveCode;
+
+// Show cookie banner if consent not yet given
+if (_session.cookieConsent === null) {
+    (document.getElementById('cookie-banner') as HTMLElement).style.display = 'flex';
+}

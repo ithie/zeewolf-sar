@@ -18,6 +18,17 @@ export const I18N = {
     SOARING:        'HOCH HINAUS – ↑↓ PITCH  ←→ BANK',
     SYSTEM_READY:   'SYSTEM BEREIT – TRIEBWERK STARTEN [W]',
 
+    // Easter Eggs
+    PARTY_ON:           '🎉 PARTY MODE 🎉',
+    UNLOCK_ALL:         '🔓 ALL CAMPAIGNS UNLOCKED',
+
+    // Session / Einstellungen
+    SAVE_CODE_INVALID:  'UNGÜLTIGER CODE',
+    SAVE_CODE_LOADED:   'SPIELSTAND GELADEN',
+    NO_SAVE_STATE:      '  |  KEIN SPEICHERSTAND',
+    STATS:              (c: number, m: number) => `KAMPAGNEN: ${c}  |  MISSIONEN: ${m}`,
+    CAMPAIGN_LOCKED:    '[ GESPERRT ]',
+
     // Crashgründe
     CRASH_WATER:        'WASSERAUFPRALL',
     CRASH_BAD_ZONE:     'FALSCHES LANDEZIEL',

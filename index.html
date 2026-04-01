@@ -395,6 +395,208 @@
                 border-color: #555;
                 text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
             }
+            /* ─── rank insignia ─────────────────────────────────────────────────────── */
+            .rank-board {
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                background: #050a1a;
+                border: 2px solid #cc9900;
+                border-radius: 4px;
+                padding: 14px 36px;
+                min-width: 150px;
+            }
+            .rank-pips {
+                font-size: 28px;
+                color: #ffcc00;
+                letter-spacing: 10px;
+                text-shadow: 0 0 10px rgba(255, 204, 0, 0.6);
+            }
+            .rank-board.major .rank-pips {
+                font-size: 32px;
+                color: #ffdd44;
+                letter-spacing: 4px;
+                text-shadow: 0 0 16px rgba(255, 220, 68, 0.8);
+            }
+            .rank-label {
+                font-size: 11px;
+                color: #887700;
+                letter-spacing: 5px;
+            }
+            /* ─── settings screen ───────────────────────────────────────────────────── */
+            #settings-screen {
+                position: absolute;
+                top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(5, 5, 5, 0.92);
+                display: none;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 200;
+                cursor: default;
+                gap: 22px;
+            }
+            #settings-stats {
+                color: #444;
+                font-size: 13px;
+                letter-spacing: 2px;
+                margin-top: -8px;
+            }
+            .settings-field {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+            }
+            .settings-field label {
+                font-size: 11px;
+                color: #555;
+                letter-spacing: 4px;
+            }
+            .settings-field input {
+                background: #0a0a0a;
+                border: 1px solid #3a3a2a;
+                color: #ffcc00;
+                font-family: monospace;
+                font-size: 18px;
+                letter-spacing: 3px;
+                text-align: center;
+                padding: 8px 20px;
+                outline: none;
+                width: 220px;
+            }
+            .settings-field input:focus {
+                border-color: #cc9900;
+                box-shadow: 0 0 10px rgba(204, 153, 0, 0.2);
+            }
+            #settings-code-display {
+                font-size: 22px;
+                color: #ffcc00;
+                letter-spacing: 6px;
+                background: #050a1a;
+                border: 1px solid #2a2a1a;
+                padding: 10px 22px;
+                text-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+                font-family: monospace;
+            }
+            .settings-btn {
+                font-family: monospace;
+                font-size: 12px;
+                letter-spacing: 3px;
+                color: #5f5;
+                border: 1px solid #2a4a2a;
+                background: none;
+                cursor: pointer;
+                padding: 8px 16px;
+                transition: all 0.2s;
+            }
+            .settings-btn:hover {
+                border-color: #5f5;
+                box-shadow: 0 0 8px rgba(85, 255, 85, 0.2);
+            }
+            #import-code-input {
+                width: 130px;
+                letter-spacing: 4px;
+                text-transform: uppercase;
+            }
+            /* ─── locked campaign ───────────────────────────────────────────────────── */
+            .grid-box.locked {
+                opacity: 0.2;
+                cursor: not-allowed;
+                pointer-events: none;
+                filter: grayscale(1);
+                border-color: #1a1a1a;
+            }
+            /* ─── cookie banner ─────────────────────────────────────────────────────── */
+            #cookie-banner {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.88);
+                display: none;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            }
+            #cookie-inner {
+                background: #080808;
+                border: 1px solid #2a2a2a;
+                border-top: 2px solid #cc9900;
+                padding: 32px 44px;
+                max-width: 460px;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                font-size: 14px;
+                color: #777;
+                line-height: 1.75;
+                letter-spacing: 1px;
+            }
+            #cookie-buttons {
+                display: flex;
+                gap: 14px;
+                margin-top: 6px;
+                justify-content: center;
+            }
+            #cookie-buttons button {
+                font-family: monospace;
+                font-size: 12px;
+                letter-spacing: 4px;
+                font-weight: bold;
+                cursor: pointer;
+                padding: 10px 28px;
+                border: 1px solid;
+                background: none;
+                transition: all 0.2s;
+            }
+            #cookie-buttons button.approve {
+                color: #5f5;
+                border-color: #2a4a2a;
+            }
+            #cookie-buttons button.approve:hover {
+                background: rgba(0, 80, 0, 0.3);
+                border-color: #5f5;
+                box-shadow: 0 0 12px rgba(85, 255, 85, 0.2);
+            }
+            #cookie-buttons button.decline {
+                color: #444;
+                border-color: #222;
+            }
+            #cookie-buttons button.decline:hover {
+                color: #777;
+                border-color: #444;
+            }
+            /* ─── rank-up overlay ───────────────────────────────────────────────────── */
+            #rankup-overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 4, 18, 0.97);
+                display: none;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 600;
+                cursor: pointer;
+                gap: 28px;
+            }
+            #rankup-label {
+                color: #cc9900;
+                font-size: 14px;
+                letter-spacing: 10px;
+                text-shadow: 0 0 20px rgba(204, 153, 0, 0.5);
+            }
+            #rankup-title {
+                font-size: 40px;
+                color: #ffcc00;
+                font-weight: bold;
+                letter-spacing: 6px;
+                text-shadow: 0 0 24px rgba(255, 204, 0, 0.5);
+            }
+            @keyframes rankup-pulse {
+                0%, 100% { transform: scale(1); }
+                50%       { transform: scale(1.06); }
+            }
+            #rankup-badge { animation: rankup-pulse 1.8s ease-in-out infinite; }
             /* ─── heli info ─────────────────────────────────────────────────────────── */
             #heli-info {
                 position: absolute;
@@ -956,7 +1158,7 @@
 
         <div id="splash" onclick="toMainMenu()">
             <div class="title">ZEEWOLF: SAR</div>
-            <div class="subtitle">v22</div>
+            <div class="subtitle" id="splash-version"></div>
             <canvas id="menu-heli-big"></canvas>
             <p class="start-hint">CLICK TO START SYSTEM</p>
         </div>
@@ -968,6 +1170,7 @@
             <nav class="menu-nav">
                 <div class="menu-item" onclick="toCampaignSelect()">SPIEL STARTEN</div>
                 <div class="menu-item" onclick="toHeliInfo()">HELIKOPTER</div>
+                <div class="menu-item" onclick="toSettings()">EINSTELLUNGEN</div>
                 <div class="menu-item" onclick="toCredits()">CREDITS</div>
             </nav>
         </div>
@@ -1070,6 +1273,65 @@
                 <span class="js-n">▲</span><span class="js-s">▼</span>
                 <span class="js-w">◀</span><span class="js-e">▶</span>
                 <div class="joystick-knob"></div>
+            </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings-screen">
+            <div class="title" style="font-size: 48px">EINSTELLUNGEN</div>
+            <div class="subtitle">PILOT PROFIL</div>
+            <div id="settings-badge"></div>
+            <div class="settings-field">
+                <label>RUFZEICHEN (MAX. 8 ZEICHEN, A–Z)</label>
+                <input id="player-name-input" type="text" maxlength="8" placeholder="—" />
+            </div>
+            <div id="settings-stats"></div>
+            <div class="settings-field" style="margin-top: 8px">
+                <label>SAVE CODE</label>
+                <div id="settings-code-display">—</div>
+            </div>
+            <div class="settings-field">
+                <label>CODE IMPORTIEREN (ÜBERSCHREIBT SPIELSTAND)</label>
+                <div style="display:flex; gap: 10px; align-items: center">
+                    <input id="import-code-input" class="settings-field input" type="text" maxlength="10" placeholder="XXXXX-XXXX" />
+                    <button class="settings-btn" onclick="applySaveCode()">LADEN</button>
+                </div>
+                <div id="import-code-msg" style="font-size: 12px; letter-spacing: 2px; min-height: 18px; margin-top: 4px"></div>
+            </div>
+            <div class="back-btn" onclick="fromSettings()">&#9664; ZURÜCK</div>
+        </div>
+
+        <!-- Rank-up Overlay -->
+        <div id="rankup-overlay" onclick="dismissRankUp()">
+            <div id="rankup-label">BEFÖRDERUNG</div>
+            <div id="rankup-badge"></div>
+            <div id="rankup-title"></div>
+            <p class="start-hint" style="color: #cc9900; margin-top: 10px">WEITER</p>
+        </div>
+
+        <!-- Cookie Banner -->
+        <div id="cookie-banner">
+            <div id="cookie-inner">
+                <div style="color: #cc9900; font-size: 15px; letter-spacing: 5px; font-weight: bold">DATENSCHUTZ</div>
+                <p>
+                    ZEEWOLF: SAR kann auf Wunsch folgende Daten <strong style="color: #aaa">ausschließlich lokal</strong>
+                    in deinem Browser speichern (localStorage):
+                </p>
+                <p style="color: #555; font-size: 13px; line-height: 1.6">
+                    ▸ Rufzeichen &nbsp;▸ Dienstgrad &nbsp;▸ Kampagnenfortschritt &nbsp;▸ Einwilligungsstatus
+                </p>
+                <p>
+                    Es werden <strong style="color: #aaa">keinerlei Daten</strong> an Server übertragen, gespeichert
+                    oder an Dritte weitergegeben. Rechtsgrundlage: Art.&nbsp;6 Abs.&nbsp;1 lit.&nbsp;a DSGVO.
+                </p>
+                <p style="color: #444; font-size: 12px">
+                    Die Einwilligung kann jederzeit durch Löschen des Browser-Speichers (localStorage) widerrufen werden.
+                    Das Spiel ist auch ohne Spielstand vollständig nutzbar.
+                </p>
+                <div id="cookie-buttons">
+                    <button class="approve" onclick="approveCookies()">AKZEPTIEREN</button>
+                    <button class="decline" onclick="declineCookies()">ABLEHNEN</button>
+                </div>
             </div>
         </div>
 
