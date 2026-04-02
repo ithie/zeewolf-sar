@@ -10,6 +10,7 @@ export interface PlayerSession {
     missionsDone: number;
     unlockedCampaignIndices: number[];
     allUnlocked: boolean;
+    lastSeenVersion: string;
 }
 
 export interface Rank {
@@ -38,6 +39,7 @@ const _default = (): PlayerSession => ({
     missionsDone: 0,
     unlockedCampaignIndices: [0],
     allUnlocked: false,
+    lastSeenVersion: '',
 });
 
 export const loadSession = (): PlayerSession => {

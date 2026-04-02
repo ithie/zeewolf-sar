@@ -20,9 +20,32 @@ import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-
 import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
 import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select/heli-select';
 import { I18N } from './i18n';
-import { mountCookieBanner } from './ui/cookie-banner/cookie-banner';
+import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-banner';
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
 import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings-rankup/settings-rankup';
+import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
+
+const REQUIRED_IDS = [
+    'gameCanvas', 'audio-mute', 'audio-mute-active', 'audio-mute-inactive',
+    'splash', 'splash-version', 'menu-heli-big', 'menu-particles-canvas',
+    'main-menu', 'main-menu-bg-canvas',
+    'heli-info', 'heli-info-stage', 'heli-cards-area', 'heli-detail-panel',
+    'credits-screen', 'credits-canvas', 'credits-inner',
+    'campaign-select', 'heli-select',
+    'crash-screen', 'mission-success-screen', 'win-screen',
+    'mission-briefing', 'campaign-complete-screen', 'campaign-failed-screen',
+    'settings-screen', 'rankup-overlay',
+    'cookie-banner', 'whats-new-overlay',
+    'touch-controls', 'debug-toggle',
+    'easter-egg', 'flash-overlay', 'msg',
+] as const;
+
+const assertDom = () => {
+    const missing = REQUIRED_IDS.filter(id => !document.getElementById(id));
+    if (missing.length > 0) {
+        throw new Error(`[zeewolf] Missing DOM elements: ${missing.join(', ')}`);
+    }
+};
 
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -3012,6 +3035,7 @@ const approveCookies = () => {
     _session.consentTimestamp = Date.now();
     saveSession(_session);
     (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
+    notifyConsent();
 };
 
 const declineCookies = () => {
@@ -3019,6 +3043,7 @@ const declineCookies = () => {
     _session.consentTimestamp = Date.now();
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
+    notifyConsent();
 };
 
 const _buildCampaignGrid = (): string[] => {
@@ -3078,13 +3103,13 @@ const _resizeCanvas = () => {
 window.onresize = _resizeCanvas;
 _resizeCanvas();
 
-const _touchEl = document.getElementById('touch-controls') as HTMLElement | null;
-const _debugToggleEl = document.getElementById('debug-toggle') as HTMLElement | null;
 const _isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const setTouchVisible = (v: boolean) => {
     if (!_isTouchDevice()) return;
-    if (_touchEl) _touchEl.style.display = v ? 'flex' : 'none';
-    if (_debugToggleEl) _debugToggleEl.style.display = v ? 'block' : 'none';
+    const touchEl = document.getElementById('touch-controls');
+    const debugEl = document.getElementById('debug-toggle');
+    if (touchEl) touchEl.style.display = v ? 'flex' : 'none';
+    if (debugEl) debugEl.style.display = v ? 'block' : 'none';
 };
 
 const _setupJoystick = (id: string, up: string, down: string, left: string, right: string) => {
@@ -3199,7 +3224,7 @@ const _setupHeadingJoystick = (id: string) => {
 
 const setupTouchControls = () => {
     if (!_isTouchDevice()) return;
-    _debugToggleEl?.addEventListener('click', () => {
+    document.getElementById('debug-toggle')?.addEventListener('click', () => {
         showCollisionBoxes = !showCollisionBoxes;
         SceneRenderer.debugAltitude = showCollisionBoxes;
     });
@@ -3273,16 +3298,39 @@ const mountGameScreens = () => {
 declare const __APP_VERSION__: string;
 
 window.onload = () => {
-    const vEl = document.getElementById('splash-version');
-    if (vEl) vEl.textContent = `v${__APP_VERSION__}`;
+    assertDom();
+    (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
     zinit();
     mountBriefing();
     initBriefing(dismissBriefing);
     mountSettingsRankup();
     initSettings({ getSession: () => _session, saveSession });
+    mountWhatsNew();
     mountGameScreens();
     setupTouchControls();
     startMenuParticles();
+
+    const _afterConsent = () => {
+        const shown = showWhatsNewIfNeeded(_session.lastSeenVersion, () => {
+            _session.lastSeenVersion = __APP_VERSION__;
+            saveSession(_session);
+        });
+        if (!shown) {
+            _session.lastSeenVersion = __APP_VERSION__;
+            saveSession(_session);
+        }
+    };
+
+    // Show cookie banner if consent not yet given or expired (2-week TTL)
+    if (_session.cookieConsent === null || isConsentExpired(_session)) {
+        _session.cookieConsent = null;
+        _session.consentTimestamp = null;
+        mountCookieBanner(_afterConsent);
+        (document.getElementById('cookie-banner') as HTMLElement).style.display = 'flex';
+    } else {
+        _afterConsent();
+    }
+
     document.addEventListener('pointerdown', () => soundHandler.play(musicConfig.mainMenu || 'maintheme', true), { once: true });
     drawMenuHeli();
 };
@@ -3300,11 +3348,3 @@ window.setHover = setHover;
 window.toSettings     = toSettings;
 window.approveCookies = approveCookies;
 window.declineCookies = declineCookies;
-
-// Show cookie banner if consent not yet given or expired (2-week TTL)
-if (_session.cookieConsent === null || isConsentExpired(_session)) {
-    _session.cookieConsent = null;     // reset consent — progress is kept in memory
-    _session.consentTimestamp = null;
-    mountCookieBanner();
-    (document.getElementById('cookie-banner') as HTMLElement).style.display = 'flex';
-}

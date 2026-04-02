@@ -1,5 +1,6 @@
 import './briefing.css';
 import { I18N } from '../../i18n';
+import { COMMANDER_SVG } from '../../main';
 
 export const mountBriefing = () => {
     const el = document.getElementById('mission-briefing')!;
@@ -15,7 +16,7 @@ export const mountBriefing = () => {
             </div>
         </div>
         <div id="briefing-commander-wrap">
-            <div id="briefing-commander-img"></div>
+            <div id="briefing-commander-img">${COMMANDER_SVG}</div>
         </div>`;
     el.addEventListener('click', () => _onDismiss?.());
 };

@@ -1,7 +1,5 @@
 import { CampaignExport, MissionData } from '@/shared/types';
-import { COMMANDER_SVG } from './commander-svg';
-
-document.getElementById('briefing-commander-img')!.innerHTML = COMMANDER_SVG;
+export { COMMANDER_SVG } from './commander-svg';
 import Tutorial from './campaigns/tutorial.json';
 import AddCamp from './campaigns/addCamp.json';
 import ArchipelDemo from './campaigns/archipeldemo.json';
