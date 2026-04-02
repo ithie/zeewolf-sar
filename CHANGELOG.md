@@ -1,5 +1,28 @@
 # Changelog
 
+## v23.3 — Mobile Controls
+
+### New
+
+- **Heading-based touch controls**: the right joystick now uses world-space steering on mobile — point the stick in any direction and the helicopter rotates toward it and accelerates accordingly; pulling back brakes
+- Left joystick (throttle/altitude) unchanged
+
+---
+
+## v23.2.1 — Internal Housekeeping
+
+### Technical
+
+- Extracted all screen-specific CSS into co-located CSS files per module
+- Responsive rules moved into their respective CSS files; `responsive.css` removed
+- All UI screens extracted from `index.html` into standalone modules mounted at runtime: briefing (`ui/briefing/`), settings + rank-up (`ui/settings-rankup/`), campaign select, heli select, and all mission result screens
+- Cookie banner, credits, heli-info, heli-select each organised into their own subdirectory
+- All remaining hardcoded UI strings moved to `i18n.ts` (`CLICK_TO_DEPLOY`, `BACK`, `RETRY`, `RETURN_TO_BASE`, `TERMINATED`, `MISSION_COMPLETE`, `CAMPAIGN_COMPLETE`, `CAMPAIGN_FAILED`, and more)
+- `onclick=` attributes removed from HTML; all handlers now use `addEventListener`
+- Global `window` exposure reduced: `dismissBriefing`, `fromSettings`, `dismissRankUp`, `applySaveCode`, `deleteSessionData`, `confirmDeleteSession` removed
+
+---
+
 ## v23.2 — Data Deletion
 
 ### New

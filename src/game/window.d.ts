@@ -10,15 +10,9 @@ declare global {
         selectCampaign:     (index: string) => void;
         startGame:          (type: string) => void;
         setHover:           (type: string, state: boolean) => void;
-        dismissBriefing:    () => void;
         toSettings:         () => void;
-        fromSettings:       () => void;
         approveCookies:     () => void;
         declineCookies:     () => void;
-        dismissRankUp:      () => void;
-        applySaveCode:          () => void;
-        deleteSessionData:      () => void;
-        confirmDeleteSession:   () => void;
     }
 }
 

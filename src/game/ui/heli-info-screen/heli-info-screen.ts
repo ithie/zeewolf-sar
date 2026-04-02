@@ -1,6 +1,7 @@
-import { iso } from '../render';
-import { HELI_TYPES } from '../heli-types';
-import { tileW, tileH, stepH } from '../render-config';
+import './heli-info-screen.css';
+import { iso } from '../../render';
+import { HELI_TYPES } from '../../heli-types';
+import { tileW, tileH, stepH } from '../../render-config';
 
 let _G: any;
 let _drawHeli: (...args: any[]) => void;

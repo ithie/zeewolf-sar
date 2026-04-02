@@ -1,4 +1,5 @@
-import { soundHandler, musicConfig } from '../main';
+import './credits-screen.css';
+import { soundHandler, musicConfig } from '../../main';
 
 export const toCredits = () => {
     document.getElementById('main-menu')!.style.display = 'none';

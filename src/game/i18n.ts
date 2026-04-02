@@ -22,6 +22,31 @@ export const I18N = {
     PARTY_ON:           '🎉 PARTY MODE 🎉',
     UNLOCK_ALL:         '🔓 ALL CAMPAIGNS UNLOCKED',
 
+    // Navigation
+    BACK:               '◀ ZURÜCK',
+    RETRY:              'WIEDERHOLEN',
+    RETURN_TO_BASE:     'ZURÜCK ZUR BASIS',
+
+    // Campaign select
+    CAMPAIGN_SELECT_TITLE:  'KAMPAGNE WÄHLEN',
+    CAMPAIGN_SELECT_SUB:    'EINSATZGEBIET',
+
+    // Heli select
+    HELI_SELECT_TITLE:  'HANGAR',
+    HELI_SELECT_SUB:    'LUFTFAHRZEUG WÄHLEN',
+
+    // Mission result screens
+    TERMINATED:             'TERMINATED',
+    MISSION_COMPLETE:       'MISSION COMPLETE',
+    OBJECTIVES_CLEARED:     'ALL OBJECTIVES CLEARED',
+    CAMPAIGN_COMPLETE:      'CAMPAIGN COMPLETE',
+    ALL_MISSIONS_CLEARED:   'ALL MISSIONS CLEARED',
+    CAMPAIGN_FAILED:        'CAMPAIGN FAILED',
+    MISSION_ABORTED:        'MISSION ABORTED',
+
+    // Briefing
+    CLICK_TO_DEPLOY:    'KLICKEN ZUM EINSATZ',
+
     // Anrede
     PILOT_ADDRESS:      (rank: string, callsign: string) => callsign ? `${rank} ${callsign}` : rank,
     BRIEFING_ADDRESS:   (rank: string, callsign: string) =>

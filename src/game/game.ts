@@ -1,6 +1,9 @@
+import '../styles/base.css';
+import './ui/screens.css';
+import './ui/touch-controls.css';
 import { iso } from './render';
 import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
-import { loadSession, saveSession, getRank, isCampaignUnlocked, encodeSession, decodeSession, isConsentExpired, STORAGE_KEY, type PlayerSession, type Rank } from './session';
+import { loadSession, saveSession, getRank, isCampaignUnlocked, isConsentExpired, STORAGE_KEY, type PlayerSession, type Rank } from './session';
 import { zstate } from './state';
 
 import HANGAR_DEF from './models/hangar.zdef';
@@ -12,11 +15,14 @@ import { createSceneRenderer } from './scene-renderer';
 import { HELI_TYPES, getHeliType } from './heli-types';
 import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
-import { toCredits } from './ui/credits-screen';
-import { startMenuParticles, stopMenuParticles } from './ui/menu-particles';
-import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen';
-import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select';
+import { toCredits } from './ui/credits-screen/credits-screen';
+import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
+import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
+import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select/heli-select';
 import { I18N } from './i18n';
+import { mountCookieBanner } from './ui/cookie-banner/cookie-banner';
+import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
+import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings-rankup/settings-rankup';
 
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -1323,32 +1329,19 @@ function triggerCrash(reason: string) {
     }, 1800); // Explosion erst austoben lassen
 }
 
-function showBriefing() {
+const showBriefing = () => {
     const { headline, sublines, briefing, previewBase64 } = campaignHandler.getCurrentMissionData();
-    const mapEl = document.getElementById('briefing-map') as HTMLImageElement;
-    if (previewBase64) {
-        mapEl.src = previewBase64;
-        mapEl.style.display = 'block';
-    } else {
-        mapEl.style.display = 'none';
-    }
     const rank = getRank(_session);
-    document.getElementById('briefing-address')!.textContent =
-        I18N.BRIEFING_ADDRESS(rank.name, _session.playerName).toUpperCase();
-    document.getElementById('briefing-headline')!.textContent = headline || 'MISSION BRIEFING';
-    const sublinesEl = document.getElementById('briefing-sublines')!;
-    sublinesEl.innerHTML =
-        Array.isArray(sublines) && sublines.length ? sublines.map(s => `▸ ${s}`).join('<br>') : '';
-    document.getElementById('briefing-body')!.textContent = briefing || '';
+    const address = I18N.BRIEFING_ADDRESS(rank.name, _session.playerName).toUpperCase();
+    _showBriefing(headline, sublines, briefing, previewBase64, address);
     const briefingSong = campaignHandler.getActiveCampaignMusic().briefing;
     if (briefingSong) soundHandler.play(briefingSong, true);
-    document.getElementById('mission-briefing')!.style.display = 'flex';
-}
+};
 
-function dismissBriefing() {
-    document.getElementById('mission-briefing')!.style.display = 'none';
+const dismissBriefing = () => {
+    hideBriefing();
     launchMission();
-}
+};
 
 function missionComplete() {
     const { campaignType } = campaignHandler.getCurrentMissionData();
@@ -1385,7 +1378,7 @@ function missionComplete() {
         document.getElementById('campaign-complete-name')!.textContent = '';
         document.getElementById('campaign-complete-screen')!.style.display = 'flex';
         soundHandler.play(musicConfig.success || 'final', false);
-        if (rankUpRank) showRankUp(rankUpRank);
+        if (rankUpRank) showRankUp(rankUpRank, _session.playerName);
         return;
     }
     const { gridSize, objects: nextObjects } = next;
@@ -1413,7 +1406,7 @@ function missionComplete() {
         G.particles = [];
         G.debris = [];
         showBriefing();
-        if (rankUpRank) showRankUp(rankUpRank);
+        if (rankUpRank) showRankUp(rankUpRank, _session.playerName);
     };
 }
 
@@ -1440,7 +1433,7 @@ function returnToBase() {
     document.getElementById('campaign-failed-screen')!.style.display = 'none';
     document.getElementById('mission-success-screen')!.style.display = 'none';
     document.getElementById('crash-screen')!.style.display = 'none';
-    document.getElementById('mission-briefing')!.style.display = 'none';
+    hideBriefing();
     document.getElementById('campaign-select')!.style.display = 'flex';
     document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
@@ -3013,23 +3006,6 @@ let _session: PlayerSession = loadSession();
 let _selectedCampaignIndex = 0;
 let _unlockSeq = '';
 
-const _rankBadgeHtml = (rank: Rank) =>
-    `<div class="rank-board${rank.name === 'Major' ? ' major' : ''}">` +
-    `<span class="rank-pips">${rank.pips}</span>` +
-    `<span class="rank-label">${rank.name.toUpperCase()}</span>` +
-    `</div>`;
-
-const showRankUp = (rank: Rank) => {
-    (document.getElementById('rankup-badge') as HTMLElement).innerHTML = _rankBadgeHtml(rank);
-    (document.getElementById('rankup-title') as HTMLElement).textContent = rank.name.toUpperCase();
-    (document.getElementById('rankup-address') as HTMLElement).textContent =
-        I18N.PILOT_ADDRESS(rank.name, _session.playerName).toUpperCase();
-    (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'flex';
-};
-
-const dismissRankUp = () => {
-    (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'none';
-};
 
 const approveCookies = () => {
     _session.cookieConsent = true;
@@ -3065,67 +3041,6 @@ const _buildCampaignGrid = (): string[] => {
     return campaigns;
 };
 
-const _refreshSettingsScreen = () => {
-    const rank = getRank(_session);
-    (document.getElementById('settings-badge') as HTMLElement).innerHTML = _rankBadgeHtml(rank);
-    (document.getElementById('settings-code-display') as HTMLElement).textContent = encodeSession(_session);
-    const statsEl = document.getElementById('settings-stats') as HTMLElement;
-    const noSave = !_session.cookieConsent ? I18N.NO_SAVE_STATE : '';
-    statsEl.textContent = I18N.STATS(_session.campaignsDone, _session.missionsDone) + noSave;
-};
-
-const toSettings = () => {
-    _refreshSettingsScreen();
-    const input = document.getElementById('player-name-input') as HTMLInputElement;
-    input.value = _session.playerName || '';
-    input.oninput = () => {
-        _session.playerName = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8);
-        input.value = _session.playerName;
-        saveSession(_session);
-        _refreshSettingsScreen();
-    };
-    (document.getElementById('import-code-input') as HTMLInputElement).value = '';
-    (document.getElementById('import-code-msg') as HTMLElement).textContent = '';
-    (document.getElementById('main-menu') as HTMLElement).style.display = 'none';
-    (document.getElementById('settings-screen') as HTMLElement).style.display = 'flex';
-};
-
-const applySaveCode = () => {
-    const input = document.getElementById('import-code-input') as HTMLInputElement;
-    const msg   = document.getElementById('import-code-msg') as HTMLElement;
-    const decoded = decodeSession(input.value.trim());
-    if (!decoded) {
-        msg.style.color = '#f44';
-        msg.textContent = I18N.SAVE_CODE_INVALID;
-        return;
-    }
-    // Overwrite progress data, keep consent
-    Object.assign(_session, decoded);
-    saveSession(_session);
-    input.value = '';
-    msg.style.color = '#5f5';
-    msg.textContent = I18N.SAVE_CODE_LOADED;
-    _refreshSettingsScreen();
-    (document.getElementById('player-name-input') as HTMLInputElement).value = _session.playerName || '';
-};
-
-const fromSettings = () => {
-    (document.getElementById('settings-screen') as HTMLElement).style.display = 'none';
-    (document.getElementById('main-menu') as HTMLElement).style.display = 'flex';
-};
-
-const deleteSessionData = () => {
-    const btn = document.getElementById('delete-session-btn') as HTMLElement;
-    btn.textContent = I18N.DELETE_CONFIRM;
-    btn.onclick = confirmDeleteSession;
-};
-
-const confirmDeleteSession = () => {
-    const msg = document.getElementById('delete-session-msg') as HTMLElement;
-    msg.textContent = I18N.SESSION_DELETED;
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
-    setTimeout(() => window.location.reload(), 1200);
-};
 
 window.onkeydown = e => {
     G.keys[e.code] = true;
@@ -3214,6 +3129,74 @@ const _setupJoystick = (id: string, up: string, down: string, left: string, righ
     el.addEventListener('pointercancel', release);
 };
 
+const _setupHeadingJoystick = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const knob = el.querySelector('.joystick-knob') as HTMLElement;
+    let active = false, cx = 0, cy = 0, jr = 0;
+    let _stickDx = 0, _stickDy = 0;
+
+    el.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        el.setPointerCapture(e.pointerId);
+        const r = el.getBoundingClientRect();
+        cx = r.left + r.width / 2;
+        cy = r.top  + r.height / 2;
+        jr = r.width / 2;
+        active = true;
+        knob.style.transition = 'none';
+    });
+    el.addEventListener('pointermove', e => {
+        if (!active) return;
+        const dx = e.clientX - cx, dy = e.clientY - cy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const clamped = Math.min(dist, jr * 0.55) / dist;
+        knob.style.transform = `translate(calc(-50% + ${dx * clamped}px), calc(-50% + ${dy * clamped}px))`;
+        _stickDx = dx;
+        _stickDy = dy;
+    });
+    const release = () => {
+        if (!active) return;
+        active = false;
+        _stickDx = 0;
+        _stickDy = 0;
+        knob.style.transition = 'transform 0.12s ease-out';
+        knob.style.transform = 'translate(-50%, -50%)';
+        (G.keys as Record<string, boolean>)['ArrowUp']    = false;
+        (G.keys as Record<string, boolean>)['ArrowDown']  = false;
+        (G.keys as Record<string, boolean>)['ArrowLeft']  = false;
+        (G.keys as Record<string, boolean>)['ArrowRight'] = false;
+    };
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+
+    // Run each frame — reads current heli angle and maps stick to heading keys
+    const tick = () => {
+        if (active && Math.hypot(_stickDx, _stickDy) > jr * 0.18) {
+            const targetAngle = Math.atan2(_stickDy, _stickDx);
+            let diff = targetAngle - G.heli.angle;
+            // Normalise to [-π, π]
+            while (diff >  Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+
+            const turnDead = 0.15;
+            (G.keys as Record<string, boolean>)['ArrowLeft']  = diff < -turnDead;
+            (G.keys as Record<string, boolean>)['ArrowRight'] = diff >  turnDead;
+
+            // Dot product of stick direction vs current heli forward
+            const stickLen = Math.hypot(_stickDx, _stickDy);
+            const normSx = _stickDx / stickLen, normSy = _stickDy / stickLen;
+            const fwdX = Math.cos(G.heli.angle), fwdY = Math.sin(G.heli.angle);
+            const dot = normSx * fwdX + normSy * fwdY;
+            const accelDead = 0.3;
+            (G.keys as Record<string, boolean>)['ArrowUp']   = dot >  accelDead;
+            (G.keys as Record<string, boolean>)['ArrowDown']  = dot < -accelDead;
+        }
+        requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+};
+
 const setupTouchControls = () => {
     if (!_isTouchDevice()) return;
     _debugToggleEl?.addEventListener('click', () => {
@@ -3239,7 +3222,52 @@ const setupTouchControls = () => {
     });
     // joysticks
     _setupJoystick('joystick-left',  'KeyW', 'KeyS', 'KeyA', 'KeyD');
-    _setupJoystick('joystick-right', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
+    _setupHeadingJoystick('joystick-right');
+};
+
+const mountGameScreens = () => {
+    document.getElementById('campaign-select')!.innerHTML = `
+        <div class="title">${I18N.CAMPAIGN_SELECT_TITLE}</div>
+        <div class="subtitle">${I18N.CAMPAIGN_SELECT_SUB}</div>
+        <div class="campaign-grid" id="campaign-grid"></div>
+        <div class="back-btn" id="campaign-select-back">${I18N.BACK}</div>`;
+    document.getElementById('campaign-select-back')!.addEventListener('click', toMainMenu);
+
+    document.getElementById('heli-select')!.innerHTML = `
+        <div class="title">${I18N.HELI_SELECT_TITLE}</div>
+        <div class="subtitle">${I18N.HELI_SELECT_SUB}</div>
+        <div id="heli-options" class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width: 900px"></div>
+        <div class="back-btn" id="heli-select-back">${I18N.BACK}</div>`;
+    document.getElementById('heli-select-back')!.addEventListener('click', backFromHeliSelect);
+
+    document.getElementById('crash-screen')!.innerHTML = `
+        <div class="title" style="color: #fff">${I18N.TERMINATED}</div>
+        <p id="crash-reason" style="color: #f00; font-size: 24px; font-weight: bold"></p>
+        <p class="start-hint">${I18N.RETRY}</p>`;
+
+    document.getElementById('mission-success-screen')!.innerHTML = `
+        <div class="title" style="color: #fff">${I18N.MISSION_COMPLETE}</div>
+        <p style="color: rgb(50, 74, 50); font-size: 24px">${I18N.OBJECTIVES_CLEARED}</p>
+        <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
+
+    document.getElementById('win-screen')!.innerHTML = `
+        <div class="title" style="color: #fff">${I18N.CAMPAIGN_COMPLETE}</div>
+        <p style="color: #5f5; font-size: 24px">${I18N.ALL_MISSIONS_CLEARED}</p>
+        <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
+
+    document.getElementById('campaign-complete-screen')!.innerHTML = `
+        <div class="title" style="color: #ff6600">${I18N.CAMPAIGN_COMPLETE}</div>
+        <div id="campaign-complete-name" style="color: #5f5; font-size: 24px; margin: 10px 0"></div>
+        <p style="color: #aaa; font-size: 16px; letter-spacing: 2px">${I18N.ALL_MISSIONS_CLEARED}</p>
+        <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
+    document.getElementById('campaign-complete-screen')!.addEventListener('click', returnToBase);
+
+    document.getElementById('campaign-failed-screen')!.innerHTML = `
+        <div class="title" style="color: #fff">${I18N.CAMPAIGN_FAILED}</div>
+        <p id="campaign-failed-reason" style="color: #f00; font-size: 24px; font-weight: bold"></p>
+        <p style="color: #aaa; font-size: 16px; letter-spacing: 2px">${I18N.MISSION_ABORTED}</p>
+        <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
+    document.getElementById('campaign-failed-screen')!.addEventListener('click', returnToBase);
 };
 
 declare const __APP_VERSION__: string;
@@ -3248,6 +3276,11 @@ window.onload = () => {
     const vEl = document.getElementById('splash-version');
     if (vEl) vEl.textContent = `v${__APP_VERSION__}`;
     zinit();
+    mountBriefing();
+    initBriefing(dismissBriefing);
+    mountSettingsRankup();
+    initSettings({ getSession: () => _session, saveSession });
+    mountGameScreens();
     setupTouchControls();
     startMenuParticles();
     document.addEventListener('pointerdown', () => soundHandler.play(musicConfig.mainMenu || 'maintheme', true), { once: true });
@@ -3264,19 +3297,14 @@ window.returnToBase = returnToBase;
 window.selectCampaign = selectCampaign;
 window.startGame = startGame;
 window.setHover = setHover;
-window.dismissBriefing = dismissBriefing;
 window.toSettings     = toSettings;
-window.fromSettings   = fromSettings;
 window.approveCookies = approveCookies;
 window.declineCookies = declineCookies;
-window.dismissRankUp  = dismissRankUp;
-window.applySaveCode        = applySaveCode;
-window.deleteSessionData    = deleteSessionData;
-window.confirmDeleteSession = confirmDeleteSession;
 
 // Show cookie banner if consent not yet given or expired (2-week TTL)
 if (_session.cookieConsent === null || isConsentExpired(_session)) {
     _session.cookieConsent = null;     // reset consent — progress is kept in memory
     _session.consentTimestamp = null;
+    mountCookieBanner();
     (document.getElementById('cookie-banner') as HTMLElement).style.display = 'flex';
 }
