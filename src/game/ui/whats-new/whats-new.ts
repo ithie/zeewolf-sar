@@ -1,17 +1,15 @@
 import './whats-new.css';
-import type { ChangelogEntry } from '../../../../plugins/changelog-latest';
-
-declare const __WHATS_NEW__: ChangelogEntry;
+import { I18N } from '../../i18n';
 
 export const mountWhatsNew = () => {
     const el = document.getElementById('whats-new-overlay')!;
     el.innerHTML = `
-        <div id="whats-new-version">NEUIGKEITEN · ${__WHATS_NEW__.version}</div>
-        <div id="whats-new-title">${__WHATS_NEW__.title.toUpperCase()}</div>
+        <div id="whats-new-version">NEUIGKEITEN · ${I18N.WHATS_NEW_VERSION}</div>
+        <div id="whats-new-title">${I18N.WHATS_NEW_TITLE.toUpperCase()}</div>
         <ul id="whats-new-items">
-            ${__WHATS_NEW__.items.map(item => `<li>${item}</li>`).join('')}
+            ${[...I18N.WHATS_NEW_ITEMS].map(item => `<li>${item}</li>`).join('')}
         </ul>
-        <div id="whats-new-hint">KLICKEN ZUM FORTFAHREN</div>`;
+        <div id="whats-new-hint">${I18N.WHATS_NEW_HINT}</div>`;
     el.addEventListener('click', hideWhatsNew);
 };
 
@@ -19,7 +17,7 @@ export const showWhatsNewIfNeeded = (
     lastSeenVersion: string,
     onDismiss: () => void,
 ): boolean => {
-    if (lastSeenVersion === __WHATS_NEW__.version || !__WHATS_NEW__.version) return false;
+    if (lastSeenVersion === I18N.WHATS_NEW_VERSION || !I18N.WHATS_NEW_VERSION) return false;
     _onDismiss = onDismiss;
     document.getElementById('whats-new-overlay')!.style.display = 'flex';
     return true;

@@ -76,4 +76,14 @@ export const I18N = {
     CRASH_LIGHTHOUSE:   'LEUCHTTURM-KOLLISION',
     CRASH_BOAT:         'KOLLISION MIT BOOT',
     CRASH_TREE:         'BAUMKONTAKT',
+
+    // What's New
+    WHATS_NEW_VERSION:  'v23.3',
+    WHATS_NEW_TITLE:    'Mobile Steuerung',
+    WHATS_NEW_HINT:     'KLICKEN ZUM FORTFAHREN',
+    WHATS_NEW_ITEMS:    [
+        'Neues Steuerungskonzept für Touch: Steuerstick zeigt in Flugrichtung — der Heli dreht sich und beschleunigt entsprechend',
+        'Gegenrichtung bremst den Heli ab',
+        'Linker Stick (Höhe/Winsch) unverändert',
+    ],
 } as const;

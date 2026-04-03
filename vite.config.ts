@@ -8,7 +8,6 @@ import { zsongPlugin } from './plugins/zsong';
 import { zdefPlugin } from './plugins/zdef';
 import { makeSingleFile } from './plugins/make-single-file';
 import { injectCookieBanner } from './plugins/inject-cookie-banner';
-import { changelogLatestPlugin } from './plugins/changelog-latest';
 
 const GZIP_WARN_THRESHOLD = 500 * 1024; // 500 kB
 
@@ -35,7 +34,7 @@ const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 
 export default defineConfig(() => {
     return {
         define: { __APP_VERSION__: JSON.stringify(version) },
-        plugins: [zsongPlugin(), zdefPlugin(), injectCookieBanner(), changelogLatestPlugin(), makeSingleFile(), bundleSizeGuard()],
+        plugins: [zsongPlugin(), zdefPlugin(), injectCookieBanner(), makeSingleFile(), bundleSizeGuard()],
         build: {
             outDir: 'dist/',
 

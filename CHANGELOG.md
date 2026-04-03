@@ -1,6 +1,12 @@
 # Changelog
 
-## v23.3 — Mobile Controls
+## v23.3 — Mobile Controls (Hotfix 2)
+
+### Fixes
+
+- Fixed crash on load in production build: `briefing-commander-img` was accessed at module level before DOM was ready, preventing session saves from ever executing
+- All DOM access now guarded by `assertDom()` inside `window.onload`
+- Cookie banner consent callback (`notifyConsent`) now correctly triggers What's New overlay after consent
 
 ### New
 
