@@ -36,12 +36,14 @@ export function initGrid(size: number, points: number[][]) {
     }
 }
 
-export function generateTerrain(points: number[][], PAD: { xMin: number; xMax: number; yMin: number; yMax: number; z: number } | null) {
+export function generateTerrain(
+    points: number[][],
+    PAD: { xMin: number; xMax: number; yMin: number; yMax: number; z: number } | null
+) {
     const { terrain, gridSize } = campaignHandler.getTerrain();
     for (let x = 0; x <= gridSize; x++) {
         for (let y = 0; y <= gridSize; y++) {
-            if (PAD && x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1)
-                points[x][y] = PAD.z;
+            if (PAD && x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1) points[x][y] = PAD.z;
             else points[x][y] = terrain[x][y];
         }
     }
@@ -50,12 +52,7 @@ export function generateTerrain(points: number[][], PAD: { xMin: number; xMax: n
 export function getGround(fx: number, fy: number, points = G.points, CARRIER = G.CARRIER) {
     if (CARRIER && CARRIER.x !== undefined) {
         let local = getCarrierLocal(fx, fy, CARRIER);
-        if (
-            local.x >= -CARRIER.w &&
-            local.x <= CARRIER.w &&
-            local.y >= -CARRIER.l &&
-            local.y <= CARRIER.l
-        ) {
+        if (local.x >= -CARRIER.w && local.x <= CARRIER.w && local.y >= -CARRIER.l && local.y <= CARRIER.l) {
             if (local.x > 1.2 && local.y > 1.5 && local.y < 5.0) return CARRIER.zDeck + 1.2;
             return CARRIER.zDeck;
         }
@@ -140,9 +137,7 @@ function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
         const r = obj.radius ?? 45;
         vessel.radiusX = r;
         vessel.radiusY = r * 0.8;
-        const t0 =
-            Math.atan2(-Math.sin(angleRad) / vessel.radiusX, -Math.cos(angleRad) / vessel.radiusY) +
-            Math.PI / 2;
+        const t0 = Math.atan2(-Math.sin(angleRad) / vessel.radiusX, -Math.cos(angleRad) / vessel.radiusY) + Math.PI / 2;
         vessel.centerX = obj.x - Math.cos(t0) * vessel.radiusX;
         vessel.centerY = obj.y - Math.sin(t0) * vessel.radiusY;
         seaTimeRef.t = t0;
@@ -181,8 +176,12 @@ export function initCarrierFromMission() {
     const carrierObj = getObjectByType('carrier');
     if (!carrierObj) return;
     const seaTimeRef = {
-        get t() { return G.seaTime; },
-        set t(v) { G.seaTime = v; },
+        get t() {
+            return G.seaTime;
+        },
+        set t(v) {
+            G.seaTime = v;
+        },
     };
     initVessel(carrierObj, G.CARRIER, seaTimeRef);
     updateCarrierPos(G.CARRIER, seaTimeRef, true);
@@ -215,8 +214,12 @@ export function initBoatsFromMission() {
             _objIdx: objIdx,
         };
         const st = {
-            get t() { return b._seaTime; },
-            set t(v) { b._seaTime = v; },
+            get t() {
+                return b._seaTime;
+            },
+            set t(v) {
+                b._seaTime = v;
+            },
         };
         initVessel(obj, b, st);
         return b;
@@ -293,9 +296,8 @@ export function initPayloadsFromMission() {
             hanging: false,
             attachTo: p.attachTo || null,
             npcTarget: p.npcTarget ?? false,
-            outfitColors: p.type === 'person'
-                ? SURVIVOR_OUTFITS[Math.floor(Math.random() * SURVIVOR_OUTFITS.length)]
-                : null,
+            outfitColors:
+                p.type === 'person' ? SURVIVOR_OUTFITS[Math.floor(Math.random() * SURVIVOR_OUTFITS.length)] : null,
         };
     });
     G.goalCount = G.payloads.filter((p: any) => !p.npcTarget).length;
@@ -394,8 +396,7 @@ export function spawnExplosion(heli: any, particles: any[], debris: any[], point
         { name: 'rotor2', color: '#333', stroke: '#555', w: 1.8 * scale, h: 0.08 * scale },
         { name: 'door', color: '#cc4400', stroke: '#aa2200', w: 0.5 * scale, h: 0.4 * scale },
     ];
-    if (_ht.extraRotorDebris)
-        parts.push({ name: 'rotor3', color: '#333', stroke: '#555', w: 1.8, h: 0.08 });
+    if (_ht.extraRotorDebris) parts.push({ name: 'rotor3', color: '#333', stroke: '#555', w: 1.8, h: 0.08 });
 
     parts.forEach(part => {
         const a = Math.random() * Math.PI * 2;
@@ -488,7 +489,8 @@ export function initBirds() {
     const spawnCx = G.START_POS ? G.START_POS.x : gridSize / 2;
     const spawnCy = G.START_POS ? G.START_POS.y : gridSize / 2;
     for (let f = 0; f < numFlocks; f++) {
-        let fx = 0, fy = 0;
+        let fx = 0,
+            fy = 0;
         let found = false;
         for (let attempt = 0; attempt < 30; attempt++) {
             const angle = Math.random() * Math.PI * 2;
@@ -587,7 +589,8 @@ export function updateBirds() {
 
 // ─── particles ────────────────────────────────────────────────────────────────
 function getRotorPositions() {
-    const cosA = Math.cos(G.heli.angle), sinA = Math.sin(G.heli.angle);
+    const cosA = Math.cos(G.heli.angle),
+        sinA = Math.sin(G.heli.angle);
     return getHeliType(G.heli.type).rotorOffsets.map((ox: number) => ({
         x: G.heli.x + cosA * ox,
         y: G.heli.y + sinA * ox,
@@ -603,7 +606,9 @@ export function handleParticles(dt: number, ctx: PhysicsCtx) {
                 for (let i = 0; i < 3; i++) {
                     const a = Math.random() * Math.PI * 2;
                     const col = ctx.partyPalette[Math.floor(Math.random() * ctx.partyPalette.length)];
-                    const r = parseInt(col.slice(1,3),16), g2 = parseInt(col.slice(3,5),16), b = parseInt(col.slice(5,7),16);
+                    const r = parseInt(col.slice(1, 3), 16),
+                        g2 = parseInt(col.slice(3, 5), 16),
+                        b = parseInt(col.slice(5, 7), 16);
                     G.particles.push({
                         x: rotor.x + Math.cos(a) * 0.5,
                         y: rotor.y + Math.sin(a) * 0.5,
@@ -655,7 +660,11 @@ export function handleParticles(dt: number, ctx: PhysicsCtx) {
             const t = G.TREES_MAP[Math.floor(Math.random() * G.TREES_MAP.length)];
             const topZ = (t.gz ?? 0) + (t.s ?? 1) * 2.2;
             const col = ctx.partyPalette[Math.floor(Math.random() * ctx.partyPalette.length)];
-            const [pr, pg, pb] = [parseInt(col.slice(1,3),16), parseInt(col.slice(3,5),16), parseInt(col.slice(5,7),16)];
+            const [pr, pg, pb] = [
+                parseInt(col.slice(1, 3), 16),
+                parseInt(col.slice(3, 5), 16),
+                parseInt(col.slice(5, 7), 16),
+            ];
             G.particles.push({
                 x: t.x + (Math.random() - 0.5) * 0.4,
                 y: t.y + (Math.random() - 0.5) * 0.4,
@@ -707,22 +716,26 @@ export function updateFuelTruck(dt: number, ctx: PhysicsCtx) {
     const STOP_DIST = 3.5;
 
     const HB = {
-        x0: G.PAD.xMax - 4.5, x1: G.PAD.xMax + 0.5,
-        y0: G.PAD.yMin - 0.5, y1: G.PAD.yMin + 2.5,
+        x0: G.PAD.xMax - 4.5,
+        x1: G.PAD.xMax + 0.5,
+        y0: G.PAD.yMin - 0.5,
+        y1: G.PAD.yMin + 2.5,
     };
 
     function hangarForce() {
         const cx = Math.max(HB.x0, Math.min(HB.x1, ft.x));
         const cy = Math.max(HB.y0, Math.min(HB.y1, ft.y));
-        const dx = ft.x - cx, dy = ft.y - cy;
+        const dx = ft.x - cx,
+            dy = ft.y - cy;
         const dist = Math.hypot(dx, dy);
         if (dist < 0.01 || dist > 3.0) return [0, 0];
         const s = Math.min(4.0, 1.5 / dist);
-        return [dx / dist * s, dy / dist * s];
+        return [(dx / dist) * s, (dy / dist) * s];
     }
 
     function navigate(tx: number, ty: number) {
-        const dx = tx - ft.x, dy = ty - ft.y;
+        const dx = tx - ft.x,
+            dy = ty - ft.y;
         const dist = Math.hypot(dx, dy);
         if (dist < 0.01) return 0;
         const [fx, fy] = hangarForce();
@@ -738,17 +751,22 @@ export function updateFuelTruck(dt: number, ctx: PhysicsCtx) {
 
     if (ft.state === 'DRIVING') {
         if (navigate(heli.x, heli.y) <= STOP_DIST) {
-            ft.state = 'ARM_OUT'; ft.t = 0;
+            ft.state = 'ARM_OUT';
+            ft.t = 0;
         }
     } else if (ft.state === 'ARM_OUT') {
         ft.t = Math.min(1, ft.t + 0.016 * dt);
         ft.arm = ft.t;
-        if (ft.t >= 1) { ft.state = 'FUELING'; ft.t = 0; }
+        if (ft.t >= 1) {
+            ft.state = 'FUELING';
+            ft.t = 0;
+        }
     } else if (ft.state === 'FUELING') {
         if (heli.fuel < 100) {
             heli.fuel = Math.min(100, heli.fuel + 0.25 * dt);
         } else {
-            ft.state = 'ARM_IN'; ft.t = 0;
+            ft.state = 'ARM_IN';
+            ft.t = 0;
         }
         if (heli.onboard > 0) {
             G.totalRescued += heli.onboard;
@@ -759,10 +777,14 @@ export function updateFuelTruck(dt: number, ctx: PhysicsCtx) {
     } else if (ft.state === 'ARM_IN') {
         ft.t = Math.min(1, ft.t + 0.016 * dt);
         ft.arm = 1 - ft.t;
-        if (ft.t >= 1) { ft.state = 'RETURNING'; ft.t = 0; }
+        if (ft.t >= 1) {
+            ft.state = 'RETURNING';
+            ft.t = 0;
+        }
     } else if (ft.state === 'RETURNING') {
         if (navigate(ft.parkX, ft.parkY) < 2.0) {
-            ft.state = 'PARKED'; ft.t = 0;
+            ft.state = 'PARKED';
+            ft.t = 0;
         }
     }
 }
@@ -780,20 +802,26 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
         let oldX = G.CARRIER.x,
             oldY = G.CARRIER.y,
             oldAng = G.CARRIER.angle;
-        updateCarrierPos(G.CARRIER, {
-            get t() { return G.seaTime; },
-            set t(v) { G.seaTime = v; },
-        }, false, dt);
+        updateCarrierPos(
+            G.CARRIER,
+            {
+                get t() {
+                    return G.seaTime;
+                },
+                set t(v) {
+                    G.seaTime = v;
+                },
+            },
+            false,
+            dt
+        );
         let carrierVX = G.CARRIER.x - oldX;
         let carrierVY = G.CARRIER.y - oldY;
         let carrierRot = G.CARRIER.angle - oldAng;
 
         let local = getCarrierLocal(G.heli.x, G.heli.y, G.CARRIER);
         let onDeck =
-            local.x >= -G.CARRIER.w &&
-            local.x <= G.CARRIER.w &&
-            local.y >= -G.CARRIER.l &&
-            local.y <= G.CARRIER.l;
+            local.x >= -G.CARRIER.w && local.x <= G.CARRIER.w && local.y >= -G.CARRIER.l && local.y <= G.CARRIER.l;
 
         if (onDeck && !G.heli.inAir) {
             G.heli.x += carrierVX;
@@ -810,15 +838,11 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
 
     let groundH = getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
 
-    let onCarrierDeck = false, onPadSurface = false;
+    let onCarrierDeck = false,
+        onPadSurface = false;
     if (ctx.hasCarrier) {
         let local = getCarrierLocal(G.heli.x, G.heli.y, G.CARRIER);
-        if (
-            local.x >= -G.CARRIER.w &&
-            local.x <= G.CARRIER.w &&
-            local.y >= -G.CARRIER.l &&
-            local.y <= G.CARRIER.l
-        )
+        if (local.x >= -G.CARRIER.w && local.x <= G.CARRIER.w && local.y >= -G.CARRIER.l && local.y <= G.CARRIER.l)
             onCarrierDeck = true;
     }
     if (
@@ -835,8 +859,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
         onPad && ctx.hasPad && G.PAD ? G.PAD.z : onPad && ctx.hasCarrier ? G.CARRIER.zDeck : groundH;
 
     // engine
-    if (G.keys['KeyW'] && !G.heli.engineOn && G.heli.fuel > 0 && onPad && !zstate.introActive)
-        G.heli.engineOn = true;
+    if (G.keys['KeyW'] && !G.heli.engineOn && G.heli.fuel > 0 && onPad && !zstate.introActive) G.heli.engineOn = true;
     if (G.keys['KeyS'] && !G.heli.inAir && G.heli.engineOn) {
         G.heli.engineOn = false;
         const landObj = G.objectives.find((o: any) => o.type === 'land_at');
@@ -891,7 +914,8 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     } else {
         if (G.heli.winch > 0.3 && G.heli.type !== 'glider') {
             const rs = G.rescuerSwing;
-            const tension = 0.018, damping = 0.88;
+            const tension = 0.018,
+                damping = 0.88;
             const ax = (G.heli.x - rs.x) * tension + G.wind.x * 2.0;
             const ay = (G.heli.y - rs.y) * tension + G.wind.y * 2.0;
             rs.vx += ax * dt;
@@ -935,8 +959,9 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
 
     if (G.heli.type === 'glider') {
         G.heli.inAir = true;
-        const dX = Math.cos(G.heli.angle), dY = Math.sin(G.heli.angle);
-        const cruiseSpd = 0.10;
+        const dX = Math.cos(G.heli.angle),
+            dY = Math.sin(G.heli.angle);
+        const cruiseSpd = 0.1;
 
         if (G.keys['ArrowUp']) {
             G.heli.vz = Math.min(G.heli.vz + 0.003 * dt, 0.07);
@@ -962,12 +987,12 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
         }
         if (G.keys['KeyA']) {
             G.heli.angle -= 0.003 * dt;
-            G.heli.roll = Math.min(G.heli.roll + 0.008 * dt, 0.20);
+            G.heli.roll = Math.min(G.heli.roll + 0.008 * dt, 0.2);
             turning = true;
         }
         if (G.keys['KeyD']) {
             G.heli.angle += 0.003 * dt;
-            G.heli.roll = Math.max(G.heli.roll - 0.008 * dt, -0.20);
+            G.heli.roll = Math.max(G.heli.roll - 0.008 * dt, -0.2);
             turning = true;
         }
         if (!turning) G.heli.roll *= Math.pow(0.988, dt);
@@ -977,15 +1002,15 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
 
         G.heli.vz -= 0.0015 * dt;
 
-        const dhW = getGround(G.heli.x - 0.5, G.heli.y, G.points, null)
-                  - getGround(G.heli.x + 0.5, G.heli.y, G.points, null);
+        const dhW =
+            getGround(G.heli.x - 0.5, G.heli.y, G.points, null) - getGround(G.heli.x + 0.5, G.heli.y, G.points, null);
         G.heli.vz += Math.max(0, dhW * 0.08) * dt;
 
         const gBelow = getGround(G.heli.x, G.heli.y, G.points, null);
         if (gBelow > 4.0 && G.heli.z - gBelow < 10) G.heli.vz += 0.002 * dt;
 
         G.heli.vz = Math.max(G.heli.vz, -0.08);
-        G.heli.vz = Math.min(G.heli.vz, 0.10);
+        G.heli.vz = Math.min(G.heli.vz, 0.1);
     } else if (inAir || (G.heli.engineOn && lift > 0)) {
         let spd = Math.hypot(G.heli.vx, G.heli.vy);
         let aero = Math.max(0.3, 1.0 - spd * 8.0);
@@ -1069,10 +1094,22 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     }
 
     const margin = 2;
-    if (G.heli.x < margin) { G.heli.x = margin; G.heli.vx = 0; }
-    if (G.heli.x > gridSize - margin) { G.heli.x = gridSize - margin; G.heli.vx = 0; }
-    if (G.heli.y < margin) { G.heli.y = margin; G.heli.vy = 0; }
-    if (G.heli.y > gridSize - margin) { G.heli.y = gridSize - margin; G.heli.vy = 0; }
+    if (G.heli.x < margin) {
+        G.heli.x = margin;
+        G.heli.vx = 0;
+    }
+    if (G.heli.x > gridSize - margin) {
+        G.heli.x = gridSize - margin;
+        G.heli.vx = 0;
+    }
+    if (G.heli.y < margin) {
+        G.heli.y = margin;
+        G.heli.vy = 0;
+    }
+    if (G.heli.y > gridSize - margin) {
+        G.heli.y = gridSize - margin;
+        G.heli.vy = 0;
+    }
     const zMax = 20.0;
     if (G.heli.z > zMax) {
         G.heli.z = zMax;

@@ -3,7 +3,16 @@ import './ui/screens.css';
 import './ui/touch-controls.css';
 import { iso } from './render';
 import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
-import { loadSession, saveSession, getRank, isCampaignUnlocked, isConsentExpired, STORAGE_KEY, type PlayerSession, type Rank } from './session';
+import {
+    loadSession,
+    saveSession,
+    getRank,
+    isCampaignUnlocked,
+    isConsentExpired,
+    STORAGE_KEY,
+    type PlayerSession,
+    type Rank,
+} from './session';
 import { zstate } from './state';
 
 import HANGAR_DEF from './models/hangar.zdef';
@@ -15,17 +24,31 @@ import { createSceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
 import { G } from './game-state';
 import {
-    getGround, initGrid, generateTerrain,
-    initCarrierFromMission, initBoatsFromMission, initPayloadsFromMission,
-    initFuelTruck, initBirds,
-    updateBirds, updateDebris, spawnExplosion, updatePhysics,
+    getGround,
+    initGrid,
+    generateTerrain,
+    initCarrierFromMission,
+    initBoatsFromMission,
+    initPayloadsFromMission,
+    initFuelTruck,
+    initBirds,
+    updateBirds,
+    updateDebris,
+    spawnExplosion,
+    updatePhysics,
 } from './physics';
 import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
 import { toCredits } from './ui/credits-screen/credits-screen';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
 import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
-import { initHeliSelect, buildHeliSelect, animateHeliPreviews, drawMenuHeli, animMainMenuBg } from './ui/heli-select/heli-select';
+import {
+    initHeliSelect,
+    buildHeliSelect,
+    animateHeliPreviews,
+    drawMenuHeli,
+    animMainMenuBg,
+} from './ui/heli-select/heli-select';
 import { I18N } from './i18n';
 import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-banner';
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
@@ -34,17 +57,37 @@ import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
 
 const REQUIRED_IDS = [
-    'gameCanvas', 'audio-mute', 'audio-mute-active', 'audio-mute-inactive',
-    'splash', 'main-menu', 'menu-particles-canvas',
-    'heli-info', 'heli-info-stage', 'heli-cards-area', 'heli-detail-panel',
-    'credits-screen', 'credits-canvas', 'credits-inner',
-    'campaign-select', 'heli-select',
-    'crash-screen', 'mission-success-screen', 'win-screen',
-    'mission-briefing', 'campaign-complete-screen', 'campaign-failed-screen',
-    'settings-screen', 'rankup-overlay',
-    'cookie-banner', 'whats-new-overlay',
-    'touch-controls', 'debug-toggle',
-    'easter-egg', 'flash-overlay', 'msg',
+    'gameCanvas',
+    'audio-mute',
+    'audio-mute-active',
+    'audio-mute-inactive',
+    'splash',
+    'main-menu',
+    'menu-particles-canvas',
+    'heli-info',
+    'heli-info-stage',
+    'heli-cards-area',
+    'heli-detail-panel',
+    'credits-screen',
+    'credits-canvas',
+    'credits-inner',
+    'campaign-select',
+    'heli-select',
+    'crash-screen',
+    'mission-success-screen',
+    'win-screen',
+    'mission-briefing',
+    'campaign-complete-screen',
+    'campaign-failed-screen',
+    'settings-screen',
+    'rankup-overlay',
+    'cookie-banner',
+    'whats-new-overlay',
+    'touch-controls',
+    'debug-toggle',
+    'easter-egg',
+    'flash-overlay',
+    'msg',
 ] as const;
 
 const assertDom = () => {
@@ -57,10 +100,16 @@ const assertDom = () => {
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 ctx.imageSmoothingEnabled = false;
-const isoFn = (wx: number, wy: number, wz: number, cx: number, cy: number) => iso(wx, wy, wz, cx, cy, { canvas, tileW, tileH, stepH });
+const isoFn = (wx: number, wy: number, wz: number, cx: number, cy: number) =>
+    iso(wx, wy, wz, cx, cy, { canvas, tileW, tileH, stepH });
 const SceneRenderer = createSceneRenderer(ctx, isoFn);
-const { drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } =
-    createDrawObjects(ctx, isoFn, tileW, tileH, SceneRenderer);
+const { drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } = createDrawObjects(
+    ctx,
+    isoFn,
+    tileW,
+    tileH,
+    SceneRenderer
+);
 
 const { parkedHelis } = G;
 
@@ -75,15 +124,26 @@ function getObjects() {
 function getObjectByType(type: string) {
     return getObjects().find(o => o.type === type) || null;
 }
-function hasCarrier()   { return _missionHasCarrier; }
-function hasLighthouse() { return _missionHasLighthouse; }
-function hasPad()       { return _missionHasPad; }
+function hasCarrier() {
+    return _missionHasCarrier;
+}
+function hasLighthouse() {
+    return _missionHasLighthouse;
+}
+function hasPad() {
+    return _missionHasPad;
+}
 function isStartsOnCarrier() {
     return campaignHandler.getCurrentMissionData().spawnObject === 'carrier';
 }
 
-
-function drawDebris(debris: any[], camX: number, camY: number, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
+function drawDebris(
+    debris: any[],
+    camX: number,
+    camY: number,
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement
+) {
     debris.forEach(d => {
         const pos = iso(d.x, d.y, d.z, camX, camY, { stepH, tileW, tileH, canvas });
         const cosA = Math.cos(d.angle),
@@ -190,8 +250,7 @@ function missionComplete() {
         const allCampaigns = campaignHandler.getCampaigns();
         for (let i = _selectedCampaignIndex + 1; i < allCampaigns.length; i++) {
             if ((allCampaigns[i] as any).type !== 'glider') {
-                if (!_session.unlockedCampaignIndices.includes(i))
-                    _session.unlockedCampaignIndices.push(i);
+                if (!_session.unlockedCampaignIndices.includes(i)) _session.unlockedCampaignIndices.push(i);
                 break;
             }
         }
@@ -283,8 +342,7 @@ function toCampaignSelect() {
 }
 
 function launchEasterEgg() {
-    const index = campaignHandler.getCampaigns()
-        .findIndex(c => c.type === 'glider');
+    const index = campaignHandler.getCampaigns().findIndex(c => c.type === 'glider');
     if (index < 0) return;
     toCampaignSelect();
     selectCampaign(String(index));
@@ -315,12 +373,12 @@ function startGame(type: string) {
     soundHandler.play(campaignHandler.getActiveCampaignMusic().ingame || 'clike', false);
     G.heli.type = type;
     const _heliType = getHeliType(type);
-    G.heli.maxLoad    = _heliType.maxLoad;
-    G.heli.accel      = _heliType.accel;
-    G.heli.friction   = _heliType.friction;
-    G.heli.tiltSpeed  = _heliType.tiltSpeed;
-    G.heli.fuelRate   = _heliType.fuelRate;
-    G.heli.liftPower  = _heliType.liftPower;
+    G.heli.maxLoad = _heliType.maxLoad;
+    G.heli.accel = _heliType.accel;
+    G.heli.friction = _heliType.friction;
+    G.heli.tiltSpeed = _heliType.tiltSpeed;
+    G.heli.fuelRate = _heliType.fuelRate;
+    G.heli.liftPower = _heliType.liftPower;
     G.heli.cargoResist = _heliType.cargoResist;
     generateTerrain(G.points, G.PAD);
     initCarrierFromMission();
@@ -336,18 +394,18 @@ function launchMission() {
     // Populate per-mission cache — never call getCurrentMissionData() in the render loop
     const _lmd = campaignHandler.getCurrentMissionData();
     const _lmdObjs = _lmd.objects || [];
-    _missionHasPad        = !!_lmdObjs.find((o: any) => o.type === 'pad');
-    _missionHasCarrier    = !!_lmdObjs.find((o: any) => o.type === 'carrier');
+    _missionHasPad = !!_lmdObjs.find((o: any) => o.type === 'pad');
+    _missionHasCarrier = !!_lmdObjs.find((o: any) => o.type === 'carrier');
     _missionHasLighthouse = !!_lmdObjs.find((o: any) => o.type === 'lighthouse');
-    _missionRain          = !!_lmd.rain;
-    _missionNight         = !!_lmd.night;
-    _missionWindStr       = _lmd.windStr ?? 1;
-    _missionWindDir       = _lmd.windDir ?? 0;
-    _missionWindVar       = !!_lmd.windVar;
-    const _lhObj          = _lmdObjs.find((o: any) => o.type === 'lighthouse');
-    _lighthouseX          = _lhObj ? _lhObj.x : -1;
-    _lighthouseY          = _lhObj ? _lhObj.y : -1;
-    _missionGridSize      = campaignHandler.getTerrain().gridSize;
+    _missionRain = !!_lmd.rain;
+    _missionNight = !!_lmd.night;
+    _missionWindStr = _lmd.windStr ?? 1;
+    _missionWindDir = _lmd.windDir ?? 0;
+    _missionWindVar = !!_lmd.windVar;
+    const _lhObj = _lmdObjs.find((o: any) => o.type === 'lighthouse');
+    _lighthouseX = _lhObj ? _lhObj.x : -1;
+    _lighthouseY = _lhObj ? _lhObj.y : -1;
+    _missionGridSize = campaignHandler.getTerrain().gridSize;
 
     _precomputeDayColors(_missionRain);
     initCarrierFromMission();
@@ -367,8 +425,8 @@ function launchMission() {
         G.heli.x = G.START_POS.x;
         G.heli.y = G.START_POS.y;
         G.heli.z = getGround(G.START_POS.x, G.START_POS.y, G.points, G.CARRIER) + 5;
-        G.heli.vx = Math.cos(G.heli.angle) * 0.10;
-        G.heli.vy = Math.sin(G.heli.angle) * 0.10;
+        G.heli.vx = Math.cos(G.heli.angle) * 0.1;
+        G.heli.vy = Math.sin(G.heli.angle) * 0.1;
         G.heli.vz = 0.0;
         G.heli.tilt = 0.0;
         G.heli.engineOn = false;
@@ -428,14 +486,15 @@ function launchMission() {
 //   parkY = PAD.yMin + 0.1   (Heck bündig mit Hangar-Rückwand)
 //   parkAngle = +PI/2        (Nase zeigt in +Y = zur Hangar-Öffnung hin)
 //
-let _fpsLastTime = 0, _fpsSmooth = 60;
+let _fpsLastTime = 0,
+    _fpsSmooth = 60;
 function drawScene() {
     const _now = performance.now();
     const dt = _fpsLastTime > 0 ? Math.min((_now - _fpsLastTime) / (1000 / 60), 3.0) : 1.0;
     if (_fpsLastTime) _fpsSmooth += (1000 / (_now - _fpsLastTime) - _fpsSmooth) * 0.1;
     _fpsLastTime = _now;
 
-    const rain    = _missionRain;
+    const rain = _missionRain;
     const isNight = _missionNight;
     const lighthouseX = _lighthouseX;
     const lighthouseY = _lighthouseY;
@@ -501,7 +560,8 @@ function drawScene() {
 
     // Test-Bäume
     G.TREES_MAP.forEach((t: any) => {
-        if (isVisible(t.x, t.y, 14)) drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, _partyMode && t.type !== 'dead');
+        if (isVisible(t.x, t.y, 14))
+            drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, _partyMode && t.type !== 'dead');
     });
 
     // Vögel
@@ -589,8 +649,17 @@ function drawScene() {
             const winchTipZ = G.activePayload
                 ? G.activePayload.z + (G.activePayload.type === 'person' ? 0.35 : 0)
                 : Math.max(getGround(rs.x, rs.y), G.heli.z - G.heli.winch);
-            drawPerson(rs.x, rs.y, winchTipZ, 0, false, camX, camY, 'rescuer',
-                _partyMode ? { shirt: '#ffffff', pants: '#ffffff' } : undefined);
+            drawPerson(
+                rs.x,
+                rs.y,
+                winchTipZ,
+                0,
+                false,
+                camX,
+                camY,
+                'rescuer',
+                _partyMode ? { shirt: '#ffffff', pants: '#ffffff' } : undefined
+            );
         }
 
         if (_partyMode && Math.floor(Date.now() / 80) % 2 === 0) _refreshPartyColors();
@@ -734,18 +803,30 @@ const _drawDiscoBall = (() => {
     // Pre-bake tile positions so we don't recompute every frame
     type Tile = { row: number; col: number; phi: number; basePhi: number; ringR: number; tileW: number; tileH: number };
     let _tiles: Tile[] = [];
-    const ROWS = 9, BASE_COLS = 14, R = 38;
+    const ROWS = 9,
+        BASE_COLS = 14,
+        R = 38;
     for (let row = 0; row < ROWS; row++) {
         const phi = ((row + 0.5) / ROWS) * Math.PI;
         const ringR = Math.sin(phi);
         const cols = Math.max(4, Math.round(BASE_COLS * ringR));
         for (let col = 0; col < cols; col++) {
-            _tiles.push({ row, col, phi, basePhi: (col / cols) * Math.PI * 2, ringR, tileW: R * 0.22 * ringR, tileH: R * 0.16 });
+            _tiles.push({
+                row,
+                col,
+                phi,
+                basePhi: (col / cols) * Math.PI * 2,
+                ringR,
+                tileW: R * 0.22 * ringR,
+                tileH: R * 0.16,
+            });
         }
     }
     return () => {
-        const w = canvas.width, h = canvas.height;
-        const cx = w / 2, cy = R + 12;
+        const w = canvas.width,
+            h = canvas.height;
+        const cx = w / 2,
+            cy = R + 12;
         const t = Date.now() / 1000;
 
         ctx.save();
@@ -753,7 +834,10 @@ const _drawDiscoBall = (() => {
         // String
         ctx.strokeStyle = '#aaa';
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, cy - R); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx, 0);
+        ctx.lineTo(cx, cy - R);
+        ctx.stroke();
 
         // Reflection spots scattered across the canvas
         for (let i = 0; i < 18; i++) {
@@ -765,13 +849,17 @@ const _drawDiscoBall = (() => {
             const col = _PARTY_PALETTE[(i + Math.floor(t * 3)) % _PARTY_PALETTE.length];
             ctx.globalAlpha = 0.18 + 0.12 * Math.sin(t * 4 + i);
             ctx.fillStyle = col;
-            ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath();
+            ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         // Ball body
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fill();
 
         // Mirror tiles
         _tiles.forEach(({ row, basePhi, phi, ringR, tileW, tileH }) => {
@@ -795,7 +883,9 @@ const _drawDiscoBall = (() => {
         hl.addColorStop(0.4, 'rgba(255,255,255,0.05)');
         hl.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = hl;
-        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.restore();
     };
@@ -850,7 +940,17 @@ function drawPayloadObjects(hangingOnly = false, ropeOnly = false) {
             ctx.fillRect(p.x - s / 2, p.y - s, s, s);
             ctx.strokeRect(p.x - s / 2, p.y - s, s, s);
         } else {
-            drawPerson(payload.x, payload.y, payload.z, 0, !payload.hanging, cam.x, cam.y, undefined, payload.outfitColors);
+            drawPerson(
+                payload.x,
+                payload.y,
+                payload.z,
+                0,
+                !payload.hanging,
+                cam.x,
+                cam.y,
+                undefined,
+                payload.outfitColors
+            );
             if (payload.z < 0) {
                 ctx.strokeStyle = '#aaf';
                 ctx.beginPath();
@@ -862,29 +962,69 @@ function drawPayloadObjects(hangingOnly = false, ropeOnly = false) {
 }
 
 function drawVectorCarrier(cx: number, cy: number) {
-    const objX = G.CARRIER.x, objY = G.CARRIER.y;
+    const objX = G.CARRIER.x,
+        objY = G.CARRIER.y;
     const deckZ = G.CARRIER.zDeck;
     const angle = G.CARRIER.angle;
-    const cosA = Math.cos(angle), sinA = Math.sin(angle);
-    function r(rx: number, ry: number) { return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA }; }
+    const cosA = Math.cos(angle),
+        sinA = Math.sin(angle);
+    function r(rx: number, ry: number) {
+        return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA };
+    }
     // Pass 1: Hull (flush alone so deck objects always render on top)
     SceneRenderer.add(CARRIER_HULL_DEF, { x: objX, y: objY, z: 0, angle });
     SceneRenderer.flush(cx, cy);
 
     // Pass 2: Tractors (drawFn) + Tower (depth-sorted together)
-    const ix = 2.6, iy = 1.0, iw = 1.5, il = 4.5, ih = 2.5;
+    const ix = 2.6,
+        iy = 1.0,
+        iw = 1.5,
+        il = 4.5,
+        ih = 2.5;
     const tractorData = [
-        { tx: ix+0.1, ty: iy-1.2, ta: 0,    bc:'#9a7a00', bs:'#c8a000', bd:'#8a6c00', cc:'#b09000', cs:'#e0b800', ct:'#caa800' },
-        { tx: ix+0.1, ty: iy-2.4, ta: 0,    bc:'#9a7a00', bs:'#c8a000', bd:'#8a6c00', cc:'#b09000', cs:'#e0b800', ct:'#caa800' },
-        { tx: ix+0.1, ty: iy-3.8, ta: 0.25, bc:'#888888', bs:'#dddddd', bd:'#666666', cc:'#aaaaaa', cs:'#ffffff', ct:'#eeeeee' },
+        {
+            tx: ix + 0.1,
+            ty: iy - 1.2,
+            ta: 0,
+            bc: '#9a7a00',
+            bs: '#c8a000',
+            bd: '#8a6c00',
+            cc: '#b09000',
+            cs: '#e0b800',
+            ct: '#caa800',
+        },
+        {
+            tx: ix + 0.1,
+            ty: iy - 2.4,
+            ta: 0,
+            bc: '#9a7a00',
+            bs: '#c8a000',
+            bd: '#8a6c00',
+            cc: '#b09000',
+            cs: '#e0b800',
+            ct: '#caa800',
+        },
+        {
+            tx: ix + 0.1,
+            ty: iy - 3.8,
+            ta: 0.25,
+            bc: '#888888',
+            bs: '#dddddd',
+            bd: '#666666',
+            cc: '#aaaaaa',
+            cs: '#ffffff',
+            ct: '#eeeeee',
+        },
     ];
     tractorData.forEach(t => {
         const wx = objX + (t.tx + 0.5) * cosA - (t.ty + 0.35) * sinA;
         const wy = objY + (t.tx + 0.5) * sinA + (t.ty + 0.35) * cosA;
         SceneRenderer.add(null, {
-            x: wx, y: wy, z: deckZ,
-            drawFn: (cx, cy) => drawTractor(objX, objY, angle, deckZ, cx, cy,
-                t.tx, t.ty, t.ta, t.bc, t.bs, t.bd, t.cc, t.cs, t.ct),
+            x: wx,
+            y: wy,
+            z: deckZ,
+            drawFn: (cx, cy) =>
+                drawTractor(objX, objY, angle, deckZ, cx, cy, t.tx, t.ty, t.ta, t.bc, t.bs, t.bd, t.cc, t.cs, t.ct),
         });
     });
     const towerWX = objX + (ix + iw / 2) * cosA - (iy + il / 2) * sinA;
@@ -940,7 +1080,6 @@ function drawVectorCarrier(cx: number, cy: number) {
     ctx.arc(rHub.x, rHub.y, 2, 0, Math.PI * 2);
     ctx.fill();
 
-
     drawPadLights(cx, cy, G.CARRIER.zDeck, true);
 }
 
@@ -948,7 +1087,7 @@ function drawParkedHelis(cx: number, cy: number) {
     if (!hasCarrier()) return;
     const angle = G.CARRIER.angle;
     const deckZ = G.CARRIER.zDeck;
-    parkedHelis.forEach((h) => {
+    parkedHelis.forEach(h => {
         if (!isVisible(G.CARRIER.x, G.CARRIER.y, 25)) return;
         const cosA = Math.cos(angle),
             sinA = Math.sin(angle);
@@ -1068,7 +1207,6 @@ function drawSailboat(sX: number, sY: number, angle: number, cx: number, cy: num
     SceneRenderer.flush(cx, cy);
 }
 
-
 // Beflockung aus Missionsdaten laden
 // G.TREES_MAP initialized in G object
 const FOLIAGE_DECODE: Record<string, string> = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
@@ -1099,7 +1237,8 @@ function initFoliageFromMission() {
 function drawLighthouse(cx: number, cy: number) {
     const _lhObj = getObjectByType('lighthouse');
     if (!_lhObj) return;
-    const lhX = _lhObj.x, lhY = _lhObj.y;
+    const lhX = _lhObj.x,
+        lhY = _lhObj.y;
     SceneRenderer.add(LIGHTHOUSE_DEF, { x: lhX, y: lhY, z: 0 });
     SceneRenderer.flush(cx, cy);
     // Antenna + blinking light (screen-space, drawn after DEF)
@@ -1150,7 +1289,18 @@ window.addEventListener('keydown', e => {
 
 // Draw an oriented bounding box in isometric space (debug visual).
 // wX/wY: world center, angle: rotation, ox/oy/oz: local extents min/max
-function drawCollisionBox(wX: number, wY: number, angle: number, oxMin: number, oxMax: number, oyMin: number, oyMax: number, ozMin: number, ozMax: number, color: string) {
+function drawCollisionBox(
+    wX: number,
+    wY: number,
+    angle: number,
+    oxMin: number,
+    oxMax: number,
+    oyMin: number,
+    oyMax: number,
+    ozMin: number,
+    ozMax: number,
+    color: string
+) {
     const camX = zstate.cam.x,
         camY = zstate.cam.y;
     const cosA = Math.cos(angle),
@@ -1204,7 +1354,20 @@ function drawCollisionBox(wX: number, wY: number, angle: number, oxMin: number, 
 }
 
 // Check if a world point (px, py, pz) is inside an oriented bounding box.
-function checkCollisionBox(px: number, py: number, pz: number, wX: number, wY: number, angle: number, oxMin: number, oxMax: number, oyMin: number, oyMax: number, ozMin: number, ozMax: number) {
+function checkCollisionBox(
+    px: number,
+    py: number,
+    pz: number,
+    wX: number,
+    wY: number,
+    angle: number,
+    oxMin: number,
+    oxMax: number,
+    oyMin: number,
+    oyMax: number,
+    ozMin: number,
+    ozMax: number
+) {
     const dx = px - wX,
         dy = py - wY;
     const cosA = Math.cos(-angle),
@@ -1298,12 +1461,7 @@ function drawDebugOverlay(camX: number, camY: number) {
         // Hangar outline
         const hX = p.xMax - 4,
             hY = p.yMin;
-        const hc = [
-            isoP(hX, hY, p.z),
-            isoP(hX + 4, hY, p.z),
-            isoP(hX + 4, hY + 2, p.z),
-            isoP(hX, hY + 2, p.z),
-        ];
+        const hc = [isoP(hX, hY, p.z), isoP(hX + 4, hY, p.z), isoP(hX + 4, hY + 2, p.z), isoP(hX, hY + 2, p.z)];
         ctx.strokeStyle = 'rgba(255,80,0,0.8)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 3]);
@@ -1376,17 +1534,12 @@ function drawDebugOverlay(camX: number, camY: number) {
     const heliP = isoP(hx, hy, G.heli.z);
     ctx.fillStyle = '#f88';
     ctx.font = 'bold 10px monospace';
-    ctx.fillText(
-        `HELI x=${hx.toFixed(1)} y=${hy.toFixed(1)} z=${G.heli.z.toFixed(2)}`,
-        heliP.x - 40,
-        heliP.y - 50
-    );
+    ctx.fillText(`HELI x=${hx.toFixed(1)} y=${hy.toFixed(1)} z=${G.heli.z.toFixed(2)}`, heliP.x - 40, heliP.y - 50);
     ctx.fillText(`inAir=${G.heli.inAir} RPM=${G.heli.rotorRPM.toFixed(2)}`, heliP.x - 40, heliP.y - 38);
     ctx.fillText(`ang=${((G.heli.angle * 180) / Math.PI).toFixed(0)}°`, heliP.x - 40, heliP.y - 26);
 }
 
 function handleCollisionBoxes() {
-
     // ── Carrier ────────────────────────────────────────────────────────────────
     if (hasCarrier()) {
         const cx = G.CARRIER.x,
@@ -1395,8 +1548,7 @@ function handleCollisionBoxes() {
         const deckZ = G.CARRIER.zDeck; // 4.2
 
         // Flugdeck: rx=Breite(±4.2), ry=Länge(±8.7)
-        if (showCollisionBoxes)
-            drawCollisionBox(cx, cy, ca, -4.2, 4.2, -8.7, 8.7, 0, deckZ, 'rgba(0,200,255,0.8)');
+        if (showCollisionBoxes) drawCollisionBox(cx, cy, ca, -4.2, 4.2, -8.7, 8.7, 0, deckZ, 'rgba(0,200,255,0.8)');
 
         // Tower: ix=2.6(rx), iy=1.0(ry), iw=1.5, il=4.5, ih=2.5
         if (showCollisionBoxes)
@@ -1404,22 +1556,7 @@ function handleCollisionBoxes() {
 
         // Tower-Kollision – nur wenn Heli in der Luft ist
         if (!zstate.introActive && !zstate.crashed && G.heli.inAir) {
-            if (
-                checkCollisionBox(
-                    G.heli.x,
-                    G.heli.y,
-                    G.heli.z,
-                    cx,
-                    cy,
-                    ca,
-                    2.6,
-                    4.1,
-                    1.0,
-                    5.5,
-                    deckZ,
-                    deckZ + 2.5
-                )
-            ) {
+            if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, cx, cy, ca, 2.6, 4.1, 1.0, 5.5, deckZ, deckZ + 2.5)) {
                 triggerCrash(I18N.CRASH_CARRIER_TOWER);
             }
         }
@@ -1480,8 +1617,7 @@ function handleCollisionBoxes() {
         // Mittelpunkt + lokale Extents (keine Rotation)
         const hmx = hX + 2,
             hmy = hY + 1;
-        if (showCollisionBoxes)
-            drawCollisionBox(hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8, 'rgba(255,80,0,0.9)');
+        if (showCollisionBoxes) drawCollisionBox(hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8, 'rgba(255,80,0,0.9)');
         if (!zstate.introActive && !zstate.crashed && G.heli.inAir) {
             if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8)) {
                 triggerCrash(I18N.CRASH_HANGAR);
@@ -1494,34 +1630,10 @@ function handleCollisionBoxes() {
         const ft = G.fuelTruck;
         const fZ = G.PAD.z;
         if (showCollisionBoxes)
-            drawCollisionBox(
-                ft.x,
-                ft.y,
-                ft.angle,
-                0,
-                2.2,
-                -0.45,
-                0.45,
-                fZ,
-                fZ + 0.9,
-                'rgba(255,200,0,0.8)'
-            );
+            drawCollisionBox(ft.x, ft.y, ft.angle, 0, 2.2, -0.45, 0.45, fZ, fZ + 0.9, 'rgba(255,200,0,0.8)');
         if (!zstate.introActive && !zstate.crashed && G.heli.inAir) {
             if (
-                checkCollisionBox(
-                    G.heli.x,
-                    G.heli.y,
-                    G.heli.z,
-                    ft.x,
-                    ft.y,
-                    ft.angle,
-                    0,
-                    2.2,
-                    -0.45,
-                    0.45,
-                    fZ,
-                    fZ + 0.9
-                )
+                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, ft.x, ft.y, ft.angle, 0, 2.2, -0.45, 0.45, fZ, fZ + 0.9)
             ) {
                 triggerCrash(I18N.CRASH_FUEL_TRUCK);
             }
@@ -1539,22 +1651,7 @@ function handleCollisionBoxes() {
                 drawCollisionBox(lh.x, lh.y, 0, -1.0, 1.0, -1.0, 1.0, 0.4, 8.0, 'rgba(255,80,0,0.9)');
 
             if (!zstate.introActive && !zstate.crashed) {
-                if (
-                    checkCollisionBox(
-                        G.heli.x,
-                        G.heli.y,
-                        G.heli.z,
-                        lh.x,
-                        lh.y,
-                        0,
-                        -1.0,
-                        1.0,
-                        -1.0,
-                        1.0,
-                        0.4,
-                        8.5
-                    )
-                ) {
+                if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, lh.x, lh.y, 0, -1.0, 1.0, -1.0, 1.0, 0.4, 8.5)) {
                     triggerCrash(I18N.CRASH_LIGHTHOUSE);
                 }
             }
@@ -1572,34 +1669,8 @@ function handleCollisionBoxes() {
 
         if (!zstate.introActive && !zstate.crashed) {
             if (
-                checkCollisionBox(
-                    G.heli.x,
-                    G.heli.y,
-                    G.heli.z,
-                    b.x,
-                    b.y,
-                    b.angle,
-                    -1.1,
-                    1.3,
-                    -0.45,
-                    0.45,
-                    0,
-                    0.35
-                ) ||
-                checkCollisionBox(
-                    G.heli.x,
-                    G.heli.y,
-                    G.heli.z,
-                    b.x,
-                    b.y,
-                    b.angle,
-                    -0.4,
-                    -0.2,
-                    -0.1,
-                    0.1,
-                    0.35,
-                    3.2
-                )
+                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, b.x, b.y, b.angle, -1.1, 1.3, -0.45, 0.45, 0, 0.35) ||
+                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, b.x, b.y, b.angle, -0.4, -0.2, -0.1, 0.1, 0.35, 3.2)
             ) {
                 triggerCrash(I18N.CRASH_BOAT);
             }
@@ -1657,9 +1728,7 @@ function handleCollisionBoxes() {
             if (!isVisible(t.x, t.y, 16)) return;
             const r = 0.35 * t.s;
             const h = 2.3 * t.s;
-            if (
-                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, t.x, t.y, 0, -r, r, -r, r, t.gz, t.gz + h)
-            ) {
+            if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, t.x, t.y, 0, -r, r, -r, r, t.gz, t.gz + h)) {
                 triggerCrash(I18N.CRASH_TREE);
             }
         });
@@ -1691,7 +1760,7 @@ function toMainMenu() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     zstate.gameStarted = false;
     _partyMode = false;
-    ['splash','campaign-select','heli-select','heli-info','credits-screen'].forEach(id => {
+    ['splash', 'campaign-select', 'heli-select', 'heli-info', 'credits-screen'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
@@ -1711,34 +1780,46 @@ buildHeliSelect('normal'); // initial build for splash screen background
 let _rafId = 0;
 
 // ─── mission-local cache (set once per launch, never changes mid-mission) ─────
-let _missionHasPad       = false;
-let _missionHasCarrier   = false;
+let _missionHasPad = false;
+let _missionHasCarrier = false;
 let _missionHasLighthouse = false;
-let _missionRain         = false;
-let _missionNight        = false;
-let _missionWindStr      = 1;
-let _missionWindDir      = 0;
-let _missionWindVar      = false;
-let _lighthouseX         = -1;
-let _lighthouseY         = -1;
-let _missionGridSize     = 28;
+let _missionRain = false;
+let _missionNight = false;
+let _missionWindStr = 1;
+let _missionWindDir = 0;
+let _missionWindVar = false;
+let _lighthouseX = -1;
+let _lighthouseY = -1;
+let _missionGridSize = 28;
 
 let _partyMode = false;
 let _partySeq = '';
 let _partyColors: string[] = [];
-const _PARTY_PALETTE = [
-    '#ff0044','#ff6600','#ffcc00','#00ff88','#00ccff','#cc44ff','#ff44cc','#44ffcc',
-];
+const _PARTY_PALETTE = ['#ff0044', '#ff6600', '#ffcc00', '#00ff88', '#00ccff', '#cc44ff', '#ff44cc', '#44ffcc'];
 const _randomPartyColor = () => _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
-const _refreshPartyColors = () => { _partyColors = Array.from({ length: 8 }, _randomPartyColor); };
+const _refreshPartyColors = () => {
+    _partyColors = Array.from({ length: 8 }, _randomPartyColor);
+};
 
 const _physicsCtx = {
-    get windStr() { return _missionWindStr; },
-    get windDir() { return _missionWindDir; },
-    get windVar() { return _missionWindVar; },
-    get hasPad() { return _missionHasPad; },
-    get hasCarrier() { return _missionHasCarrier; },
-    get partyMode() { return _partyMode; },
+    get windStr() {
+        return _missionWindStr;
+    },
+    get windDir() {
+        return _missionWindDir;
+    },
+    get windVar() {
+        return _missionWindVar;
+    },
+    get hasPad() {
+        return _missionHasPad;
+    },
+    get hasCarrier() {
+        return _missionHasCarrier;
+    },
+    get partyMode() {
+        return _partyMode;
+    },
     partyPalette: _PARTY_PALETTE as readonly string[],
     showMsg,
     missionComplete,
@@ -1751,8 +1832,8 @@ let _terrainOffscreen: OffscreenCanvas | null = null;
 let _terrainOffCtx: OffscreenCanvasRenderingContext2D | null = null;
 let _cacheCamX = Infinity;
 let _cacheCamY = Infinity;
-let _cacheMode = '';          // 'day' | 'night' | 'party'
-let _tileColors: string[][] = [];   // precomputed day/rain colors, indexed [x][y]
+let _cacheMode = ''; // 'day' | 'night' | 'party'
+let _tileColors: string[][] = []; // precomputed day/rain colors, indexed [x][y]
 // Reusable batch map — cleared each render, no per-frame Map allocation
 const _terrainBatch = new Map<string, number[]>();
 
@@ -1763,14 +1844,15 @@ const _precomputeDayColors = (rain: boolean) => {
         _tileColors[x] = [];
         for (let y = 0; y < gridSize; y++) {
             const h0 = G.points[x]?.[y] ?? 0;
-            const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax
-                       && y >= G.PAD.yMin && y <= G.PAD.yMax;
+            const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax && y >= G.PAD.yMin && y <= G.PAD.yMax;
             const c = 35 + Math.floor(h0 * 15);
             _tileColors[x][y] = isPad
                 ? '#444'
                 : h0 > 0
-                    ? `rgb(${c - 10},${c + 30},${c - 10})`
-                    : (rain ? '#002244' : '#003d7a');
+                  ? `rgb(${c - 10},${c + 30},${c - 10})`
+                  : rain
+                    ? '#002244'
+                    : '#003d7a';
         }
     }
     _cacheCamX = Infinity; // force offscreen re-render
@@ -1780,34 +1862,45 @@ const _precomputeDayColors = (rain: boolean) => {
 // Uses inline iso math to avoid per-tile object allocations.
 const _renderTerrainBatched = (
     tCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-    tW: number, tH: number,
-    ccX: number, ccY: number,
-    xFrom: number, xTo: number,
-    yFrom: number, yTo: number,
-    getFill: (x: number, y: number, h0: number) => string,
+    tW: number,
+    tH: number,
+    ccX: number,
+    ccY: number,
+    xFrom: number,
+    xTo: number,
+    yFrom: number,
+    yTo: number,
+    getFill: (x: number, y: number, h0: number) => string
 ) => {
     const { gridSize } = campaignHandler.getTerrain();
     _terrainBatch.clear();
-    const hw = tW / 2, hh = tH / 2;
-    const htW = tileW / 2, htH = tileH / 2;
+    const hw = tW / 2,
+        hh = tH / 2;
+    const htW = tileW / 2,
+        htH = tileH / 2;
 
     for (let x = Math.max(0, xFrom); x < Math.min(gridSize - 1, xTo); x++) {
         for (let y = Math.max(0, yFrom); y < Math.min(gridSize - 1, yTo); y++) {
-            const h0 = G.points[x][y],     h1 = G.points[x + 1][y];
-            const h2 = G.points[x + 1][y + 1], h3 = G.points[x][y + 1];
+            const h0 = G.points[x][y],
+                h1 = G.points[x + 1][y];
+            const h2 = G.points[x + 1][y + 1],
+                h3 = G.points[x][y + 1];
             const fill = getFill(x, y, h0);
             // Inline iso — no object allocation
-            const p0x = hw + (x       - y)     * htW - ccX;
-            const p0y = hh + (x       + y)     * htH - h0 * stepH - ccY;
-            const p1x = hw + (x + 1   - y)     * htW - ccX;
-            const p1y = hh + (x + 1   + y)     * htH - h1 * stepH - ccY;
+            const p0x = hw + (x - y) * htW - ccX;
+            const p0y = hh + (x + y) * htH - h0 * stepH - ccY;
+            const p1x = hw + (x + 1 - y) * htW - ccX;
+            const p1y = hh + (x + 1 + y) * htH - h1 * stepH - ccY;
             const p2x = hw + (x + 1 - (y + 1)) * htW - ccX;
             const p2y = hh + (x + 1 + (y + 1)) * htH - h2 * stepH - ccY;
-            const p3x = hw + (x     - (y + 1)) * htW - ccX;
-            const p3y = hh + (x     + (y + 1)) * htH - h3 * stepH - ccY;
+            const p3x = hw + (x - (y + 1)) * htW - ccX;
+            const p3y = hh + (x + (y + 1)) * htH - h3 * stepH - ccY;
 
             let batch = _terrainBatch.get(fill);
-            if (!batch) { batch = []; _terrainBatch.set(fill, batch); }
+            if (!batch) {
+                batch = [];
+                _terrainBatch.set(fill, batch);
+            }
             batch.push(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y);
         }
     }
@@ -1816,7 +1909,7 @@ const _renderTerrainBatched = (
         tCtx.fillStyle = fill;
         tCtx.beginPath();
         for (let i = 0; i < coords.length; i += 8) {
-            tCtx.moveTo(coords[i],     coords[i + 1]);
+            tCtx.moveTo(coords[i], coords[i + 1]);
             tCtx.lineTo(coords[i + 2], coords[i + 3]);
             tCtx.lineTo(coords[i + 4], coords[i + 5]);
             tCtx.lineTo(coords[i + 6], coords[i + 7]);
@@ -1827,87 +1920,90 @@ const _renderTerrainBatched = (
 };
 
 // Renders terrain with offscreen cache for day/rain mode, or batched for night/party.
-const _drawTerrain = (
-    camX: number, camY: number,
-    rx: number, ry: number,
-    isNight: boolean, _rain: boolean,
-) => {
+const _drawTerrain = (camX: number, camY: number, rx: number, ry: number, isNight: boolean, _rain: boolean) => {
     const xFrom = Math.floor(rx - 14);
-    const xTo   = Math.ceil(rx + 14);
+    const xTo = Math.ceil(rx + 14);
     const yFrom = Math.floor(ry - 14);
-    const yTo   = Math.ceil(ry + 14);
+    const yTo = Math.ceil(ry + 14);
 
     if (isNight) {
         // Night: spotlight cone is dynamic → path-batch on main canvas every frame
         const alt = G.heli.z - getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
         const coneWidth = 0.3 + alt * 0.05;
-        const range     = 10 + alt * 2.0;
-        const range2    = range * range;
+        const range = 10 + alt * 2.0;
+        const range2 = range * range;
         const intensity = Math.floor(255 * Math.max(0.1, 1.0 - alt / 15));
-        const haX = G.heli.x, haY = G.heli.y, haA = G.heli.angle;
-        _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY,
-            xFrom, xTo, yFrom, yTo,
-            (x, y, h0) => {
-                const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax
-                           && y >= G.PAD.yMin && y <= G.PAD.yMax;
-                let diff = Math.atan2(y - haY, x - haX) - haA;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff >  Math.PI) diff -= Math.PI * 2;
-                const dx = x - haX, dy = y - haY;
-                const inLight = Math.abs(diff) < coneWidth && dx * dx + dy * dy < range2;
-                if (!inLight) return '#020205';
-                if (isPad) return `rgb(${intensity - 30},${intensity - 30},${intensity - 30})`;
-                return h0 > 0
-                    ? `rgb(${intensity - 20},${intensity + 10},${intensity - 20})`
-                    : `rgb(0,${Math.floor(intensity * 0.3)},${Math.floor(intensity * 0.6)})`;
-            });
+        const haX = G.heli.x,
+            haY = G.heli.y,
+            haA = G.heli.angle;
+        _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY, xFrom, xTo, yFrom, yTo, (x, y, h0) => {
+            const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax && y >= G.PAD.yMin && y <= G.PAD.yMax;
+            let diff = Math.atan2(y - haY, x - haX) - haA;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            const dx = x - haX,
+                dy = y - haY;
+            const inLight = Math.abs(diff) < coneWidth && dx * dx + dy * dy < range2;
+            if (!inLight) return '#020205';
+            if (isPad) return `rgb(${intensity - 30},${intensity - 30},${intensity - 30})`;
+            return h0 > 0
+                ? `rgb(${intensity - 20},${intensity + 10},${intensity - 20})`
+                : `rgb(0,${Math.floor(intensity * 0.3)},${Math.floor(intensity * 0.6)})`;
+        });
         _cacheMode = 'night';
         return;
     }
 
     if (_partyMode) {
         // Party: tile colors change ~3.5×/sec → path-batch on main canvas
-        _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY,
-            xFrom, xTo, yFrom, yTo,
-            (x, y, _h0) => {
-                const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax
-                           && y >= G.PAD.yMin && y <= G.PAD.yMax;
-                if (isPad) return '#444';
-                const tileOffset = Math.abs(x * 173 + y * 251) % 800;
-                const phase = Math.floor((Date.now() + tileOffset * 320) / 280);
-                return _PARTY_PALETTE[phase % _PARTY_PALETTE.length];
-            });
+        _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY, xFrom, xTo, yFrom, yTo, (x, y, _h0) => {
+            const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax && y >= G.PAD.yMin && y <= G.PAD.yMax;
+            if (isPad) return '#444';
+            const tileOffset = Math.abs(x * 173 + y * 251) % 800;
+            const phase = Math.floor((Date.now() + tileOffset * 320) / 280);
+            return _PARTY_PALETTE[phase % _PARTY_PALETTE.length];
+        });
         _cacheMode = 'party';
         return;
     }
 
     // Day / rain mode — use offscreen cache
-    const needsOffscreen = !_terrainOffscreen
-        || canvas.width  + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.width
-        || canvas.height + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.height;
+    const needsOffscreen =
+        !_terrainOffscreen ||
+        canvas.width + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.width ||
+        canvas.height + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.height;
     if (needsOffscreen) {
         _terrainOffscreen = new OffscreenCanvas(
-            canvas.width  + TERRAIN_MARGIN_PX * 2,
-            canvas.height + TERRAIN_MARGIN_PX * 2,
+            canvas.width + TERRAIN_MARGIN_PX * 2,
+            canvas.height + TERRAIN_MARGIN_PX * 2
         );
         _terrainOffCtx = _terrainOffscreen.getContext('2d') as OffscreenCanvasRenderingContext2D;
         _cacheCamX = Infinity; // force render
     }
 
-    const camMoved = Math.abs(camX - _cacheCamX) > TERRAIN_MARGIN_PX * 0.75
-                  || Math.abs(camY - _cacheCamY) > TERRAIN_MARGIN_PX * 0.75;
+    const camMoved =
+        Math.abs(camX - _cacheCamX) > TERRAIN_MARGIN_PX * 0.75 ||
+        Math.abs(camY - _cacheCamY) > TERRAIN_MARGIN_PX * 0.75;
     const modeChanged = _cacheMode !== 'day';
 
     if (camMoved || modeChanged) {
-        const oW = _terrainOffscreen!.width, oH = _terrainOffscreen!.height;
+        const oW = _terrainOffscreen!.width,
+            oH = _terrainOffscreen!.height;
         _terrainOffCtx!.clearRect(0, 0, oW, oH);
         // Render a wider area (viewport + margin) to the offscreen canvas
         const marginTilesX = Math.ceil(TERRAIN_MARGIN_PX / tileW) + 2;
         const marginTilesY = Math.ceil(TERRAIN_MARGIN_PX / tileH) + 2;
-        _renderTerrainBatched(_terrainOffCtx!, oW, oH, camX, camY,
-            xFrom - marginTilesX, xTo + marginTilesX,
-            yFrom - marginTilesY, yTo + marginTilesY,
-            (x, y, _h0) => _tileColors[x]?.[y] ?? '#003d7a',
+        _renderTerrainBatched(
+            _terrainOffCtx!,
+            oW,
+            oH,
+            camX,
+            camY,
+            xFrom - marginTilesX,
+            xTo + marginTilesX,
+            yFrom - marginTilesY,
+            yTo + marginTilesY,
+            (x, y, _h0) => _tileColors[x]?.[y] ?? '#003d7a'
         );
         _cacheCamX = camX;
         _cacheCamY = camY;
@@ -1915,7 +2011,7 @@ const _drawTerrain = (
     }
 
     // Single drawImage — the entire terrain cost per frame in day mode
-    const offX = (canvas.width  - _terrainOffscreen!.width)  / 2 + (_cacheCamX - camX);
+    const offX = (canvas.width - _terrainOffscreen!.width) / 2 + (_cacheCamX - camX);
     const offY = (canvas.height - _terrainOffscreen!.height) / 2 + (_cacheCamY - camY);
     ctx.drawImage(_terrainOffscreen!, offX, offY);
 };
@@ -1924,7 +2020,6 @@ const _drawTerrain = (
 let _session: PlayerSession = loadSession();
 let _selectedCampaignIndex = 0;
 let _unlockSeq = '';
-
 
 const approveCookies = () => {
     _session.cookieConsent = true;
@@ -1937,7 +2032,9 @@ const approveCookies = () => {
 const declineCookies = () => {
     _session.cookieConsent = false;
     _session.consentTimestamp = Date.now();
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch {}
     (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
     notifyConsent();
 };
@@ -1948,20 +2045,21 @@ const _buildCampaignGrid = (): string[] => {
         if (type === 'glider') return;
         const locked = type !== 'tutorial' && !isCampaignUnlocked(_session, index);
         let sublines = '';
-        campaignSublines.forEach(s => { sublines += `<div class="box-sub">${s}</div>`; });
+        campaignSublines.forEach(s => {
+            sublines += `<div class="box-sub">${s}</div>`;
+        });
         sublines += `<div class="box-sub">Missionen: ${levels.length}</div>`;
         const isTutorial = type === 'tutorial';
         campaigns.push(
             `<div class="grid-box${locked ? ' locked' : ''}" onclick="${locked ? '' : `selectCampaign('${index}')`}"` +
-            `${isTutorial ? ` style="border-color: #ff9900"` : ''}>` +
-            `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>` +
-            (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines) +
-            `</div>`
+                `${isTutorial ? ` style="border-color: #ff9900"` : ''}>` +
+                `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>` +
+                (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines) +
+                `</div>`
         );
     });
     return campaigns;
 };
-
 
 window.onkeydown = e => {
     G.keys[e.code] = true;
@@ -1993,7 +2091,7 @@ window.onkeyup = e => (G.keys[e.code] = false);
 document.addEventListener('selectstart', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
 const _resizeCanvas = () => {
-    canvas.width  = window.innerWidth;
+    canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 };
 window.onresize = _resizeCanvas;
@@ -2009,7 +2107,8 @@ const setTouchVisible = (v: boolean) => {
 };
 
 const CTRL_MODE_KEY = 'zeewolf-ctrl-mode';
-const getControlMode = (): 'heading' | 'screen' => localStorage.getItem(CTRL_MODE_KEY) === 'screen' ? 'screen' : 'heading';
+const getControlMode = (): 'heading' | 'screen' =>
+    localStorage.getItem(CTRL_MODE_KEY) === 'screen' ? 'screen' : 'heading';
 const setControlMode = (m: 'heading' | 'screen') => localStorage.setItem(CTRL_MODE_KEY, m);
 
 const _setupJoystick = (id: string, up: string, down: string, left: string, right: string) => {
@@ -2017,27 +2116,31 @@ const _setupJoystick = (id: string, up: string, down: string, left: string, righ
     if (!el) return;
     const knob = el.querySelector('.joystick-knob') as HTMLElement;
     const keys = [up, down, left, right];
-    let active = false, cx = 0, cy = 0, jr = 0;
+    let active = false,
+        cx = 0,
+        cy = 0,
+        jr = 0;
     const setKeys = (dx: number, dy: number) => {
         const dead = jr * 0.18;
-        (G.keys as Record<string, boolean>)[up]    = dy < -dead;
-        (G.keys as Record<string, boolean>)[down]  = dy >  dead;
-        (G.keys as Record<string, boolean>)[left]  = dx < -dead;
-        (G.keys as Record<string, boolean>)[right] = dx >  dead;
+        (G.keys as Record<string, boolean>)[up] = dy < -dead;
+        (G.keys as Record<string, boolean>)[down] = dy > dead;
+        (G.keys as Record<string, boolean>)[left] = dx < -dead;
+        (G.keys as Record<string, boolean>)[right] = dx > dead;
     };
     el.addEventListener('pointerdown', e => {
         e.preventDefault();
         el.setPointerCapture(e.pointerId);
         const r = el.getBoundingClientRect();
         cx = r.left + r.width / 2;
-        cy = r.top  + r.height / 2;
+        cy = r.top + r.height / 2;
         jr = r.width / 2;
         active = true;
         knob.style.transition = 'none';
     });
     el.addEventListener('pointermove', e => {
         if (!active) return;
-        const dx = e.clientX - cx, dy = e.clientY - cy;
+        const dx = e.clientX - cx,
+            dy = e.clientY - cy;
         const dist = Math.hypot(dx, dy) || 1;
         const clamped = Math.min(dist, jr * 0.55) / dist;
         knob.style.transform = `translate(calc(-50% + ${dx * clamped}px), calc(-50% + ${dy * clamped}px))`;
@@ -2048,7 +2151,9 @@ const _setupJoystick = (id: string, up: string, down: string, left: string, righ
         active = false;
         knob.style.transition = 'transform 0.12s ease-out';
         knob.style.transform = 'translate(-50%, -50%)';
-        keys.forEach(k => { (G.keys as Record<string, boolean>)[k] = false; });
+        keys.forEach(k => {
+            (G.keys as Record<string, boolean>)[k] = false;
+        });
     };
     el.addEventListener('pointerup', release);
     el.addEventListener('pointercancel', release);
@@ -2058,22 +2163,27 @@ const _setupHeadingJoystick = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
     const knob = el.querySelector('.joystick-knob') as HTMLElement;
-    let active = false, cx = 0, cy = 0, jr = 0;
-    let _stickDx = 0, _stickDy = 0;
+    let active = false,
+        cx = 0,
+        cy = 0,
+        jr = 0;
+    let _stickDx = 0,
+        _stickDy = 0;
 
     el.addEventListener('pointerdown', e => {
         e.preventDefault();
         el.setPointerCapture(e.pointerId);
         const r = el.getBoundingClientRect();
         cx = r.left + r.width / 2;
-        cy = r.top  + r.height / 2;
+        cy = r.top + r.height / 2;
         jr = r.width / 2;
         active = true;
         knob.style.transition = 'none';
     });
     el.addEventListener('pointermove', e => {
         if (!active) return;
-        const dx = e.clientX - cx, dy = e.clientY - cy;
+        const dx = e.clientX - cx,
+            dy = e.clientY - cy;
         const dist = Math.hypot(dx, dy) || 1;
         const clamped = Math.min(dist, jr * 0.55) / dist;
         knob.style.transform = `translate(calc(-50% + ${dx * clamped}px), calc(-50% + ${dy * clamped}px))`;
@@ -2087,9 +2197,9 @@ const _setupHeadingJoystick = (id: string) => {
         _stickDy = 0;
         knob.style.transition = 'transform 0.12s ease-out';
         knob.style.transform = 'translate(-50%, -50%)';
-        (G.keys as Record<string, boolean>)['ArrowUp']    = false;
-        (G.keys as Record<string, boolean>)['ArrowDown']  = false;
-        (G.keys as Record<string, boolean>)['ArrowLeft']  = false;
+        (G.keys as Record<string, boolean>)['ArrowUp'] = false;
+        (G.keys as Record<string, boolean>)['ArrowDown'] = false;
+        (G.keys as Record<string, boolean>)['ArrowLeft'] = false;
         (G.keys as Record<string, boolean>)['ArrowRight'] = false;
     };
     el.addEventListener('pointerup', release);
@@ -2101,21 +2211,23 @@ const _setupHeadingJoystick = (id: string) => {
             const targetAngle = Math.atan2(_stickDy, _stickDx);
             let diff = targetAngle - G.heli.angle;
             // Normalise to [-π, π]
-            while (diff >  Math.PI) diff -= Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
             while (diff < -Math.PI) diff += Math.PI * 2;
 
             const turnDead = 0.15;
-            (G.keys as Record<string, boolean>)['ArrowLeft']  = diff < -turnDead;
-            (G.keys as Record<string, boolean>)['ArrowRight'] = diff >  turnDead;
+            (G.keys as Record<string, boolean>)['ArrowLeft'] = diff < -turnDead;
+            (G.keys as Record<string, boolean>)['ArrowRight'] = diff > turnDead;
 
             // Dot product of stick direction vs current heli forward
             const stickLen = Math.hypot(_stickDx, _stickDy);
-            const normSx = _stickDx / stickLen, normSy = _stickDy / stickLen;
-            const fwdX = Math.cos(G.heli.angle), fwdY = Math.sin(G.heli.angle);
+            const normSx = _stickDx / stickLen,
+                normSy = _stickDy / stickLen;
+            const fwdX = Math.cos(G.heli.angle),
+                fwdY = Math.sin(G.heli.angle);
             const dot = normSx * fwdX + normSy * fwdY;
             const accelDead = 0.3;
-            (G.keys as Record<string, boolean>)['ArrowUp']   = dot >  accelDead;
-            (G.keys as Record<string, boolean>)['ArrowDown']  = dot < -accelDead;
+            (G.keys as Record<string, boolean>)['ArrowUp'] = dot > accelDead;
+            (G.keys as Record<string, boolean>)['ArrowDown'] = dot < -accelDead;
         }
         requestAnimationFrame(tick);
     };
@@ -2146,7 +2258,7 @@ const setupTouchControls = () => {
         btn.addEventListener('pointercancel', release);
     });
     // joysticks
-    _setupJoystick('joystick-left',  'KeyW', 'KeyS', 'KeyA', 'KeyD');
+    _setupJoystick('joystick-left', 'KeyW', 'KeyS', 'KeyA', 'KeyD');
     if (getControlMode() === 'screen') {
         _setupJoystick('joystick-right', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
     } else {
@@ -2205,10 +2317,10 @@ window.onload = () => {
     assertDom();
     mountMainMenu({
         onSplashClick: toMainMenu,
-        onStart:    toCampaignSelect,
-        onHeli:     toHeliInfo,
+        onStart: toCampaignSelect,
+        onHeli: toHeliInfo,
         onSettings: toSettings,
-        onCredits:  toCredits,
+        onCredits: toCredits,
     });
     (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
     zinit();
@@ -2248,7 +2360,9 @@ window.onload = () => {
         _afterConsent();
     }
 
-    document.addEventListener('pointerdown', () => soundHandler.play(musicConfig.mainMenu || 'maintheme', true), { once: true });
+    document.addEventListener('pointerdown', () => soundHandler.play(musicConfig.mainMenu || 'maintheme', true), {
+        once: true,
+    });
     drawMenuHeli();
 };
 
@@ -2262,6 +2376,6 @@ window.returnToBase = returnToBase;
 window.selectCampaign = selectCampaign;
 window.startGame = startGame;
 window.setHover = setHover;
-window.toSettings     = toSettings;
+window.toSettings = toSettings;
 window.approveCookies = approveCookies;
 window.declineCookies = declineCookies;
