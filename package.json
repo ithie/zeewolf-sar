@@ -1,7 +1,7 @@
 {
     "name": "zeewolf-sar",
     "private": true,
-    "version": "23.3",
+    "version": "24.0",
     "type": "module",
     "main": "workbench/dist/main/index.cjs",
     "scripts": {

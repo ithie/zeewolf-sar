@@ -90,12 +90,14 @@ export const I18N = {
     CRASH_TREE:         'BAUMKONTAKT',
 
     // What's New
-    WHATS_NEW_VERSION:  'v23.3',
-    WHATS_NEW_TITLE:    'Mobile Steuerung',
+    WHATS_NEW_VERSION:  'v24.0',
+    WHATS_NEW_TITLE:    'Physik, Wind & Mobile',
     WHATS_NEW_HINT:     'KLICKEN ZUM FORTFAHREN',
     WHATS_NEW_ITEMS:    [
-        'Neues Steuerungskonzept für Touch: Steuerstick zeigt in Flugrichtung — der Heli dreht sich und beschleunigt entsprechend',
-        'Gegenrichtung bremst den Heli ab',
-        'Linker Stick (Höhe/Winsch) unverändert',
+        'Berge blocken den Wind — im Windschatten eines Gipfels wird der Heli spürbar ruhiger',
+        'Wind beeinflusst jetzt aktiv die Flugeigenschaften (Drift)',
+        'Windstärke im Kampagnen-Editor visuell als Pfeil dargestellt',
+        'Mobile: Kamera klebt direkt am Heli — kein Davonfliegen mehr möglich',
+        'Mobile: Steuerungsmodus wählbar — PROFI (relativ zum Heli) oder VEREINFACHT (oben = vorwärts)',
     ],
 } as const;
