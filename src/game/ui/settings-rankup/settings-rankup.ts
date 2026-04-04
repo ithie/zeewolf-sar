@@ -5,6 +5,9 @@ import { getRank, encodeSession, decodeSession, STORAGE_KEY, type PlayerSession,
 type Deps = {
     getSession: () => PlayerSession;
     saveSession: (s: PlayerSession) => void;
+    getControlMode: () => 'heading' | 'screen';
+    setControlMode: (m: 'heading' | 'screen') => void;
+    isTouchDevice: () => boolean;
 };
 
 let _deps: Deps;
@@ -35,6 +38,16 @@ export const mountSettingsRankup = () => {
             </div>
             <div id="import-code-msg" style="font-size: 12px; letter-spacing: 2px; min-height: 18px; margin-top: 4px"></div>
         </div>
+        <div id="settings-ctrl-row" style="display:none; flex-direction:column; align-items:center; margin-top:16px; width:100%">
+            <div class="settings-field" style="width:100%">
+                <label>STEUERUNG</label>
+                <div style="display:flex; gap:10px; margin-top:6px">
+                    <button class="settings-btn" id="ctrl-btn-profi">PROFI</button>
+                    <button class="settings-btn" id="ctrl-btn-vereinfacht">VEREINFACHT</button>
+                </div>
+                <div id="ctrl-mode-hint" style="font-size:11px; letter-spacing:1px; color:#8af; margin-top:4px; min-height:16px"></div>
+            </div>
+        </div>
         <div style="margin-top: 20px; border-top: 1px solid #1a1a2e; padding-top: 16px; width: 100%; display: flex; flex-direction: column; align-items: center">
             <button id="delete-session-btn" class="settings-btn" style="background: #1a0000; border-color: #500; color: #c44">${I18N.DELETE_SESSION}</button>
             <div id="delete-session-msg" style="font-size: 12px; letter-spacing: 2px; color: #c44; min-height: 18px; margin-top: 6px"></div>
@@ -44,6 +57,8 @@ export const mountSettingsRankup = () => {
     document.getElementById('apply-save-code-btn')!.addEventListener('click', applySaveCode);
     document.getElementById('delete-session-btn')!.addEventListener('click', deleteSessionData);
     document.getElementById('from-settings-btn')!.addEventListener('click', fromSettings);
+    document.getElementById('ctrl-btn-profi')!.addEventListener('click', () => { _deps.setControlMode('heading'); _refreshCtrlButtons(); });
+    document.getElementById('ctrl-btn-vereinfacht')!.addEventListener('click', () => { _deps.setControlMode('screen'); _refreshCtrlButtons(); });
 
     document.getElementById('rankup-overlay')!.innerHTML = `
         <div id="rankup-label">BEFÖRDERUNG</div>
@@ -60,6 +75,21 @@ export const rankBadgeHtml = (rank: Rank) =>
     `<span class="rank-pips">${rank.pips}</span>` +
     `<span class="rank-label">${rank.name.toUpperCase()}</span>` +
     `</div>`;
+
+const _refreshCtrlButtons = () => {
+    const mode = _deps.getControlMode();
+    const profi = document.getElementById('ctrl-btn-profi') as HTMLButtonElement;
+    const vereinfacht = document.getElementById('ctrl-btn-vereinfacht') as HTMLButtonElement;
+    const hint = document.getElementById('ctrl-mode-hint') as HTMLElement;
+    const HL = 'var(--accent, #4af)';
+    profi.style.borderColor = mode === 'heading' ? HL : '';
+    profi.style.color = mode === 'heading' ? HL : '';
+    vereinfacht.style.borderColor = mode === 'screen' ? HL : '';
+    vereinfacht.style.color = mode === 'screen' ? HL : '';
+    hint.textContent = mode === 'heading'
+        ? 'Rechter Stick dreht und beschleunigt relativ zum Heli.'
+        : 'Rechter Stick: oben = vorwärts, unabhängig von Ausrichtung.';
+};
 
 const _refreshSettingsScreen = () => {
     const session = _deps.getSession();
@@ -84,6 +114,13 @@ export const toSettings = () => {
     };
     (document.getElementById('import-code-input') as HTMLInputElement).value = '';
     (document.getElementById('import-code-msg') as HTMLElement).textContent = '';
+    const ctrlRow = document.getElementById('settings-ctrl-row') as HTMLElement;
+    if (_deps.isTouchDevice()) {
+        ctrlRow.style.display = 'flex';
+        _refreshCtrlButtons();
+    } else {
+        ctrlRow.style.display = 'none';
+    }
     (document.getElementById('main-menu') as HTMLElement).style.display = 'none';
     (document.getElementById('settings-screen') as HTMLElement).style.display = 'flex';
 };

@@ -125,6 +125,7 @@ export const syncToData = () => {
     const m = getCurrentMission();
     if (!m) return;
     m.headline = getInput('m_headline').value;
+    m.sublines = getEl<HTMLTextAreaElement>('m_sublines').value.split('\n').filter(l => l.trim());
     m.briefing = getEl<HTMLTextAreaElement>('m_briefing').value;
     m.rain = getInput('m_rain').checked;
     m.night = getInput('m_night').checked;
@@ -166,6 +167,7 @@ export const loadMission = (idx: number) => {
     if (!m.objects) m.objects = [];
 
     getInput('m_headline').value = m.headline;
+    getEl<HTMLTextAreaElement>('m_sublines').value = (m.sublines || []).join('\n');
     getEl<HTMLTextAreaElement>('m_briefing').value = m.briefing || '';
     getInput('m_grid_size').value = m.gridSize.toString();
     getInput('m_rain').checked = m.rain;
@@ -606,6 +608,7 @@ export const initUI = () => {
         'm_wind_var',
         'm_npc_heli_count',
         'm_npc_heli_type',
+        'm_sublines',
     ].forEach(id => getEl(id)?.addEventListener('input', syncToData));
 
     const canvas = getEl<HTMLCanvasElement>('editorCanvas');

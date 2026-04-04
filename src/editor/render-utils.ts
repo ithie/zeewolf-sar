@@ -11,7 +11,8 @@ export const renderIso = (
     pX: number,
     pY: number,
     m: any,
-    isFull = false
+    isFull = false,
+    forcedStep?: number,
 ) => {
     if (!m) return;
 
@@ -24,7 +25,7 @@ export const renderIso = (
     const sH = sTW * (25 / 64); // matches game: tileW=64, stepH=25
     const cX = tW / 2 + (isFull ? 0 : pX);
     const cY = tH * 0.1 + (isFull ? 0 : pY);
-    const step = mode === 'wireframe' ? Math.max(1, Math.round(m.gridSize / 25)) : 1;
+    const step = forcedStep ?? (mode === 'wireframe' ? 4 : 1);
 
     const getIso = (vx: number, vy: number, vz: number) => ({
         x: cX + (vx - vy) * (sTW / 2),

@@ -29,7 +29,7 @@
                         <span class="close-btn" id="close-wind">✖</span>
                         <strong style="color:cyan">💨 WIND VECTOR</strong><br>
                         Direction: <input type="number" id="m_wind_dir" value="45" min="0" max="359" style="width:50px"><br>
-                        Force: &nbsp;&nbsp;&nbsp;&nbsp;<input type="number" id="m_wind_str" value="1.0" step="0.1" min="0" style="width:50px"><br>
+                        Force: &nbsp;&nbsp;&nbsp;&nbsp;<input type="number" id="m_wind_str" value="1.0" step="0.1" min="0" max="10" style="width:50px"><br>
                         <label><input type="checkbox" id="m_wind_var"> Dynamic Variance</label>
                     </div>
 
@@ -113,6 +113,7 @@
 
             <!-- Mission data (synced via syncToData / loadMission) -->
             <input type="text"   id="m_headline" value="Phase 1">
+            <textarea            id="m_sublines"></textarea>
             <textarea            id="m_briefing"></textarea>
             <input type="checkbox" id="m_rain">
             <input type="checkbox" id="m_night">
@@ -201,6 +202,7 @@ Viel Glück, Pilot.</textarea>
                 foliageScale:    document.getElementById('foliage-scale').value,
                 currentMission: m ? {
                     headline:     m.headline,
+                    sublines:     m.sublines  || [],
                     briefing:     m.briefing  || '',
                     gridSize:     m.gridSize,
                     rain:         m.rain,
@@ -278,6 +280,7 @@ Viel Glück, Pilot.</textarea>
                 case 'zoom-out': clk('btn-zoom-out'); break;
 
                 case 'set-headline':  set('m_headline', data.value);      fire('m_headline',       'input'); break;
+                case 'set-sublines':  set('m_sublines', data.value);      fire('m_sublines',       'input'); break;
                 case 'set-briefing':  set('m_briefing', data.value);      fire('m_briefing',       'input'); break;
                 case 'set-rain':      chk('m_rain',     data.value);      fire('m_rain',           'input'); break;
                 case 'set-night':     chk('m_night',    data.value);      fire('m_night',          'input'); break;

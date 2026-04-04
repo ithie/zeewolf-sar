@@ -9,11 +9,11 @@ bpm 110
 [hat]  vol=80
 3 8 11 16 19 23 28 29 32 39 41 47 50 55 58
 
-[synth1]  vol=50  wave=sawtooth  filter=648  sustain=once
+[synth1]  vol=50  wave=sawtooth  filter=648  inst=custom  attack=0.02  release=0.3  detune=0
 0:A3 4:A3 9:E3 10:E3 13:D3 17:A3 19:A3 23:F3 24:G3 26:D3 30:F3 32:C3 36:E3 40:E3 43:E3 49:G3 50:F3 51:E3 52:D3 53:C3 54:G3 55:F3 56:E3 57:D3 58:C3 60:D3
 
-[synth2]  vol=50  wave=sawtooth  filter=2816  sustain=hold
+[synth2]  vol=50  wave=sawtooth  filter=2816  inst=custom  attack=0.02  release=0.3  detune=0
 0:A3 2:A3 4:D3 7:D3 9:A3 10:F3 11:A3 12:E3 14:A3 15:F3 18:A3 20:D3 23:D3 25:G3 26:F3 27:E3 29:C3 31:A3 34:F3 36:E3 39:G3 41:A3 43:F3 45:A3 47:E3 51:E3 52:D3 53:C3 56:E3 57:D3 58:C3 60:D3
 
-[synth3]  vol=18  wave=square  filter=2000  sustain=hold
+[synth3]  vol=18  wave=square  filter=2000  inst=custom  attack=0.02  release=0.3  detune=0
 0:A3 6:A3 9:F3 13:A3 18:A3 21:G3 24:A3 28:F3 32:A3 35:F3 38:A3 41:F3 44:F3 45:G3 46:A3 47:C4 48:B3 49:A3 50:G3 51:F3 52:E3 53:F3 54:G3 55:A3 56:G3 57:F3 58:E3 60:D3

@@ -24,12 +24,13 @@ const draw = () => {
         ctx.fillRect(0, 0, W, H);
     }
 
-    // Left: filled (abstrakt)
+    // Left: filled with LoD — coarser tiles when zoomed out
+    const filledStep = zoom >= 8 ? 1 : zoom >= 4 ? 2 : zoom >= 2 ? 3 : 4;
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, half, H);
     ctx.clip();
-    renderIso(ctx, half, H, 'filled', zoom, panX, panY, m);
+    renderIso(ctx, half, H, 'filled', zoom, panX, panY, m, false, filledStep);
     ctx.restore();
 
     // Divider
@@ -39,13 +40,13 @@ const draw = () => {
     ctx.lineTo(half, H);
     ctx.stroke();
 
-    // Right: wireframe (Gittermodell)
+    // Right: wireframe overview — fixed step 4
     ctx.save();
     ctx.translate(half, 0);
     ctx.beginPath();
     ctx.rect(0, 0, half, H);
     ctx.clip();
-    renderIso(ctx, half, H, 'wireframe', 1, 0, 0, m, true);
+    renderIso(ctx, half, H, 'wireframe', 1, 0, 0, m, true, 4);
     ctx.restore();
 };
 

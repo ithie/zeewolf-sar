@@ -149,7 +149,7 @@ workbench/
 
 ## Documentation
 
-- [DEF_SPEC.md](./DEF_SPEC.md) — isometric geometry system (DEF format, SceneRenderer API)
+- [docs/DEF_SPEC.md](./DEF_SPEC.md) — isometric geometry system (DEF format, SceneRenderer API)
 - [docs/SESSION_SYSTEM.md](./docs/SESSION_SYSTEM.md) — session system, rank progression, save code format, GDPR
 - [docs/WORKBENCH.md](./docs/WORKBENCH.md) — Workbench architecture and `window.workbench` API
 - [docs/CAMPAIGN_FORMAT.md](./docs/CAMPAIGN_FORMAT.md) — campaign and mission JSON format
@@ -163,7 +163,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Inspired By
 
-[Zeewolf](https://www.lemonamiga.com/games/details.php?id=1194) by Binary Asylum (Amiga, 1994).
+[Zeewolf](https://www.lemonamiga.com/game/zeewolf) by Binary Asylum (Amiga, 1994).
 
 ---
 

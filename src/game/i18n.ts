@@ -22,6 +22,18 @@ export const I18N = {
     PARTY_ON:           '🎉 PARTY MODE 🎉',
     UNLOCK_ALL:         '🔓 ALL CAMPAIGNS UNLOCKED',
 
+    // Splash
+    SPLASH_TITLE:       'ZEEWOLF: SAR',
+    SPLASH_HINT:        'KLICKEN ZUM SYSTEMSTART',
+
+    // Main menu
+    MENU_TITLE:         'ZEEWOLF: SAR',
+    MENU_SUBTITLE:      'MAIN SYSTEM',
+    MENU_START:         'SPIEL STARTEN',
+    MENU_HELI:          'HELIKOPTER',
+    MENU_SETTINGS:      'EINSTELLUNGEN',
+    MENU_CREDITS:       'CREDITS',
+
     // Navigation
     BACK:               '◀ ZURÜCK',
     RETRY:              'WIEDERHOLEN',

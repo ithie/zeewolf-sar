@@ -265,11 +265,30 @@ export const drawMap = () => {
     ctx.stroke();
     ctx.shadowBlur = 0;
     if (m.windStr > 0) {
+        const maxStr    = 10;
+        const arrowLen  = (Math.min(m.windStr, maxStr) / maxStr) * 24;
+        const tipX = 50 + Math.cos(dirRad) * arrowLen;
+        const tipY = 50 + Math.sin(dirRad) * arrowLen;
+        ctx.lineWidth = 1 + (m.windStr / maxStr) * 2.5;
         ctx.beginPath();
         ctx.moveTo(50, 50);
-        ctx.lineTo(50 + Math.cos(dirRad) * 25, 50 + Math.sin(dirRad) * 25);
+        ctx.lineTo(tipX, tipY);
         ctx.stroke();
+        // Arrowhead
+        const headLen = 5, spread = 0.4;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(tipX - Math.cos(dirRad - spread) * headLen, tipY - Math.sin(dirRad - spread) * headLen);
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(tipX - Math.cos(dirRad + spread) * headLen, tipY - Math.sin(dirRad + spread) * headLen);
+        ctx.stroke();
+        // Speed label
+        ctx.fillStyle = state.selectedUI === 'wind' ? COLORS.windActive : COLORS.padStroke;
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(`${m.windStr.toFixed(1)}`, 84, 54);
     }
+    ctx.lineWidth = 1;
     if (state.selectedUI === 'wind' && wUI) wUI.style.display = 'block';
 };
 

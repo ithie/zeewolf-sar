@@ -12,7 +12,14 @@ import SAILBOAT_DEF from './models/sailboat.zdef';
 import CARRIER_HULL_DEF from './models/carrier_hull.zdef';
 import CARRIER_TOWER_DEF from './models/carrier_tower.zdef';
 import { createSceneRenderer } from './scene-renderer';
-import { HELI_TYPES, getHeliType } from './heli-types';
+import { getHeliType } from './heli-types';
+import { G } from './game-state';
+import {
+    getGround, initGrid, generateTerrain,
+    initCarrierFromMission, initBoatsFromMission, initPayloadsFromMission,
+    initFuelTruck, initBirds,
+    updateBirds, updateDebris, spawnExplosion, updatePhysics,
+} from './physics';
 import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
 import { toCredits } from './ui/credits-screen/credits-screen';
@@ -24,11 +31,11 @@ import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-bann
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
 import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings-rankup/settings-rankup';
 import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
+import { mountMainMenu } from './ui/main-menu/main-menu';
 
 const REQUIRED_IDS = [
     'gameCanvas', 'audio-mute', 'audio-mute-active', 'audio-mute-inactive',
-    'splash', 'splash-version', 'menu-heli-big', 'menu-particles-canvas',
-    'main-menu', 'main-menu-bg-canvas',
+    'splash', 'main-menu', 'menu-particles-canvas',
     'heli-info', 'heli-info-stage', 'heli-cards-area', 'heli-detail-panel',
     'credits-screen', 'credits-canvas', 'credits-inner',
     'campaign-select', 'heli-select',
@@ -55,68 +62,7 @@ const SceneRenderer = createSceneRenderer(ctx, isoFn);
 const { drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } =
     createDrawObjects(ctx, isoFn, tileW, tileH, SceneRenderer);
 
-// ─── state ───────────────────────────────────────────────────────────────────
-// G = single mutable game state object; all functions receive what they need
-// explicitly as parameters — no implicit global access.
-const G = {
-    goalCount: 0,
-    totalRescued: 0,
-    objectives: [] as any[],
-    menuHover: Object.fromEntries(HELI_TYPES.map(h => [h.id, false])),
-    menuAngles: Object.fromEntries(HELI_TYPES.map(h => [h.id, -0.5])),
-    points: [] as any[],
-    particles: [] as any[],
-    debris: [] as any[],
-    CARRIER: {} as any,
-    BOATS: [] as any[],
-    seaTime: 0,
-    payloads: [] as any[],
-    activePayload: null as any,
-    rescuerSwing: { x: 0, y: 0, vx: 0, vy: 0 },
-    parkedHelis: [
-        { type: 'jayhawk', xRel: -2.5, yRel: -7.0, angle: Math.PI * 0.19 },
-        { type: 'jayhawk', xRel: -2.7, yRel: -1.5, angle: Math.PI * 0.15 },
-        { type: 'dolphin', xRel: 2.5, yRel: -7.0, angle: Math.PI * 0.55 },
-    ],
-    heli: {
-        type: 'dolphin',
-        x: 0,
-        y: 0,
-        z: 0.5,
-        vx: 0,
-        vy: 0,
-        vz: 0,
-        angle: 0,
-        tilt: 0,
-        roll: 0,
-        winch: 0,
-        fuel: 100,
-        engineOn: false,
-        rotorRPM: 0,
-        rotationPos: 0,
-        onboard: 0,
-        maxLoad: 5,
-        accel: 0.0025,
-        friction: 0.99,
-        tiltSpeed: 0.02,
-        fuelRate: 0.012,
-        liftPower: 0.003,
-        inAir: false,
-        cargoResist: 1.0,
-    },
-    wind: { x: 0, y: 0, phase: 0, angle: Math.random() * Math.PI * 2, varOffset: 0 } as any,
-    keys: {} as Record<string, boolean>,
-    flocks: [] as any[],
-    TREES_MAP: null as any,
-    PAD: null as any,
-    START_POS: null as any,
-    fuelTruck: { state: 'PARKED', x: 0, y: 0, angle: 0, arm: 0, parkX: 0, parkY: 0, parkAngle: 0, t: 0, wps: null as null, wpI: 0, targetX: null as number | null, targetY: null as number | null },
-};
-
-// parkedHelis is constant shape — destructure once for readability
 const { parkedHelis } = G;
-
-type GameState = typeof G;
 
 initHeliInfoScreen(G, drawHeli);
 initHeliSelect(G, drawHeli);
@@ -129,486 +75,13 @@ function getObjects() {
 function getObjectByType(type: string) {
     return getObjects().find(o => o.type === type) || null;
 }
-function getObjectsByType(type: string) {
-    return getObjects().filter(o => o.type === type);
-}
-function hasCarrier() {
-    return !!getObjectByType('carrier');
-}
-function hasLighthouse() {
-    return !!getObjectByType('lighthouse');
-}
-function hasPad() {
-    return !!getObjectByType('pad');
-}
+function hasCarrier()   { return _missionHasCarrier; }
+function hasLighthouse() { return _missionHasLighthouse; }
+function hasPad()       { return _missionHasPad; }
 function isStartsOnCarrier() {
     return campaignHandler.getCurrentMissionData().spawnObject === 'carrier';
 }
 
-// ─── grid / terrain ──────────────────────────────────────────────────────────
-function initGrid(size: number, points: number[][]) {
-    for (let x = 0; x <= size; x++) {
-        points[x] = [];
-        for (let y = 0; y <= size; y++) points[x][y] = 0;
-    }
-}
-
-function generateTerrain(points: number[][], PAD: { xMin: number; xMax: number; yMin: number; yMax: number; z: number } | null) {
-    const { terrain, gridSize } = campaignHandler.getTerrain();
-    for (let x = 0; x <= gridSize; x++) {
-        for (let y = 0; y <= gridSize; y++) {
-            if (PAD && x >= PAD.xMin && x <= PAD.xMax + 1 && y >= PAD.yMin && y <= PAD.yMax + 1)
-                points[x][y] = PAD.z;
-            else points[x][y] = terrain[x][y];
-        }
-    }
-}
-
-function getGround(fx: number, fy: number, points = G.points, CARRIER = G.CARRIER) {
-    if (CARRIER && CARRIER.x !== undefined) {
-        let local = getCarrierLocal(fx, fy, CARRIER);
-        if (
-            local.x >= -CARRIER.w &&
-            local.x <= CARRIER.w &&
-            local.y >= -CARRIER.l &&
-            local.y <= CARRIER.l
-        ) {
-            if (local.x > 1.2 && local.y > 1.5 && local.y < 5.0) return CARRIER.zDeck + 1.2;
-            return CARRIER.zDeck;
-        }
-    }
-    const { gridSize } = campaignHandler.getTerrain();
-    let x1 = Math.floor(fx),
-        y1 = Math.floor(fy);
-    if (x1 < 0 || y1 < 0 || x1 >= gridSize - 1 || y1 >= gridSize - 1) return -1.0;
-    if (!points[x1] || !points[x1 + 1]) return -1.0;
-    let tX = fx - x1,
-        tY = fy - y1;
-    if (x1 + 1 < gridSize && y1 + 1 < gridSize) {
-        return (
-            points[x1][y1] * (1 - tX) * (1 - tY) +
-            points[x1 + 1][y1] * tX * (1 - tY) +
-            points[x1 + 1][y1 + 1] * tX * tY +
-            points[x1][y1 + 1] * (1 - tX) * tY
-        );
-    }
-    return 0;
-}
-
-// ─── carrier ────────────────────────────────────────────────────────────────
-function getCarrierLocal(globX: number, globY: number, CARRIER = G.CARRIER) {
-    let dx = globX - CARRIER.x,
-        dy = globY - CARRIER.y;
-    let ang = -CARRIER.angle;
-    return {
-        x: dx * Math.cos(ang) - dy * Math.sin(ang),
-        y: dx * Math.sin(ang) + dy * Math.cos(ang),
-    };
-}
-
-function updateCarrierPos(CARRIER: any, seaTimeRef: any, forceUpdate = false, dt = 1) {
-    if (!CARRIER || CARRIER.x === undefined) return;
-
-    if (CARRIER.path === 'straight') {
-        if (!forceUpdate) {
-            CARRIER.lineProgress += CARRIER.speed * dt;
-            const nx = CARRIER.lineStartX + CARRIER.lineDirX * CARRIER.lineProgress;
-            const ny = CARRIER.lineStartY + CARRIER.lineDirY * CARRIER.lineProgress;
-            const dx = nx - CARRIER.x,
-                dy = ny - CARRIER.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dx, -dy);
-            CARRIER.x = nx;
-            CARRIER.y = ny;
-        }
-    } else {
-        if (!forceUpdate) seaTimeRef.t += CARRIER.speed * dt;
-        const nx = CARRIER.centerX + Math.cos(seaTimeRef.t) * CARRIER.radiusX;
-        const ny = CARRIER.centerY + Math.sin(seaTimeRef.t) * CARRIER.radiusY;
-        if (forceUpdate) {
-            CARRIER.angle = Math.atan2(
-                -CARRIER.radiusX * Math.sin(seaTimeRef.t),
-                -CARRIER.radiusY * Math.cos(seaTimeRef.t)
-            );
-        } else {
-            const dx = nx - CARRIER.x,
-                dy = ny - CARRIER.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dx, -dy);
-        }
-        CARRIER.x = nx;
-        CARRIER.y = ny;
-    }
-}
-
-function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
-    const angleRad = (obj.angle ?? 0) * (Math.PI / 180);
-    vessel.w = obj.type === 'carrier' ? 3.5 : 1.5;
-    vessel.l = obj.type === 'carrier' ? 8.0 : 3.0;
-    vessel.zDeck = obj.type === 'carrier' ? 4.2 : 0.35;
-    vessel.zHull = obj.type === 'carrier' ? 3.8 : 0.15;
-    vessel.path = obj.path ?? 'static';
-    // Einheitliche Skalierung: beide ~gleich schnell bei gleichem speed-Wert
-    // circle: rad/frame * radius ≈ grid/frame; straight: grid/frame direkt
-    // 1 Einheit = 5.16m, 60fps → 1 Knoten = 0.001663 E/frame
-    // circle: speed in rad/frame → v = speed * radius → Faktor = 0.001663 / radius
-    // Da radius variiert, speichern wir E/frame und teilen später durch radius
-    // straight: direkt E/frame
-    const knotsToUnits = 0.001663;
-    if (obj.path === 'straight') {
-        vessel.speed = (obj.speed ?? 0) * knotsToUnits;
-    } else {
-        // circle: rad/frame = (knots * knotsToUnits) / radius
-        const r = obj.radius ?? 45;
-        vessel.speed = ((obj.speed ?? 0) * knotsToUnits) / r;
-    }
-    if (obj.path === 'circle') {
-        const r = obj.radius ?? 45;
-        vessel.radiusX = r;
-        vessel.radiusY = r * 0.8;
-        const t0 =
-            Math.atan2(-Math.sin(angleRad) / vessel.radiusX, -Math.cos(angleRad) / vessel.radiusY) +
-            Math.PI / 2;
-        vessel.centerX = obj.x - Math.cos(t0) * vessel.radiusX;
-        vessel.centerY = obj.y - Math.sin(t0) * vessel.radiusY;
-        seaTimeRef.t = t0;
-        vessel.x = vessel.centerX + Math.cos(t0) * vessel.radiusX;
-        vessel.y = vessel.centerY + Math.sin(t0) * vessel.radiusY;
-        vessel.angle = Math.atan2(-vessel.radiusX * Math.sin(t0), -vessel.radiusY * Math.cos(t0));
-    } else if (obj.path === 'straight') {
-        vessel.x = obj.x;
-        vessel.y = obj.y;
-        vessel.angle = Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
-        vessel.lineStartX = obj.x;
-        vessel.lineStartY = obj.y;
-        vessel.lineDirX = Math.cos(angleRad);
-        vessel.lineDirY = Math.sin(angleRad);
-        vessel.lineProgress = 0;
-        console.log(
-            'initVessel straight:',
-            obj.type,
-            'angle:',
-            obj.angle,
-            'angleRad:',
-            angleRad,
-            'lineDirX:',
-            vessel.lineDirX,
-            'lineDirY:',
-            vessel.lineDirY
-        );
-    } else {
-        vessel.x = obj.x;
-        vessel.y = obj.y;
-        vessel.angle = Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
-    }
-}
-
-function initCarrierFromMission(G: GameState) {
-    const carrierObj = getObjectByType('carrier');
-    if (!carrierObj) return;
-    const seaTimeRef = {
-        get t() {
-            return G.seaTime;
-        },
-        set t(v) {
-            G.seaTime = v;
-        },
-    };
-    initVessel(carrierObj, G.CARRIER, seaTimeRef);
-    updateCarrierPos(G.CARRIER, seaTimeRef, true);
-}
-
-function initBoatsFromMission(G: GameState) {
-    const allObjects = getObjects();
-    G.BOATS = getObjectsByType('boat').map(obj => {
-        const objIdx = allObjects.indexOf(obj);
-        const b = {
-            x: obj.x,
-            y: obj.y,
-            angle: 0,
-            path: 'static',
-            speed: 0,
-            w: 1.5,
-            l: 3.0,
-            zDeck: 0.35,
-            zHull: 0.15,
-            radiusX: 0,
-            radiusY: 0,
-            centerX: 0,
-            centerY: 0,
-            lineStartX: 0,
-            lineStartY: 0,
-            lineDirX: 0,
-            lineDirY: 0,
-            lineProgress: 0,
-            _seaTime: 0,
-            _objIdx: objIdx,
-        };
-        const st = {
-            get t() {
-                return b._seaTime;
-            },
-            set t(v) {
-                b._seaTime = v;
-            },
-        };
-        initVessel(obj, b, st);
-        return b;
-    });
-}
-
-function updateBoats(BOATS: any[], dt: number) {
-    BOATS.forEach(b => {
-        if (b.path === 'straight') {
-            b.lineProgress += b.speed * dt;
-            const nx = b.lineStartX + b.lineDirX * b.lineProgress;
-            const ny = b.lineStartY + b.lineDirY * b.lineProgress;
-            const dx = nx - b.x,
-                dy = ny - b.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dx, -dy);
-            b.x = nx;
-            b.y = ny;
-        } else if (b.path === 'circle') {
-            b._seaTime += b.speed * dt;
-            const nx = b.centerX + Math.cos(b._seaTime) * b.radiusX;
-            const ny = b.centerY + Math.sin(b._seaTime) * b.radiusY;
-            const dx = nx - b.x,
-                dy = ny - b.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dx, -dy);
-            b.x = nx;
-            b.y = ny;
-        }
-    });
-}
-
-// ─── G.payloads ────────────────────────────────────────────────────────────────
-function initPayloadsFromMission(G: GameState) {
-    const missionData = campaignHandler.getCurrentMissionData();
-    G.objectives = missionData.objectives || [];
-    const { payloads: missionPayloads } = missionData;
-    if (!missionPayloads || !missionPayloads.length) {
-        G.payloads = [];
-        G.goalCount = 0;
-        return;
-    }
-    G.payloads = missionPayloads.map(p => {
-        let px = p.x,
-            py = p.y;
-        if (p.attachTo) {
-            if (p.attachTo.objectType === 'carrier' && hasCarrier()) {
-                px = G.CARRIER.x;
-                py = G.CARRIER.y;
-            } else if (p.attachTo.objectType === 'boat') {
-                const attachedBoat = G.BOATS.find(b => b._objIdx === p.attachTo!.objectIdx);
-                if (attachedBoat) {
-                    px = attachedBoat.x;
-                    py = attachedBoat.y;
-                }
-            }
-        }
-        const SURVIVOR_OUTFITS = [
-            { shirt: '#e74c3c', pants: '#2c3e50' },
-            { shirt: '#3498db', pants: '#1a252f' },
-            { shirt: '#2ecc71', pants: '#2c3e50' },
-            { shirt: '#f39c12', pants: '#2c3e50' },
-            { shirt: '#9b59b6', pants: '#2c3e50' },
-            { shirt: '#e8e8e8', pants: '#555555' },
-            { shirt: '#e67e22', pants: '#1a5276' },
-            { shirt: '#c0392b', pants: '#17202a' },
-        ];
-        return {
-            x: px,
-            y: py,
-            z: getGround(px, py, G.points, G.CARRIER),
-            vx: 0,
-            vy: 0,
-            type: p.type,
-            rescued: false,
-            hanging: false,
-            attachTo: p.attachTo || null,
-            npcTarget: p.npcTarget ?? false,
-            outfitColors: p.type === 'person'
-                ? SURVIVOR_OUTFITS[Math.floor(Math.random() * SURVIVOR_OUTFITS.length)]
-                : null,
-        };
-    });
-    G.goalCount = G.payloads.filter(p => !p.npcTarget).length;
-    G.totalRescued = 0;
-    G.activePayload = null;
-}
-
-// ─── G.wind ───────────────────────────────────────────────────────────────────
-function updateWind(wind: any, dt: number) {
-    const { windStr, windDir, windVar } = campaignHandler.getCurrentMissionData();
-    const baseAngle = (windDir ?? 0) * (Math.PI / 180);
-    const baseStrength = ((windStr ?? 1) / 10) * 0.0002;
-    wind.phase += 0.01 * dt;
-    const gust = 1 + Math.sin(wind.phase) * 0.8;
-    let currentAngle = baseAngle;
-    if (windVar) {
-        wind.varOffset = (wind.varOffset ?? 0) + (Math.random() - 0.5) * 0.008 * dt;
-        wind.varOffset = Math.max(-0.5, Math.min(0.5, wind.varOffset));
-        currentAngle = baseAngle + wind.varOffset;
-    }
-    wind.x = Math.cos(currentAngle) * baseStrength * gust;
-    wind.y = Math.sin(currentAngle) * baseStrength * gust;
-    wind.angle = currentAngle;
-}
-
-// ─── G.debris ──────────────────────────────────────────────────────────────────
-
-function spawnExplosion(heli: typeof G.heli, particles: any[], debris: any[], points: number[][], CARRIER: any) {
-    const impactSpeed = Math.hypot(heli.vx, heli.vy, heli.vz || 0);
-    const intensity = Math.min(1.0, impactSpeed / 0.25);
-    const count = Math.floor(30 + intensity * 80);
-    const x = heli.x,
-        y = heli.y,
-        z = Math.max(heli.z, getGround(heli.x, heli.y, points, CARRIER) + 0.1);
-    const fwdX = impactSpeed > 0.01 ? heli.vx / impactSpeed : 0;
-    const fwdY = impactSpeed > 0.01 ? heli.vy / impactSpeed : 0;
-
-    // Feuer- und Rauchpartikel
-    for (let i = 0; i < count; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const el = (Math.random() - 0.3) * Math.PI;
-        const spd = (0.04 + Math.random() * 0.12) * (0.5 + intensity * 0.5);
-        const isFire = Math.random() < 0.6;
-        // Bias in Flugrichtung: 70% Impuls vorwärts
-        const biasFwd = 0.5 + Math.random() * 0.5;
-        particles.push({
-            x,
-            y,
-            z: z + Math.random() * 0.3,
-            vx: Math.cos(a) * Math.cos(el) * spd + fwdX * impactSpeed * biasFwd,
-            vy: Math.sin(a) * Math.cos(el) * spd + fwdY * impactSpeed * biasFwd,
-            vz: Math.sin(el) * spd * 0.5 + 0.05,
-            gravity: -0.004,
-            size: isFire ? 4 + Math.random() * 6 : 3 + Math.random() * 8,
-            life: 0.6 + Math.random() * 0.8,
-            maxLife: 1.0,
-            color: isFire
-                ? `${220 + Math.floor(Math.random() * 35)}, ${Math.floor(Math.random() * 120)}, 0`
-                : `${80 + Math.floor(Math.random() * 60)}, ${70 + Math.floor(Math.random() * 40)}, ${60 + Math.floor(Math.random() * 40)}`,
-            isSmoke: !isFire,
-        });
-    }
-
-    // Metallsplitter — stark in Flugrichtung
-    const shrapnel = Math.floor(15 + intensity * 30);
-    for (let i = 0; i < shrapnel; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const spd = 0.05 + Math.random() * 0.2 * intensity;
-        const biasFwd = 0.3 + Math.random() * 0.7;
-        particles.push({
-            x,
-            y,
-            z: z + Math.random() * 0.2,
-            vx: Math.cos(a) * spd + fwdX * impactSpeed * biasFwd * 1.2,
-            vy: Math.sin(a) * spd + fwdY * impactSpeed * biasFwd * 1.2,
-            vz: 0.02 + Math.random() * 0.1,
-            gravity: -0.008,
-            size: 2,
-            life: 1.0 + Math.random() * 1.5,
-            maxLife: 2.0,
-            color: `${180 + Math.floor(Math.random() * 60)}, ${160 + Math.floor(Math.random() * 40)}, ${100 + Math.floor(Math.random() * 50)}`,
-            isMetal: true,
-        });
-    }
-
-    // Heli-Trümmer — fliegen hauptsächlich in Flugrichtung weiter
-    const _ht = getHeliType(heli.type);
-    const scale = _ht.scale;
-    const parts = [
-        { name: 'fuselage', color: '#ff6600', stroke: '#dd3300', w: 1.5 * scale, h: 0.4 * scale },
-        { name: 'tail', color: '#ff6600', stroke: '#dd3300', w: 1.0 * scale, h: 0.2 * scale },
-        { name: 'rotor1', color: '#333', stroke: '#555', w: 1.8 * scale, h: 0.08 * scale },
-        { name: 'rotor2', color: '#333', stroke: '#555', w: 1.8 * scale, h: 0.08 * scale },
-        { name: 'door', color: '#cc4400', stroke: '#aa2200', w: 0.5 * scale, h: 0.4 * scale },
-    ];
-    if (_ht.extraRotorDebris)
-        parts.push({ name: 'rotor3', color: '#333', stroke: '#555', w: 1.8, h: 0.08 });
-
-    parts.forEach(part => {
-        const a = Math.random() * Math.PI * 2;
-        const spd = (0.03 + Math.random() * 0.1) * (0.4 + intensity * 0.6);
-        const biasFwd = 0.4 + Math.random() * 0.6;
-        debris.push({
-            x,
-            y,
-            z: z + 0.1 + Math.random() * 0.4,
-            vx: Math.cos(a) * spd * 0.4 + fwdX * impactSpeed * biasFwd,
-            vy: Math.sin(a) * spd * 0.4 + fwdY * impactSpeed * biasFwd,
-            vz: 0.03 + Math.random() * 0.08 * intensity,
-            angle: heli.angle + (Math.random() - 0.5),
-            av: (Math.random() - 0.5) * 0.15 * (0.5 + intensity),
-            w: part.w,
-            h: part.h,
-            color: part.color,
-            stroke: part.stroke,
-            life: 3.0 + Math.random() * 2.0,
-            bounced: false,
-        });
-    });
-
-    // Sekundäre Rauchspur (verzögert)
-    for (let i = 0; i < 8; i++) {
-        setTimeout(() => {
-            for (let j = 0; j < 3; j++) {
-                const a = Math.random() * Math.PI * 2;
-                particles.push({
-                    x: x + Math.cos(a) * 0.3,
-                    y: y + Math.sin(a) * 0.3,
-                    z: z + Math.random() * 0.5,
-                    vx: (Math.random() - 0.5) * 0.01,
-                    vy: (Math.random() - 0.5) * 0.01,
-                    vz: 0.01 + Math.random() * 0.02,
-                    gravity: 0,
-                    size: 6 + Math.random() * 10,
-                    life: 0.4 + Math.random() * 0.4,
-                    maxLife: 0.8,
-                    color: `${60 + Math.floor(Math.random() * 40)}, ${55 + Math.floor(Math.random() * 30)}, ${50 + Math.floor(Math.random() * 30)}`,
-                    isSmoke: true,
-                });
-            }
-        }, i * 120);
-    }
-}
-
-function updateDebris(G: GameState) {
-    G.debris.forEach(d => {
-        d.x += d.vx;
-        d.y += d.vy;
-        d.z += d.vz;
-        d.vz += d.gravity !== undefined ? d.gravity : -0.006;
-        d.angle += d.av;
-        d.av *= 0.98;
-        d.life -= 0.016;
-        const gz = getGround(d.x, d.y, G.points, G.CARRIER);
-        if (d.z <= gz) {
-            d.z = gz;
-            d.vz = Math.abs(d.vz) * 0.25;
-            d.vx *= 0.6;
-            d.vy *= 0.6;
-            d.av *= 0.4;
-            if (!d.bounced) {
-                G.particles.push({
-                    x: d.x,
-                    y: d.y,
-                    z: gz + 0.05,
-                    vx: (Math.random() - 0.5) * 0.03,
-                    vy: (Math.random() - 0.5) * 0.03,
-                    vz: 0.015,
-                    gravity: 0,
-                    size: 4,
-                    life: 0.3,
-                    maxLife: 0.3,
-                    color: '150,130,100',
-                    isSmoke: true,
-                });
-                d.bounced = true;
-            }
-        }
-    });
-    G.debris = G.debris.filter(d => d.life > 0);
-}
 
 function drawDebris(debris: any[], camX: number, camY: number, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
     debris.forEach(d => {
@@ -640,122 +113,6 @@ function drawDebris(debris: any[], camX: number, camY: number, ctx: CanvasRender
         ctx.globalAlpha = 1.0;
     });
 }
-// ─── birds ───────────────────────────────────────────────────────────────────
-// G.flocks initialized in G object
-
-function initBirds() {
-    G.flocks = [];
-    const { gridSize } = campaignHandler.getTerrain();
-    const numFlocks = 4 + Math.floor(Math.random() * 4);
-    // Spawn-Radius um Startposition damit Vögel sofort sichtbar
-    const spawnCx = G.START_POS ? G.START_POS.x : gridSize / 2;
-    const spawnCy = G.START_POS ? G.START_POS.y : gridSize / 2;
-    for (let f = 0; f < numFlocks; f++) {
-        let fx = 0, fy = 0;
-        // Erst versuchen: Land in der Nähe
-        let found = false;
-        for (let attempt = 0; attempt < 30; attempt++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 5 + Math.random() * 18;
-            fx = spawnCx + Math.cos(angle) * dist;
-            fy = spawnCy + Math.sin(angle) * dist;
-            fx = Math.max(3, Math.min(gridSize - 3, fx));
-            fy = Math.max(3, Math.min(gridSize - 3, fy));
-            if (getGround(fx, fy, G.points, G.CARRIER) > 0.2) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            // Fallback: irgendwo auf der Karte
-            fx = 5 + Math.random() * (gridSize - 10);
-            fy = 5 + Math.random() * (gridSize - 10);
-        }
-        const fz = 3 + Math.random() * 5;
-        const baseAngle = Math.random() * Math.PI * 2;
-        const spd = 0.012 + Math.random() * 0.008;
-        const count = 4 + Math.floor(Math.random() * 6);
-        const birds = [];
-        for (let i = 0; i < count; i++) {
-            birds.push({
-                x: fx + (Math.random() - 0.5) * 3,
-                y: fy + (Math.random() - 0.5) * 3,
-                z: fz + (Math.random() - 0.5) * 0.8,
-                vx: Math.cos(baseAngle) * spd,
-                vy: Math.sin(baseAngle) * spd,
-                vz: 0,
-                wingPhase: Math.random() * Math.PI * 2,
-            });
-        }
-        G.flocks.push({ birds, fleeing: false, fleeTimer: 0 });
-    }
-}
-
-function updateBirds() {
-    const { gridSize } = campaignHandler.getTerrain();
-    G.flocks.forEach(flock => {
-        // Heli-Nähe prüfen
-        const cx = flock.birds.reduce((s: number, b: any) => s + b.x, 0) / flock.birds.length;
-        const cy = flock.birds.reduce((s: number, b: any) => s + b.y, 0) / flock.birds.length;
-        const distToHeli = Math.hypot(G.heli.x - cx, G.heli.y - cy);
-        const heliLoud = G.heli.rotorRPM > 0.3;
-        if (heliLoud && distToHeli < 8) {
-            flock.fleeing = true;
-            flock.fleeTimer = 180;
-        }
-        if (flock.fleeTimer > 0) flock.fleeTimer--;
-        else flock.fleeing = false;
-
-        // Schwarm-Zielrichtung
-        const flockAngle = Math.atan2(
-            flock.birds.reduce((s: number, b: any) => s + b.vy, 0),
-            flock.birds.reduce((s: number, b: any) => s + b.vx, 0)
-        );
-        const baseSpd = flock.fleeing ? 0.035 : 0.014;
-
-        flock.birds.forEach((bird: any) => {
-            // Fluchtvector weg vom Heli
-            let targetAngle = flockAngle;
-            if (flock.fleeing) {
-                const awayAngle = Math.atan2(bird.y - G.heli.y, bird.x - G.heli.x);
-                targetAngle = awayAngle + (Math.random() - 0.5) * 0.5;
-            } else {
-                // Leichte Windeinwirkung + sanfte Kurven
-                targetAngle += (Math.random() - 0.5) * 0.04 + G.wind.x * 0.08;
-            }
-
-            // Boid: Zusammenhalt zum Schwarm-Zentrum
-            const toCx = cx - bird.x,
-                toCy = cy - bird.y;
-            const cohesion = 0.0003;
-            bird.vx += toCx * cohesion + Math.cos(targetAngle) * 0.001;
-            bird.vy += toCy * cohesion + Math.sin(targetAngle) * 0.001;
-
-            // Geschwindigkeit normieren
-            const spd = Math.hypot(bird.vx, bird.vy);
-            if (spd > 0.001) {
-                bird.vx = (bird.vx / spd) * baseSpd;
-                bird.vy = (bird.vy / spd) * baseSpd;
-            }
-
-            // Höhe über Terrain halten, leicht wellig
-            const gz = getGround(bird.x, bird.y, G.points, G.CARRIER);
-            const targetZ = gz + 4 + Math.sin(bird.wingPhase * 0.3) * 0.5;
-            bird.vz += (targetZ - bird.z) * 0.05;
-            bird.vz *= 0.85;
-            bird.x += bird.vx;
-            bird.y += bird.vy;
-            bird.z += bird.vz;
-            bird.wingPhase += flock.fleeing ? 0.4 : 0.2;
-
-            // Kartenrand: umkehren
-            if (bird.x < 3) bird.vx += 0.005;
-            if (bird.x > gridSize - 3) bird.vx -= 0.005;
-            if (bird.y < 3) bird.vy += 0.005;
-            if (bird.y > gridSize - 3) bird.vy -= 0.005;
-        });
-    });
-}
 
 function drawBirds(camX: number, camY: number) {
     G.flocks.forEach(flock => {
@@ -776,552 +133,6 @@ function drawBirds(camX: number, camY: number) {
             ctx.stroke();
         });
     });
-}
-
-function getRotorPositions() {
-    const cosA = Math.cos(G.heli.angle), sinA = Math.sin(G.heli.angle);
-    return getHeliType(G.heli.type).rotorOffsets.map(ox => ({
-        x: G.heli.x + cosA * ox,
-        y: G.heli.y + sinA * ox,
-    }));
-}
-
-function handleParticles(dt: number) {
-    const gH = getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
-    const rotors = getRotorPositions();
-    if (G.heli.rotorRPM > 0.8) {
-        if (_partyMode) {
-            // confetti: 3 colourful dots per rotor, fly upward and outward
-            rotors.forEach(rotor => {
-                for (let i = 0; i < 3; i++) {
-                    const a = Math.random() * Math.PI * 2;
-                    const col = _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
-                    const r = parseInt(col.slice(1,3),16), g2 = parseInt(col.slice(3,5),16), b = parseInt(col.slice(5,7),16);
-                    G.particles.push({
-                        x: rotor.x + Math.cos(a) * 0.5,
-                        y: rotor.y + Math.sin(a) * 0.5,
-                        z: G.heli.z - 0.3 + Math.random() * 0.6,
-                        vx: Math.cos(a) * 0.12,
-                        vy: Math.sin(a) * 0.12,
-                        vz: 0.02 + Math.random() * 0.06,
-                        gravity: -0.003,
-                        size: 2,
-                        life: 0.8 + Math.random() * 0.4,
-                        color: `${r}, ${g2}, ${b}`,
-                        isConfetti: true,
-                    });
-                }
-            });
-        } else if (G.heli.z < 2.5 && gH > 0.1) {
-            rotors.forEach(rotor => {
-                const a = Math.random() * Math.PI * 2;
-                G.particles.push({
-                    x: rotor.x + Math.cos(a) * 0.6,
-                    y: rotor.y + Math.sin(a) * 0.6,
-                    z: gH + 0.1,
-                    vx: Math.cos(a) * 0.06,
-                    vy: Math.sin(a) * 0.06,
-                    life: 0.5,
-                    color: '150, 140, 120',
-                });
-            });
-        } else if (G.heli.z < 2.0 && gH < 0.1) {
-            rotors.forEach(rotor => {
-                for (let i = 0; i < 2; i++) {
-                    const a = Math.random() * Math.PI * 2;
-                    G.particles.push({
-                        x: rotor.x + Math.cos(a) * 0.6,
-                        y: rotor.y + Math.sin(a) * 0.6,
-                        z: 0,
-                        vx: Math.cos(a) * 0.08,
-                        vy: Math.sin(a) * 0.08,
-                        life: 0.4,
-                        color: '200, 230, 255',
-                    });
-                }
-            });
-        }
-    }
-    // party: trees shoot confetti upward, drifting with wind
-    if (_partyMode && G.TREES_MAP && G.TREES_MAP.length > 0) {
-        const emit = Math.min(4, Math.ceil(G.TREES_MAP.length / 8));
-        for (let i = 0; i < emit; i++) {
-            const t = G.TREES_MAP[Math.floor(Math.random() * G.TREES_MAP.length)];
-            const topZ = (t.gz ?? 0) + (t.s ?? 1) * 2.2;
-            const col = _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
-            const [pr, pg, pb] = [parseInt(col.slice(1,3),16), parseInt(col.slice(3,5),16), parseInt(col.slice(5,7),16)];
-            G.particles.push({
-                x: t.x + (Math.random() - 0.5) * 0.4,
-                y: t.y + (Math.random() - 0.5) * 0.4,
-                z: topZ,
-                vx: G.wind.x * 0.4 + (Math.random() - 0.5) * 0.03,
-                vy: G.wind.y * 0.4 + (Math.random() - 0.5) * 0.03,
-                vz: 0.04 + Math.random() * 0.05,
-                gravity: -0.004,
-                size: 2,
-                life: 1.0 + Math.random() * 0.5,
-                color: `${pr}, ${pg}, ${pb}`,
-                isConfetti: true,
-            });
-        }
-    }
-
-    G.particles.forEach(p => {
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.life -= 0.02 * dt;
-    });
-    G.particles = G.particles.filter(p => p.life > 0);
-}
-
-// ─── physics ────────────────────────────────────────────────────────────────
-function updatePhysics(dt: number) {
-    const { crashed } = zstate;
-    const { gridSize } = campaignHandler.getTerrain();
-
-    updateWind(G.wind, dt);
-
-    // carrier movement & heli-on-deck drag
-    updateBoats(G.BOATS, dt);
-    if (hasPad() && G.fuelTruck.state !== 'PARKED') updateFuelTruck(G, dt);
-    if (hasCarrier() && !crashed) {
-        let oldX = G.CARRIER.x,
-            oldY = G.CARRIER.y,
-            oldAng = G.CARRIER.angle;
-        updateCarrierPos(G.CARRIER, {
-            get t() {
-                return G.seaTime;
-            },
-            set t(v) {
-                G.seaTime = v;
-            },
-        }, false, dt);
-        let carrierVX = G.CARRIER.x - oldX;
-        let carrierVY = G.CARRIER.y - oldY;
-        let carrierRot = G.CARRIER.angle - oldAng;
-
-        let local = getCarrierLocal(G.heli.x, G.heli.y, G.CARRIER);
-        let onDeck =
-            local.x >= -G.CARRIER.w &&
-            local.x <= G.CARRIER.w &&
-            local.y >= -G.CARRIER.l &&
-            local.y <= G.CARRIER.l;
-
-        if (onDeck && !G.heli.inAir) {
-            G.heli.x += carrierVX;
-            G.heli.y += carrierVY;
-            let dx = G.heli.x - G.CARRIER.x,
-                dy = G.heli.y - G.CARRIER.y;
-            G.heli.x += dx * Math.cos(carrierRot) - dy * Math.sin(carrierRot) - dx;
-            G.heli.y += dx * Math.sin(carrierRot) + dy * Math.cos(carrierRot) - dy;
-            G.heli.angle += carrierRot;
-            G.heli.vx *= Math.pow(0.8, dt);
-            G.heli.vy *= Math.pow(0.8, dt);
-        }
-    }
-
-    let groundH = getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
-
-    // onPad detection (carrier OR land pad)
-    let onCarrierDeck = false, onPadSurface = false;
-    if (hasCarrier()) {
-        let local = getCarrierLocal(G.heli.x, G.heli.y, G.CARRIER);
-        if (
-            local.x >= -G.CARRIER.w &&
-            local.x <= G.CARRIER.w &&
-            local.y >= -G.CARRIER.l &&
-            local.y <= G.CARRIER.l
-        )
-            onCarrierDeck = true;
-    }
-    if (
-        hasPad() &&
-        G.heli.x >= G.PAD.xMin &&
-        G.heli.x <= G.PAD.xMax &&
-        G.heli.y >= G.PAD.yMin &&
-        G.heli.y <= G.PAD.yMax
-    )
-        onPadSurface = true;
-    const onPad = onCarrierDeck || onPadSurface;
-
-    // Use PAD surface height when on pad, carrier deck height when on carrier
-    const effectiveGroundH =
-        onPad && hasPad() && G.PAD ? G.PAD.z : onPad && hasCarrier() ? G.CARRIER.zDeck : groundH;
-
-    // tower collision – handled by handleCollisionBoxes()
-
-    // engine
-    if (G.keys['KeyW'] && !G.heli.engineOn && G.heli.fuel > 0 && onPad && !zstate.introActive)
-        G.heli.engineOn = true;
-    if (G.keys['KeyS'] && !G.heli.inAir && G.heli.engineOn) {
-        G.heli.engineOn = false;
-        const landObj = G.objectives.find(o => o.type === 'land_at');
-        if (landObj) {
-            const onTarget =
-                (landObj.target === 'carrier' && onCarrierDeck) ||
-                (landObj.target === 'pad' && onPadSurface) ||
-                (landObj.target === 'boat' && onPadSurface);
-            if (onTarget) missionComplete();
-        }
-    }
-    // Trigger fuel truck once rotor has fully spun down after engine off
-    if (
-        hasPad() &&
-        onPad &&
-        !G.heli.engineOn &&
-        !G.heli.inAir &&
-        G.heli.rotorRPM < 0.05 &&
-        G.fuelTruck.state === 'PARKED' &&
-        G.heli.fuel < 99
-    ) {
-        G.fuelTruck.state = 'DRIVING';
-        G.fuelTruck.t = 0;
-    }
-    G.heli.rotorRPM =
-        G.heli.engineOn && G.heli.fuel > 0
-            ? Math.min(1, G.heli.rotorRPM + 0.005 * dt)
-            : Math.max(0, G.heli.rotorRPM - 0.004 * dt);
-    G.heli.rotationPos += G.heli.rotorRPM * 0.75 * dt;
-
-    handleParticles(dt);
-
-    // payload physics
-    if (G.activePayload) {
-        let p = G.activePayload;
-        let hookZ = G.heli.z - G.heli.winch;
-        const damping = p.type === 'person' ? 0.88 : 0.95;
-        const tension = p.type === 'person' ? 0.018 : 0.005;
-        let ax = (G.heli.x - p.x) * tension + G.wind.x * 2.0;
-        let ay = (G.heli.y - p.y) * tension + G.wind.y * 2.0;
-        p.vx += ax * dt;
-        p.vy += ay * dt;
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.z = hookZ;
-        p.vx *= Math.pow(damping, dt);
-        p.vy *= Math.pow(damping, dt);
-        let baseMass = p.type === 'crate' ? 0.8 : 0.2;
-        G.heli.vx -= ax * baseMass * G.heli.cargoResist * dt;
-        G.heli.vy -= ay * baseMass * G.heli.cargoResist * dt;
-        // keep rescuerSwing in sync with payload position
-        G.rescuerSwing.x = G.activePayload.x;
-        G.rescuerSwing.y = G.activePayload.y;
-    } else {
-        // rescuer pendulum physics when winch extended without payload
-        if (G.heli.winch > 0.3 && G.heli.type !== 'glider') {
-            const rs = G.rescuerSwing;
-            const tension = 0.018, damping = 0.88;
-            const ax = (G.heli.x - rs.x) * tension + G.wind.x * 2.0;
-            const ay = (G.heli.y - rs.y) * tension + G.wind.y * 2.0;
-            rs.vx += ax * dt;
-            rs.vy += ay * dt;
-            rs.x += rs.vx * dt;
-            rs.y += rs.vy * dt;
-            rs.vx *= Math.pow(damping, dt);
-            rs.vy *= Math.pow(damping, dt);
-        } else if (G.heli.winch <= 0.1) {
-            G.rescuerSwing.x = G.heli.x;
-            G.rescuerSwing.y = G.heli.y;
-            G.rescuerSwing.vx = 0;
-            G.rescuerSwing.vy = 0;
-        }
-
-        // water bob + vessel tracking for unrescued G.payloads
-        G.payloads.forEach(p => {
-            if (p.rescued || p.hanging) return;
-            // Mitbewegen mit Träger/Boot
-            if (p.attachTo) {
-                if (p.attachTo.objectType === 'carrier' && hasCarrier()) {
-                    p.x = G.CARRIER.x;
-                    p.y = G.CARRIER.y;
-                    p.z = G.CARRIER.zDeck;
-                } else if (p.attachTo.objectType === 'boat') {
-                    const b = G.BOATS.find(b => b._objIdx === p.attachTo.objectIdx);
-                    if (b) {
-                        p.x = b.x;
-                        p.y = b.y;
-                        p.z = b.zDeck;
-                    }
-                }
-            } else if (getGround(p.x, p.y, G.points, G.CARRIER) < 0) {
-                p.z = -0.3 + Math.sin(Date.now() * 0.002) * 0.1;
-            }
-        });
-    }
-
-    // flight
-    let lift = G.heli.rotorRPM > 0.9 ? 1.0 : 0.0;
-    let inAir = G.heli.z > effectiveGroundH + 0.15;
-    G.heli.inAir = inAir;
-
-    if (G.heli.type === 'glider') {
-        G.heli.inAir = true;
-        const dX = Math.cos(G.heli.angle), dY = Math.sin(G.heli.angle);
-        const cruiseSpd = 0.10; // constant forward speed
-
-        // --- Pitch: ↑ pulls up, ↓ pushes down ---
-        // vz rampt langsam auf (träge), ist aber stark genug zum Steigen
-        if (G.keys['ArrowUp']) {
-            G.heli.vz = Math.min(G.heli.vz + 0.003 * dt, 0.07);
-            G.heli.tilt += (0.25 - G.heli.tilt) * 0.04 * dt;
-        } else if (G.keys['ArrowDown']) {
-            G.heli.vz = Math.max(G.heli.vz - 0.002 * dt, -0.07);
-            G.heli.tilt += (-0.25 - G.heli.tilt) * 0.04 * dt;
-        } else {
-            G.heli.tilt += (0 - G.heli.tilt) * 0.03 * dt;
-        }
-
-        // --- Bank: ←→ coordinated turn (träge) ---
-        let turning = false;
-        const bankRate = 0.004;
-        if (G.keys['ArrowLeft']) {
-            G.heli.angle -= bankRate * dt;
-            G.heli.roll = Math.min(G.heli.roll + 0.015 * dt, 0.65);
-            turning = true;
-        }
-        if (G.keys['ArrowRight']) {
-            G.heli.angle += bankRate * dt;
-            G.heli.roll = Math.max(G.heli.roll - 0.015 * dt, -0.65);
-            turning = true;
-        }
-        // --- Rudder: A/D – leichtes Gieren ohne starke Querneigung ---
-        if (G.keys['KeyA']) {
-            G.heli.angle -= 0.003 * dt;
-            G.heli.roll = Math.min(G.heli.roll + 0.008 * dt, 0.20);
-            turning = true;
-        }
-        if (G.keys['KeyD']) {
-            G.heli.angle += 0.003 * dt;
-            G.heli.roll = Math.max(G.heli.roll - 0.008 * dt, -0.20);
-            turning = true;
-        }
-        if (!turning) G.heli.roll *= Math.pow(0.988, dt);
-
-        // Constant forward speed, always aligned to heading
-        G.heli.vx = dX * cruiseSpd;
-        G.heli.vy = dY * cruiseSpd;
-
-        // --- Baseline sink rate ---
-        G.heli.vz -= 0.0015 * dt;
-
-        // --- Ridge lift (westerly wind: air rises on west face of ridges) ---
-        const dhW = getGround(G.heli.x - 0.5, G.heli.y, G.points, null)
-                  - getGround(G.heli.x + 0.5, G.heli.y, G.points, null);
-        G.heli.vz += Math.max(0, dhW * 0.08) * dt;
-
-        // --- Thermal: above warm elevated ground (within 8 units) ---
-        const gBelow = getGround(G.heli.x, G.heli.y, G.points, null);
-        if (gBelow > 4.0 && G.heli.z - gBelow < 10) G.heli.vz += 0.002 * dt;
-
-        // Clamp vz
-        G.heli.vz = Math.max(G.heli.vz, -0.08);
-        G.heli.vz = Math.min(G.heli.vz, 0.10);
-    } else if (inAir || (G.heli.engineOn && lift > 0)) {
-        let spd = Math.hypot(G.heli.vx, G.heli.vy);
-        let aero = Math.max(0.3, 1.0 - spd * 8.0);
-        let mod = G.heli.rotorRPM * (1.0 - G.heli.onboard * 0.03);
-
-        if (G.heli.fuel > 0 && lift > 0) {
-            let dX = Math.cos(G.heli.angle),
-                dY = Math.sin(G.heli.angle);
-            let sX = Math.cos(G.heli.angle + Math.PI / 2),
-                sY = Math.sin(G.heli.angle + Math.PI / 2);
-
-            if (G.keys['ArrowUp']) {
-                G.heli.vx += dX * G.heli.accel * mod * dt;
-                G.heli.vy += dY * G.heli.accel * mod * dt;
-                G.heli.tilt = Math.max(G.heli.tilt - G.heli.tiltSpeed * dt, -0.4);
-            } else if (G.keys['ArrowDown']) {
-                G.heli.vx -= dX * G.heli.accel * mod * dt;
-                G.heli.vy -= dY * G.heli.accel * mod * dt;
-                G.heli.tilt = Math.min(G.heli.tilt + G.heli.tiltSpeed * dt, 0.2);
-            } else G.heli.tilt *= Math.pow(0.96, dt);
-
-            let turning = false;
-            if (G.keys['KeyA']) {
-                G.heli.vx -= sX * 0.001 * mod * dt;
-                G.heli.vy -= sY * 0.001 * mod * dt;
-                G.heli.roll = Math.min(G.heli.roll + 0.02 * dt, 0.4);
-                turning = true;
-            } else if (G.keys['KeyD']) {
-                G.heli.vx += sX * 0.001 * mod * dt;
-                G.heli.vy += sY * 0.001 * mod * dt;
-                G.heli.roll = Math.max(G.heli.roll - 0.02 * dt, -0.4);
-                turning = true;
-            }
-            if (G.keys['ArrowLeft']) {
-                G.heli.angle -= 0.045 * mod * aero * dt;
-                G.heli.roll = Math.min(G.heli.roll + 0.012 * dt, 0.4);
-                turning = true;
-            }
-            if (G.keys['ArrowRight']) {
-                G.heli.angle += 0.045 * mod * aero * dt;
-                G.heli.roll = Math.max(G.heli.roll - 0.012 * dt, -0.4);
-                turning = true;
-            }
-            if (!turning) G.heli.roll *= Math.pow(0.96, dt);
-
-            if (G.keys['KeyW']) G.heli.vz += G.heli.liftPower * mod * dt;
-            else if (G.keys['KeyS']) G.heli.vz -= 0.002 * dt;
-            else G.heli.vz *= Math.pow(0.9, dt);
-
-            G.heli.fuel -= G.heli.fuelRate * mod * dt;
-        } else {
-            G.heli.tilt *= Math.pow(0.98, dt);
-            G.heli.roll = Math.sin(Date.now() * 0.01) * 0.1;
-        }
-    }
-
-    if (G.heli.fuel <= 0 && inAir) {
-        if (G.heli.fuel > -1) {
-            showMsg(I18N.OUT_OF_FUEL);
-            G.heli.fuel = -1;
-        }
-        G.heli.engineOn = false;
-        G.heli.vz -= 0.002 * dt;
-    }
-
-    G.heli.vx *= Math.pow(G.heli.friction, dt);
-    G.heli.vy *= Math.pow(G.heli.friction, dt);
-    if (!inAir) {
-        G.heli.vx = 0;
-        G.heli.vy = 0;
-    }
-    G.heli.x += G.heli.vx * dt;
-    G.heli.y += G.heli.vy * dt;
-    G.heli.z += G.heli.vz * dt;
-    if (G.heli.type === 'glider' && G.heli.z > 14) {
-        G.heli.z = 14;
-        G.heli.vz = Math.min(G.heli.vz, 0);
-    }
-
-    const margin = 2;
-    if (G.heli.x < margin) {
-        G.heli.x = margin;
-        G.heli.vx = 0;
-    }
-    if (G.heli.x > gridSize - margin) {
-        G.heli.x = gridSize - margin;
-        G.heli.vx = 0;
-    }
-    if (G.heli.y < margin) {
-        G.heli.y = margin;
-        G.heli.vy = 0;
-    }
-    if (G.heli.y > gridSize - margin) {
-        G.heli.y = gridSize - margin;
-        G.heli.vy = 0;
-    }
-    const zMax = 20.0;
-    if (G.heli.z > zMax) {
-        G.heli.z = zMax;
-        G.heli.vz = 0;
-        if (Math.random() < 0.05) showMsg(I18N.MAX_ALTITUDE);
-    }
-    if (G.heli.z < groundH + 0.1) {
-        G.heli.z = groundH + 0.1;
-        G.heli.vz = 0;
-    }
-
-    // winch
-    if (G.heli.type !== 'glider') {
-    if (G.keys['KeyQ']) G.heli.winch = Math.max(0, G.heli.winch - 0.02 * dt);
-    if (G.keys['KeyE']) G.heli.winch = Math.min(5.0, G.heli.winch + 0.02 * dt);
-    } // end !glider winch
-
-    // pickup – find nearest unrescued payload in range
-    if (G.heli.type !== 'glider' && !G.activePayload) {
-        for (let p of G.payloads) {
-            if (p.rescued || p.hanging || p.npcTarget) continue;
-            let dist = Math.hypot(G.heli.x - p.x, G.heli.y - p.y);
-            let hZ = G.heli.z - G.heli.winch;
-            if (dist < 1.8 && Math.abs(hZ - getGround(p.x, p.y)) < 1.0) {
-                p.hanging = true;
-                G.activePayload = p;
-                G.rescuerSwing.x = p.x;
-                G.rescuerSwing.y = p.y;
-                G.rescuerSwing.vx = 0;
-                G.rescuerSwing.vy = 0;
-                showMsg(p.type === 'crate' ? I18N.CARGO_SECURED : I18N.PATIENT_SECURED);
-                G.heli.winch = Math.max(0, G.heli.winch - 0.5);
-                break;
-            }
-        }
-    }
-
-    // crate touchdown delivery: lower winch until crate reaches pad surface
-    if (G.heli.type !== 'glider' && G.activePayload?.type === 'crate' && onPad) {
-        const padSurfaceZ = onCarrierDeck ? G.CARRIER.zDeck : G.PAD.z;
-        const crateZ = G.heli.z - G.heli.winch;
-        if (crateZ <= padSurfaceZ + 0.4) {
-            const p = G.activePayload;
-            p.hanging = false;
-            p.rescued = true;
-            G.activePayload = null;
-            G.totalRescued++;
-            showMsg(I18N.DELIVERED);
-            if (G.totalRescued >= G.goalCount) missionComplete();
-        }
-    }
-
-    // deposit / winch-in
-    if (G.heli.type !== 'glider' && G.activePayload && G.heli.winch < 0.5) {
-        let p = G.activePayload;
-        if (p.type === 'person') {
-            if (G.heli.onboard < G.heli.maxLoad) {
-                p.hanging = false;
-                p.rescued = true;
-                G.activePayload = null;
-                G.heli.onboard++;
-                showMsg(I18N.ONBOARD(G.heli.onboard, G.heli.maxLoad));
-            } else showMsg(I18N.CABIN_FULL);
-        } else {
-            if (onPad && G.heli.z < 3.0) {
-                p.hanging = false;
-                p.rescued = true;
-                G.activePayload = null;
-                G.totalRescued++;
-                showMsg(I18N.DELIVERED);
-                if (G.totalRescued >= G.goalCount) missionComplete();
-            } else {
-                showMsg(I18N.DROP_AT_PAD);
-                G.heli.winch = 0.6;
-            }
-        }
-    }
-
-    // landing on pad: carrier refuel/offload instant; land pad via fuel truck
-    if (!inAir && onPad) {
-        if (hasCarrier()) {
-            let local = getCarrierLocal(G.heli.x, G.heli.y, G.CARRIER);
-            if (
-                local.x >= -G.CARRIER.w &&
-                local.x <= G.CARRIER.w &&
-                local.y >= -G.CARRIER.l &&
-                local.y <= G.CARRIER.l
-            ) {
-                if (G.heli.fuel < 100) G.heli.fuel = Math.min(100, G.heli.fuel + 0.5);
-                if (G.heli.onboard > 0) {
-                    G.totalRescued += G.heli.onboard;
-                    G.heli.onboard = 0;
-                    if (G.totalRescued >= G.goalCount) missionComplete();
-                    else showMsg(I18N.SECURED(G.totalRescued, G.goalCount));
-                }
-            }
-        }
-    }
-
-    // crash detection
-    if (!zstate.introActive) {
-        if (!onPad && G.heli.z < 0.1 && getGround(G.heli.x, G.heli.y, G.points, G.CARRIER) < -0.2)
-            triggerCrash(I18N.CRASH_WATER);
-        if (G.heli.z < groundH + 0.25) {
-            if (!onPad && groundH > 0.1) triggerCrash(I18N.CRASH_BAD_ZONE);
-            else if (Math.hypot(G.heli.vx, G.heli.vy) > 0.12) triggerCrash(I18N.CRASH_TOO_FAST);
-            else if (G.heli.vz < -0.15) triggerCrash(I18N.CRASH_HARD_IMPACT);
-        }
-        // lighthouse collision – handled by handleCollisionBoxes()
-    }
 }
 
 // ─── UI helpers ──────────────────────────────────────────────────────────────
@@ -1512,20 +323,39 @@ function startGame(type: string) {
     G.heli.liftPower  = _heliType.liftPower;
     G.heli.cargoResist = _heliType.cargoResist;
     generateTerrain(G.points, G.PAD);
-    initCarrierFromMission(G);
-    initBoatsFromMission(G);
+    initCarrierFromMission();
+    initBoatsFromMission();
     document.getElementById('heli-select')!.style.display = 'none';
     showBriefing();
 }
 
 function launchMission() {
     generateTerrain(G.points, G.PAD);
-    initCarrierFromMission(G);
-    initBoatsFromMission(G);
+    _terrainOffscreen = null; // invalidate cache for new mission
+
+    // Populate per-mission cache — never call getCurrentMissionData() in the render loop
+    const _lmd = campaignHandler.getCurrentMissionData();
+    const _lmdObjs = _lmd.objects || [];
+    _missionHasPad        = !!_lmdObjs.find((o: any) => o.type === 'pad');
+    _missionHasCarrier    = !!_lmdObjs.find((o: any) => o.type === 'carrier');
+    _missionHasLighthouse = !!_lmdObjs.find((o: any) => o.type === 'lighthouse');
+    _missionRain          = !!_lmd.rain;
+    _missionNight         = !!_lmd.night;
+    _missionWindStr       = _lmd.windStr ?? 1;
+    _missionWindDir       = _lmd.windDir ?? 0;
+    _missionWindVar       = !!_lmd.windVar;
+    const _lhObj          = _lmdObjs.find((o: any) => o.type === 'lighthouse');
+    _lighthouseX          = _lhObj ? _lhObj.x : -1;
+    _lighthouseY          = _lhObj ? _lhObj.y : -1;
+    _missionGridSize      = campaignHandler.getTerrain().gridSize;
+
+    _precomputeDayColors(_missionRain);
+    initCarrierFromMission();
+    initBoatsFromMission();
     initFoliageFromMission();
     initBirds();
-    initPayloadsFromMission(G);
-    if (hasPad()) initFuelTruck(G);
+    initPayloadsFromMission();
+    if (hasPad()) initFuelTruck();
 
     G.heli.winch = 0;
     zstate.crashed = false;
@@ -1568,10 +398,10 @@ function launchMission() {
         zstate.cam.y = (G.START_POS.x + G.START_POS.y) * (tileH / 2);
     }
 
-    drawScene();
+    cancelAnimationFrame(_rafId);
+    _rafId = requestAnimationFrame(drawScene);
 }
 
-// ─── Fuel Truck ───────────────────────────────────────────────────────────────
 //
 // KOORDINATENSYSTEM (isometrisch, Kamera schaut von NW):
 //   +X  = Welt-rechts  = iso: rechts-unten im Bild
@@ -1598,96 +428,6 @@ function launchMission() {
 //   parkY = PAD.yMin + 0.1   (Heck bündig mit Hangar-Rückwand)
 //   parkAngle = +PI/2        (Nase zeigt in +Y = zur Hangar-Öffnung hin)
 //
-function initFuelTruck(G: GameState) {
-    if (!G.PAD) return;
-    const ft = G.fuelTruck;
-    ft.parkX = G.PAD.xMax - 5.2;
-    ft.parkY = G.PAD.yMin + 0.1; // Heck bündig mit Hangar-Rückwand (yMin)
-    ft.parkAngle = Math.PI * 0.5; // nose → +Y (parallel zur Hangar-Öffnung)
-    ft.x = ft.parkX;
-    ft.y = ft.parkY;
-    ft.angle = ft.parkAngle;
-    ft.state = 'PARKED';
-    ft.arm = 0;
-    ft.t = 0;
-    ft.wps = null;
-    ft.wpI = 0;
-}
-
-function updateFuelTruck(G: GameState, dt: number) {
-    if (!G.PAD) return;
-    const ft = G.fuelTruck;
-    const heli = G.heli;
-
-    const SPEED = 0.045;
-    const MAX_STEER = 0.025; // turning radius ≈ 1.8 u
-    const STOP_DIST = 3.5;
-
-    // Hangar bounding box derived from PAD geometry
-    const HB = {
-        x0: G.PAD.xMax - 4.5, x1: G.PAD.xMax + 0.5,
-        y0: G.PAD.yMin - 0.5, y1: G.PAD.yMin + 2.5,
-    };
-
-    // Repulsion vector from hangar bounding box.
-    // Returns a directional force pushing the truck away from the hangar.
-    function hangarForce() {
-        const cx = Math.max(HB.x0, Math.min(HB.x1, ft.x));
-        const cy = Math.max(HB.y0, Math.min(HB.y1, ft.y));
-        const dx = ft.x - cx, dy = ft.y - cy;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 0.01 || dist > 3.0) return [0, 0];
-        const s = Math.min(4.0, 1.5 / dist);
-        return [dx / dist * s, dy / dist * s];
-    }
-
-    // Steer truck toward (tx,ty) using potential fields (attraction + hangar repulsion).
-    function navigate(tx: number, ty: number) {
-        const dx = tx - ft.x, dy = ty - ft.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 0.01) return 0;
-        const [fx, fy] = hangarForce();
-        const ax = dx / dist + fx;
-        const ay = dy / dist + fy;
-        const desired = Math.atan2(ay, ax);
-        const diff = ((desired - ft.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-        ft.angle += Math.max(-MAX_STEER * dt, Math.min(MAX_STEER * dt, diff));
-        ft.x += Math.cos(ft.angle) * SPEED * dt;
-        ft.y += Math.sin(ft.angle) * SPEED * dt;
-        return dist;
-    }
-
-    if (ft.state === 'DRIVING') {
-        if (navigate(heli.x, heli.y) <= STOP_DIST) {
-            ft.state = 'ARM_OUT'; ft.t = 0;
-        }
-    } else if (ft.state === 'ARM_OUT') {
-        ft.t = Math.min(1, ft.t + 0.016 * dt);
-        ft.arm = ft.t;
-        if (ft.t >= 1) { ft.state = 'FUELING'; ft.t = 0; }
-    } else if (ft.state === 'FUELING') {
-        if (heli.fuel < 100) {
-            heli.fuel = Math.min(100, heli.fuel + 0.25 * dt);
-        } else {
-            ft.state = 'ARM_IN'; ft.t = 0;
-        }
-        if (heli.onboard > 0) {
-            G.totalRescued += heli.onboard;
-            heli.onboard = 0;
-            if (G.totalRescued >= G.goalCount) missionComplete();
-            else showMsg(I18N.SECURED(G.totalRescued, G.goalCount));
-        }
-    } else if (ft.state === 'ARM_IN') {
-        ft.t = Math.min(1, ft.t + 0.016 * dt);
-        ft.arm = 1 - ft.t;
-        if (ft.t >= 1) { ft.state = 'RETURNING'; ft.t = 0; }
-    } else if (ft.state === 'RETURNING') {
-        if (navigate(ft.parkX, ft.parkY) < 2.0) {
-            ft.state = 'PARKED'; ft.t = 0;
-        }
-    }
-}
-
 let _fpsLastTime = 0, _fpsSmooth = 60;
 function drawScene() {
     const _now = performance.now();
@@ -1695,21 +435,26 @@ function drawScene() {
     if (_fpsLastTime) _fpsSmooth += (1000 / (_now - _fpsLastTime) - _fpsSmooth) * 0.1;
     _fpsLastTime = _now;
 
-    const { rain, night: isNight } = campaignHandler.getCurrentMissionData();
-    const _lhObj = getObjectByType('lighthouse');
-    const lighthouseX = _lhObj ? _lhObj.x : -1;
-    const lighthouseY = _lhObj ? _lhObj.y : -1;
-    const { gridSize } = campaignHandler.getTerrain();
+    const rain    = _missionRain;
+    const isNight = _missionNight;
+    const lighthouseX = _lighthouseX;
+    const lighthouseY = _lighthouseY;
+    const gridSize = _missionGridSize;
 
     if (!zstate.gameStarted) return;
-    if (!zstate.crashed) updatePhysics(dt);
+    if (!zstate.crashed) updatePhysics(dt, _physicsCtx);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (!zstate.introActive) {
         let tx = (G.heli.x - G.heli.y) * (tileW / 2);
-        let ty = (G.heli.x + G.heli.y) * (tileH / 2);
-        zstate.cam.x += (tx - zstate.cam.x) * 0.1 * dt;
-        zstate.cam.y += (ty - zstate.cam.y) * 0.1 * dt;
+        let ty = (G.heli.x + G.heli.y) * (tileH / 2) - G.heli.z * stepH;
+        if (_isTouchDevice()) {
+            zstate.cam.x = tx;
+            zstate.cam.y = ty;
+        } else {
+            zstate.cam.x += (tx - zstate.cam.x) * 0.1 * dt;
+            zstate.cam.y += (ty - zstate.cam.y) * 0.1 * dt;
+        }
     } else {
         zstate.introProgress += 0.005 * dt;
         let hX = G.PAD.xMin + 3,
@@ -1734,62 +479,7 @@ function drawScene() {
     const camX = zstate.cam.x,
         camY = zstate.cam.y;
 
-    let alt = G.heli.z - getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
-    let coneWidth = 0.3 + alt * 0.05;
-    let range = 10 + alt * 2.0;
-    let intensity = Math.floor(255 * Math.max(0.1, 1.0 - alt / 15));
-    // terrain tiles
-    for (let x = Math.floor(rx - 14); x < rx + 14; x++) {
-        for (let y = Math.floor(ry - 14); y < ry + 14; y++) {
-            if (x < 0 || y < 0 || x >= gridSize - 1 || y >= gridSize - 1) continue;
-            let h = [G.points[x][y], G.points[x + 1][y], G.points[x + 1][y + 1], G.points[x][y + 1]];
-            let p = [
-                iso(x, y, h[0], camX, camY, { stepH, tileW, tileH, canvas }),
-                iso(x + 1, y, h[1], camX, camY, { stepH, tileW, tileH, canvas }),
-                iso(x + 1, y + 1, h[2], camX, camY, { stepH, tileW, tileH, canvas }),
-                iso(x, y + 1, h[3], camX, camY, { stepH, tileW, tileH, canvas }),
-            ];
-            let ang = Math.atan2(y - G.heli.y, x - G.heli.x);
-            let diff = ang - G.heli.angle;
-            let isPad =
-                hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax && y >= G.PAD.yMin && y <= G.PAD.yMax;
-            let c = 35 + Math.floor(h[0] * 15);
-            let fill;
-            if (isNight) {
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                const dx = x - G.heli.x,
-                    dy = y - G.heli.y;
-                let inLight = Math.abs(diff) < coneWidth && dx * dx + dy * dy < range * range;
-
-                if (inLight) {
-                    if (isPad)
-                        fill = `rgb(${intensity - 30},${intensity - 30},${intensity - 30})`; // Pad bleibt grau
-                    else if (h[0] > 0)
-                        fill = `rgb(${intensity - 20},${intensity + 10},${intensity - 20})`; // Land grünlich
-                    else fill = `rgb(0,${Math.floor(intensity * 0.3)},${Math.floor(intensity * 0.6)})`; // Wasser bleibt blau
-                } else {
-                    fill = '#020205';
-                }
-            } else {
-                fill = isPad ? '#444' : h[0] > 0 ? `rgb(${c - 10},${c + 30},${c - 10})` : '#003d7a';
-                if (rain && h[0] < 0) fill = '#002244';
-            }
-            if (_partyMode && !isNight && !isPad) {
-                const tileOffset = Math.abs(x * 173 + y * 251) % 800;
-                const phase = Math.floor((Date.now() + tileOffset * 320) / 280);
-                fill = _PARTY_PALETTE[phase % _PARTY_PALETTE.length];
-            }
-            ctx.fillStyle = fill;
-            ctx.beginPath();
-            ctx.moveTo(p[0].x, p[0].y);
-            ctx.lineTo(p[1].x, p[1].y);
-            ctx.lineTo(p[2].x, p[2].y);
-            ctx.lineTo(p[3].x, p[3].y);
-            ctx.closePath();
-            ctx.fill();
-        }
-    }
+    _drawTerrain(camX, camY, rx, ry, isNight, rain);
 
     if (hasLighthouse() && isVisible(lighthouseX, lighthouseY)) drawLighthouse(camX, camY);
     if (hasCarrier() && isVisible(G.CARRIER.x, G.CARRIER.y, 25)) drawVectorCarrier(camX, camY);
@@ -1869,7 +559,7 @@ function drawScene() {
 
     // G.debris (Heli-Trümmer)
     if (G.debris.length > 0) {
-        updateDebris(G);
+        updateDebris();
         drawDebris(G.debris, camX, camY, ctx, canvas);
     }
 
@@ -2037,7 +727,7 @@ function drawScene() {
 
     if (_partyMode) drawDiscoBall();
 
-    requestAnimationFrame(drawScene);
+    _rafId = requestAnimationFrame(drawScene);
 }
 
 const _drawDiscoBall = (() => {
@@ -2114,7 +804,7 @@ const drawDiscoBall = _drawDiscoBall;
 
 // ─── draw all G.payloads ───────────────────────────────────────────────────────
 function drawPayloadObjects(hangingOnly = false, ropeOnly = false) {
-    const { night: isNight } = campaignHandler.getCurrentMissionData();
+    const isNight = _missionNight;
     const { cam } = zstate;
 
     G.payloads.forEach(payload => {
@@ -2429,8 +1119,7 @@ function drawLighthouse(cx: number, cy: number) {
 }
 
 function renderRain() {
-    const { rain } = campaignHandler.getCurrentMissionData();
-    if (!rain) return;
+    if (!_missionRain) return;
     ctx.strokeStyle = 'rgba(150,200,255,0.4)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -2997,6 +1686,10 @@ function handleCollisionBoxes() {
 
 // ─── main menu ───────────────────────────────────────────────────────────────
 function toMainMenu() {
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    zstate.gameStarted = false;
     _partyMode = false;
     ['splash','campaign-select','heli-select','heli-info','credits-screen'].forEach(id => {
         const el = document.getElementById(id);
@@ -3015,6 +1708,21 @@ function backFromHeliSelect() {
 
 buildHeliSelect('normal'); // initial build for splash screen background
 
+let _rafId = 0;
+
+// ─── mission-local cache (set once per launch, never changes mid-mission) ─────
+let _missionHasPad       = false;
+let _missionHasCarrier   = false;
+let _missionHasLighthouse = false;
+let _missionRain         = false;
+let _missionNight        = false;
+let _missionWindStr      = 1;
+let _missionWindDir      = 0;
+let _missionWindVar      = false;
+let _lighthouseX         = -1;
+let _lighthouseY         = -1;
+let _missionGridSize     = 28;
+
 let _partyMode = false;
 let _partySeq = '';
 let _partyColors: string[] = [];
@@ -3023,6 +1731,194 @@ const _PARTY_PALETTE = [
 ];
 const _randomPartyColor = () => _PARTY_PALETTE[Math.floor(Math.random() * _PARTY_PALETTE.length)];
 const _refreshPartyColors = () => { _partyColors = Array.from({ length: 8 }, _randomPartyColor); };
+
+const _physicsCtx = {
+    get windStr() { return _missionWindStr; },
+    get windDir() { return _missionWindDir; },
+    get windVar() { return _missionWindVar; },
+    get hasPad() { return _missionHasPad; },
+    get hasCarrier() { return _missionHasCarrier; },
+    get partyMode() { return _partyMode; },
+    partyPalette: _PARTY_PALETTE as readonly string[],
+    showMsg,
+    missionComplete,
+    triggerCrash,
+};
+
+// ─── terrain cache ────────────────────────────────────────────────────────────
+const TERRAIN_MARGIN_PX = 320;
+let _terrainOffscreen: OffscreenCanvas | null = null;
+let _terrainOffCtx: OffscreenCanvasRenderingContext2D | null = null;
+let _cacheCamX = Infinity;
+let _cacheCamY = Infinity;
+let _cacheMode = '';          // 'day' | 'night' | 'party'
+let _tileColors: string[][] = [];   // precomputed day/rain colors, indexed [x][y]
+// Reusable batch map — cleared each render, no per-frame Map allocation
+const _terrainBatch = new Map<string, number[]>();
+
+const _precomputeDayColors = (rain: boolean) => {
+    const { gridSize } = campaignHandler.getTerrain();
+    _tileColors = [];
+    for (let x = 0; x < gridSize; x++) {
+        _tileColors[x] = [];
+        for (let y = 0; y < gridSize; y++) {
+            const h0 = G.points[x]?.[y] ?? 0;
+            const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax
+                       && y >= G.PAD.yMin && y <= G.PAD.yMax;
+            const c = 35 + Math.floor(h0 * 15);
+            _tileColors[x][y] = isPad
+                ? '#444'
+                : h0 > 0
+                    ? `rgb(${c - 10},${c + 30},${c - 10})`
+                    : (rain ? '#002244' : '#003d7a');
+        }
+    }
+    _cacheCamX = Infinity; // force offscreen re-render
+};
+
+// Renders terrain via path-batching to any 2D context.
+// Uses inline iso math to avoid per-tile object allocations.
+const _renderTerrainBatched = (
+    tCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    tW: number, tH: number,
+    ccX: number, ccY: number,
+    xFrom: number, xTo: number,
+    yFrom: number, yTo: number,
+    getFill: (x: number, y: number, h0: number) => string,
+) => {
+    const { gridSize } = campaignHandler.getTerrain();
+    _terrainBatch.clear();
+    const hw = tW / 2, hh = tH / 2;
+    const htW = tileW / 2, htH = tileH / 2;
+
+    for (let x = Math.max(0, xFrom); x < Math.min(gridSize - 1, xTo); x++) {
+        for (let y = Math.max(0, yFrom); y < Math.min(gridSize - 1, yTo); y++) {
+            const h0 = G.points[x][y],     h1 = G.points[x + 1][y];
+            const h2 = G.points[x + 1][y + 1], h3 = G.points[x][y + 1];
+            const fill = getFill(x, y, h0);
+            // Inline iso — no object allocation
+            const p0x = hw + (x       - y)     * htW - ccX;
+            const p0y = hh + (x       + y)     * htH - h0 * stepH - ccY;
+            const p1x = hw + (x + 1   - y)     * htW - ccX;
+            const p1y = hh + (x + 1   + y)     * htH - h1 * stepH - ccY;
+            const p2x = hw + (x + 1 - (y + 1)) * htW - ccX;
+            const p2y = hh + (x + 1 + (y + 1)) * htH - h2 * stepH - ccY;
+            const p3x = hw + (x     - (y + 1)) * htW - ccX;
+            const p3y = hh + (x     + (y + 1)) * htH - h3 * stepH - ccY;
+
+            let batch = _terrainBatch.get(fill);
+            if (!batch) { batch = []; _terrainBatch.set(fill, batch); }
+            batch.push(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y);
+        }
+    }
+
+    for (const [fill, coords] of _terrainBatch) {
+        tCtx.fillStyle = fill;
+        tCtx.beginPath();
+        for (let i = 0; i < coords.length; i += 8) {
+            tCtx.moveTo(coords[i],     coords[i + 1]);
+            tCtx.lineTo(coords[i + 2], coords[i + 3]);
+            tCtx.lineTo(coords[i + 4], coords[i + 5]);
+            tCtx.lineTo(coords[i + 6], coords[i + 7]);
+            tCtx.closePath();
+        }
+        tCtx.fill();
+    }
+};
+
+// Renders terrain with offscreen cache for day/rain mode, or batched for night/party.
+const _drawTerrain = (
+    camX: number, camY: number,
+    rx: number, ry: number,
+    isNight: boolean, _rain: boolean,
+) => {
+    const xFrom = Math.floor(rx - 14);
+    const xTo   = Math.ceil(rx + 14);
+    const yFrom = Math.floor(ry - 14);
+    const yTo   = Math.ceil(ry + 14);
+
+    if (isNight) {
+        // Night: spotlight cone is dynamic → path-batch on main canvas every frame
+        const alt = G.heli.z - getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
+        const coneWidth = 0.3 + alt * 0.05;
+        const range     = 10 + alt * 2.0;
+        const range2    = range * range;
+        const intensity = Math.floor(255 * Math.max(0.1, 1.0 - alt / 15));
+        const haX = G.heli.x, haY = G.heli.y, haA = G.heli.angle;
+        _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY,
+            xFrom, xTo, yFrom, yTo,
+            (x, y, h0) => {
+                const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax
+                           && y >= G.PAD.yMin && y <= G.PAD.yMax;
+                let diff = Math.atan2(y - haY, x - haX) - haA;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff >  Math.PI) diff -= Math.PI * 2;
+                const dx = x - haX, dy = y - haY;
+                const inLight = Math.abs(diff) < coneWidth && dx * dx + dy * dy < range2;
+                if (!inLight) return '#020205';
+                if (isPad) return `rgb(${intensity - 30},${intensity - 30},${intensity - 30})`;
+                return h0 > 0
+                    ? `rgb(${intensity - 20},${intensity + 10},${intensity - 20})`
+                    : `rgb(0,${Math.floor(intensity * 0.3)},${Math.floor(intensity * 0.6)})`;
+            });
+        _cacheMode = 'night';
+        return;
+    }
+
+    if (_partyMode) {
+        // Party: tile colors change ~3.5×/sec → path-batch on main canvas
+        _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY,
+            xFrom, xTo, yFrom, yTo,
+            (x, y, _h0) => {
+                const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax
+                           && y >= G.PAD.yMin && y <= G.PAD.yMax;
+                if (isPad) return '#444';
+                const tileOffset = Math.abs(x * 173 + y * 251) % 800;
+                const phase = Math.floor((Date.now() + tileOffset * 320) / 280);
+                return _PARTY_PALETTE[phase % _PARTY_PALETTE.length];
+            });
+        _cacheMode = 'party';
+        return;
+    }
+
+    // Day / rain mode — use offscreen cache
+    const needsOffscreen = !_terrainOffscreen
+        || canvas.width  + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.width
+        || canvas.height + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.height;
+    if (needsOffscreen) {
+        _terrainOffscreen = new OffscreenCanvas(
+            canvas.width  + TERRAIN_MARGIN_PX * 2,
+            canvas.height + TERRAIN_MARGIN_PX * 2,
+        );
+        _terrainOffCtx = _terrainOffscreen.getContext('2d') as OffscreenCanvasRenderingContext2D;
+        _cacheCamX = Infinity; // force render
+    }
+
+    const camMoved = Math.abs(camX - _cacheCamX) > TERRAIN_MARGIN_PX * 0.75
+                  || Math.abs(camY - _cacheCamY) > TERRAIN_MARGIN_PX * 0.75;
+    const modeChanged = _cacheMode !== 'day';
+
+    if (camMoved || modeChanged) {
+        const oW = _terrainOffscreen!.width, oH = _terrainOffscreen!.height;
+        _terrainOffCtx!.clearRect(0, 0, oW, oH);
+        // Render a wider area (viewport + margin) to the offscreen canvas
+        const marginTilesX = Math.ceil(TERRAIN_MARGIN_PX / tileW) + 2;
+        const marginTilesY = Math.ceil(TERRAIN_MARGIN_PX / tileH) + 2;
+        _renderTerrainBatched(_terrainOffCtx!, oW, oH, camX, camY,
+            xFrom - marginTilesX, xTo + marginTilesX,
+            yFrom - marginTilesY, yTo + marginTilesY,
+            (x, y, _h0) => _tileColors[x]?.[y] ?? '#003d7a',
+        );
+        _cacheCamX = camX;
+        _cacheCamY = camY;
+        _cacheMode = 'day';
+    }
+
+    // Single drawImage — the entire terrain cost per frame in day mode
+    const offX = (canvas.width  - _terrainOffscreen!.width)  / 2 + (_cacheCamX - camX);
+    const offY = (canvas.height - _terrainOffscreen!.height) / 2 + (_cacheCamY - camY);
+    ctx.drawImage(_terrainOffscreen!, offX, offY);
+};
 
 // ─── session ──────────────────────────────────────────────────────────────────
 let _session: PlayerSession = loadSession();
@@ -3112,6 +2008,10 @@ const setTouchVisible = (v: boolean) => {
     if (debugEl) debugEl.style.display = v ? 'block' : 'none';
 };
 
+const CTRL_MODE_KEY = 'zeewolf-ctrl-mode';
+const getControlMode = (): 'heading' | 'screen' => localStorage.getItem(CTRL_MODE_KEY) === 'screen' ? 'screen' : 'heading';
+const setControlMode = (m: 'heading' | 'screen') => localStorage.setItem(CTRL_MODE_KEY, m);
+
 const _setupJoystick = (id: string, up: string, down: string, left: string, right: string) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -3197,7 +2097,7 @@ const _setupHeadingJoystick = (id: string) => {
 
     // Run each frame — reads current heli angle and maps stick to heading keys
     const tick = () => {
-        if (active && Math.hypot(_stickDx, _stickDy) > jr * 0.18) {
+        if (active && zstate.gameStarted && Math.hypot(_stickDx, _stickDy) > jr * 0.18) {
             const targetAngle = Math.atan2(_stickDy, _stickDx);
             let diff = targetAngle - G.heli.angle;
             // Normalise to [-π, π]
@@ -3247,7 +2147,11 @@ const setupTouchControls = () => {
     });
     // joysticks
     _setupJoystick('joystick-left',  'KeyW', 'KeyS', 'KeyA', 'KeyD');
-    _setupHeadingJoystick('joystick-right');
+    if (getControlMode() === 'screen') {
+        _setupJoystick('joystick-right', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight');
+    } else {
+        _setupHeadingJoystick('joystick-right');
+    }
 };
 
 const mountGameScreens = () => {
@@ -3299,12 +2203,25 @@ declare const __APP_VERSION__: string;
 
 window.onload = () => {
     assertDom();
+    mountMainMenu({
+        onSplashClick: toMainMenu,
+        onStart:    toCampaignSelect,
+        onHeli:     toHeliInfo,
+        onSettings: toSettings,
+        onCredits:  toCredits,
+    });
     (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
     zinit();
     mountBriefing();
     initBriefing(dismissBriefing);
     mountSettingsRankup();
-    initSettings({ getSession: () => _session, saveSession });
+    initSettings({
+        getSession: () => _session,
+        saveSession,
+        getControlMode,
+        setControlMode,
+        isTouchDevice: _isTouchDevice,
+    });
     mountWhatsNew();
     mountGameScreens();
     setupTouchControls();

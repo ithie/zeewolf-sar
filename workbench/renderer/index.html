@@ -370,7 +370,6 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      flex-shrink: 0;
     }
 
     .pane-label {
@@ -392,8 +391,7 @@
       background: #000;
     }
 
-    #game-pane   { height: 60%; }
-    #model-pane  { height: 40%; }
+    #game-pane, #model-pane { flex: 1; }
 
     /* ── Vertical resize handle (game / modelviewer) ─────────────────────── */
     #resize-v {
@@ -666,9 +664,9 @@
       </div>
 
       <!-- Vertical resize handle -->
-      <div id="resize-v"></div>
+      <div id="resize-v" style="display:none"></div>
 
-      <div id="model-pane" class="view-pane">
+      <div id="model-pane" class="view-pane" style="display:none">
         <div class="pane-label">Model Viewer</div>
         <iframe src="http://localhost:5173/src/modelviewer.html" id="iframe-model"></iframe>
       </div>
@@ -891,26 +889,35 @@
   document.getElementById('btn-refresh-tree').addEventListener('click', refreshTree);
 
   // ── Tab switching ─────────────────────────────────────────────────────────
+  const switchTab = (tab) => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+    const pane = document.getElementById('tab-' + tab);
+    if (btn) btn.classList.add('active');
+    if (pane) pane.classList.add('active');
+    sessionStorage.setItem('wb-active-tab', tab);
+    if (tab === 'code' && editor) editor.layout();
+    if (tab === 'music') wbLoadMusicConfig();
+
+    // Right panel: Modelle → Model Viewer only (full height); alle anderen → Game only
+    const isModels = tab === 'models';
+    document.getElementById('game-pane').style.display  = isModels ? 'none' : 'flex';
+    document.getElementById('model-pane').style.display = isModels ? 'flex' : 'none';
+    document.getElementById('resize-v').style.display   = 'none';
+  };
+
+  // Restore last active tab on load (survives Vite HMR reloads)
+  const _savedTab = sessionStorage.getItem('wb-active-tab');
+  if (_savedTab && document.getElementById('tab-' + _savedTab)) switchTab(_savedTab);
+
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const tab = btn.dataset.tab;
-
       // Auto-save before leaving Code tab
-      if (document.querySelector('.tab-btn.active').dataset.tab === 'code') {
+      if (document.querySelector('.tab-btn.active')?.dataset.tab === 'code') {
         await saveCurrentFile();
       }
-
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('tab-' + tab).classList.add('active');
-
-      if (tab === 'code' && editor) {
-        editor.layout();
-      }
-      if (tab === 'music') {
-        wbLoadMusicConfig();
-      }
+      switchTab(btn.dataset.tab);
     });
   });
 
@@ -1063,6 +1070,7 @@
     if (!json) return;
     await wb.saveCampaignFile(filename, json);
     edSetFile(filename);
+    sessionStorage.setItem('wb-ed-file', filename);
   };
 
   document.getElementById('btn-ed-new').addEventListener('click', () => {
@@ -1129,6 +1137,8 @@
     if (result.cancelled) return;
     trImport(result.content);
     trSetFile(result.filename, result.relativePath);
+    sessionStorage.setItem('wb-tr-path', result.relativePath);
+    sessionStorage.setItem('wb-tr-name', result.filename);
   });
 
   document.getElementById('btn-tr-save').addEventListener('click', async () => {
@@ -1136,6 +1146,8 @@
       const result = await wb.showSaveSongDialog();
       if (result.cancelled) return;
       trSetFile(result.filename, result.relativePath);
+      sessionStorage.setItem('wb-tr-path', result.relativePath);
+      sessionStorage.setItem('wb-tr-name', result.filename);
     }
     await trDoSave(trCurrentPath);
   });
@@ -1145,6 +1157,8 @@
     const result = await wb.showSaveSongDialog(defaultName);
     if (result.cancelled) return;
     trSetFile(result.filename, result.relativePath);
+    sessionStorage.setItem('wb-tr-path', result.relativePath);
+    sessionStorage.setItem('wb-tr-name', result.filename);
     await trDoSave(result.relativePath);
   });
 
@@ -1183,11 +1197,17 @@
     moImport('{"id":"new_model","label":"New Model","static":true,"movementType":"none","pivot":[0,0,0],"faces":[],"collisionBoxes":[]}');
   });
 
+  const moStorePath = () => {
+    if (moCurrentFile) sessionStorage.setItem('wb-mo-file', moCurrentFile);
+    if (moCurrentPath) sessionStorage.setItem('wb-mo-path', moCurrentPath);
+  };
+
   document.getElementById('btn-mo-open').addEventListener('click', async () => {
     const result = await wb.showOpenModelDialog();
     if (result.cancelled) return;
     moImport(result.content);
     moSetFile(result.filename, result.filePath || null);
+    moStorePath();
   });
 
   document.getElementById('btn-mo-save').addEventListener('click', async () => {
@@ -1195,6 +1215,7 @@
       const result = await wb.showSaveModelDialog(moCurrentFile || undefined);
       if (result.cancelled) return;
       moSetFile(result.filename, result.filePath);
+      moStorePath();
     }
     await moDoSave(moCurrentPath);
   });
@@ -1203,6 +1224,7 @@
     const result = await wb.showSaveModelDialog(moCurrentFile || undefined);
     if (result.cancelled) return;
     moSetFile(result.filename, result.filePath);
+    moStorePath();
     await moDoSave(result.filePath);
   });
 
@@ -1633,6 +1655,8 @@
         <div class="ed-section-title">Mission: ${edH(cm.headline)}</div>
         <label style="font-size:10px;color:var(--text-dim)">Name</label>
         <input type="text" value="${edH(cm.headline)}" oninput="edDispatch('set-headline',{value:this.value})">
+        <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Ziele</label>
+        <textarea rows="2" placeholder="Eine Zeile pro Ziel…" oninput="edDispatch('set-sublines',{value:this.value})">${edH((cm.sublines||[]).join('\n'))}</textarea>
         <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Briefing</label>
         <textarea rows="3" oninput="edDispatch('set-briefing',{value:this.value})">${edH(cm.briefing)}</textarea>
         <div style="margin-top:6px">
@@ -1643,7 +1667,7 @@
           <label style="color:var(--text-dim)">Wind °</label>
           <input type="number" value="${cm.windDir}" min="0" max="359" style="width:52px" oninput="edDispatch('set-wind-dir',{value:this.value})">
           <label style="color:var(--text-dim)">Stärke</label>
-          <input type="number" value="${cm.windStr}" step="0.1" min="0" style="width:52px" oninput="edDispatch('set-wind-str',{value:this.value})">
+          <input type="number" value="${cm.windStr}" step="0.1" min="0" max="10" style="width:52px" oninput="edDispatch('set-wind-str',{value:this.value})">
         </div>
         <label style="margin-top:4px"><input type="checkbox" ${cm.windVar?'checked':''} onchange="edDispatch('set-wind-var',{value:this.checked})"> Dyn. Windvarianz</label>
         <div class="ed-row" style="margin-top:6px">
@@ -1705,10 +1729,44 @@
     if (e.data?.type === 'editor-state-changed') edRefreshPanel();
   });
 
-  // Refresh when editor iframe finishes loading
-  edIframe.addEventListener('load', () => {
-    // Module needs a moment to init
-    setTimeout(edRefreshPanel, 500);
+  // Restore open files after Vite HMR reloads — each iframe re-initialises from scratch
+  edIframe.addEventListener('load', async () => {
+    await new Promise(r => setTimeout(r, 500));
+    edRefreshPanel();
+    const savedEdFile = sessionStorage.getItem('wb-ed-file');
+    if (savedEdFile && !edCurrentFile) {
+      try {
+        const content = await wb.readFile('src/game/campaigns/' + savedEdFile);
+        edSetFile(savedEdFile);
+        edImport(content);
+      } catch { /* file removed since last session */ }
+    }
+  });
+
+  trIframe.addEventListener('load', async () => {
+    await new Promise(r => setTimeout(r, 500));
+    const savedTrPath = sessionStorage.getItem('wb-tr-path');
+    const savedTrName = sessionStorage.getItem('wb-tr-name');
+    if (savedTrPath && !trCurrentPath) {
+      try {
+        const content = await wb.readFile(savedTrPath);
+        trSetFile(savedTrName, savedTrPath);
+        trImport(content);
+      } catch { /* file removed */ }
+    }
+  });
+
+  moIframe.addEventListener('load', async () => {
+    await new Promise(r => setTimeout(r, 500));
+    const savedMoFile = sessionStorage.getItem('wb-mo-file');
+    const savedMoPath = sessionStorage.getItem('wb-mo-path');
+    if (savedMoFile && !moCurrentFile) {
+      try {
+        const content = await wb.readFile('src/game/models/' + savedMoFile);
+        moImport(content);
+        moSetFile(savedMoFile, savedMoPath || null);
+      } catch { /* file removed */ }
+    }
   });
 
   // Refresh when Editor tab is clicked
