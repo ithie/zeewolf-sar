@@ -1,4 +1,4 @@
-import './settings-rankup.css';
+import './settings.css';
 import { I18N } from '../../i18n';
 import { getRank, encodeSession, decodeSession, STORAGE_KEY, type PlayerSession, type Rank } from '../../session';
 
@@ -42,8 +42,8 @@ export const mountSettingsRankup = () => {
             <div class="settings-field" style="width:100%">
                 <label>STEUERUNG</label>
                 <div style="display:flex; gap:10px; margin-top:6px">
-                    <button class="settings-btn" id="ctrl-btn-profi">PROFI</button>
-                    <button class="settings-btn" id="ctrl-btn-vereinfacht">VEREINFACHT</button>
+                    <button class="settings-btn" id="ctrl-btn-profi">VEREINFACHT</button>
+                    <button class="settings-btn" id="ctrl-btn-vereinfacht">PROFI</button>
                 </div>
                 <div id="ctrl-mode-hint" style="font-size:11px; letter-spacing:1px; color:#8af; margin-top:4px; min-height:16px"></div>
             </div>
@@ -57,8 +57,14 @@ export const mountSettingsRankup = () => {
     document.getElementById('apply-save-code-btn')!.addEventListener('click', applySaveCode);
     document.getElementById('delete-session-btn')!.addEventListener('click', deleteSessionData);
     document.getElementById('from-settings-btn')!.addEventListener('click', fromSettings);
-    document.getElementById('ctrl-btn-profi')!.addEventListener('click', () => { _deps.setControlMode('heading'); _refreshCtrlButtons(); });
-    document.getElementById('ctrl-btn-vereinfacht')!.addEventListener('click', () => { _deps.setControlMode('screen'); _refreshCtrlButtons(); });
+    document.getElementById('ctrl-btn-profi')!.addEventListener('click', () => {
+        _deps.setControlMode('heading');
+        _refreshCtrlButtons();
+    });
+    document.getElementById('ctrl-btn-vereinfacht')!.addEventListener('click', () => {
+        _deps.setControlMode('screen');
+        _refreshCtrlButtons();
+    });
 
     document.getElementById('rankup-overlay')!.innerHTML = `
         <div id="rankup-label">BEFÖRDERUNG</div>
@@ -86,9 +92,10 @@ const _refreshCtrlButtons = () => {
     profi.style.color = mode === 'heading' ? HL : '';
     vereinfacht.style.borderColor = mode === 'screen' ? HL : '';
     vereinfacht.style.color = mode === 'screen' ? HL : '';
-    hint.textContent = mode === 'heading'
-        ? 'Rechter Stick dreht und beschleunigt relativ zum Heli.'
-        : 'Rechter Stick: oben = vorwärts, unabhängig von Ausrichtung.';
+    hint.textContent =
+        mode === 'heading'
+            ? 'Rechter Stick dreht und beschleunigt relativ zum Heli.'
+            : 'Rechter Stick: oben = vorwärts, unabhängig von Ausrichtung.';
 };
 
 const _refreshSettingsScreen = () => {
@@ -107,7 +114,10 @@ export const toSettings = () => {
     const input = document.getElementById('player-name-input') as HTMLInputElement;
     input.value = session.playerName || '';
     input.oninput = () => {
-        session.playerName = input.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8);
+        session.playerName = input.value
+            .toUpperCase()
+            .replace(/[^A-Z]/g, '')
+            .slice(0, 8);
         input.value = session.playerName;
         _deps.saveSession(session);
         _refreshSettingsScreen();
@@ -158,15 +168,19 @@ const deleteSessionData = () => {
 const _confirmDeleteSession = () => {
     const msg = document.getElementById('delete-session-msg') as HTMLElement;
     msg.textContent = I18N.SESSION_DELETED;
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch {}
     setTimeout(() => window.location.reload(), 1200);
 };
 
 export const showRankUp = (rank: Rank, playerName: string) => {
     (document.getElementById('rankup-badge') as HTMLElement).innerHTML = rankBadgeHtml(rank);
     (document.getElementById('rankup-title') as HTMLElement).textContent = rank.name.toUpperCase();
-    (document.getElementById('rankup-address') as HTMLElement).textContent =
-        I18N.PILOT_ADDRESS(rank.name, playerName).toUpperCase();
+    (document.getElementById('rankup-address') as HTMLElement).textContent = I18N.PILOT_ADDRESS(
+        rank.name,
+        playerName
+    ).toUpperCase();
     (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'flex';
 };
 

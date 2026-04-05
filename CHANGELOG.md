@@ -1,5 +1,21 @@
 # Changelog
 
+## v24.1 — SPA Pages, Mobile Fixes, Loop Correctness
+
+### Technical
+
+- **Cookie banner & What's New as virtual SPA pages**: both screens are now full-page, scrollable, and responsive — no more z-index overlays. Sequence: cookie banner (if needed) → What's New (if needed) → splash. Splash is hidden until all pre-screens are dismissed.
+- **Result screens fully opaque**: crash, mission success, win, campaign complete, campaign failed screens no longer show the game canvas in the background (removed `rgba` transparency).
+- **Game loop stopped on result screens**: `cancelAnimationFrame` is now called when any result screen appears. Loop restarts only when the next mission launches.
+- **Mobile: zoom-out**: canvas renders at ~1.54× logical resolution and is CSS-scaled down — more of the world is visible on small screens.
+- **Mobile: terrain culling fixed at altitude**: visible tile range is now derived from the camera position (iso inverse), not the heli's tile coordinates. Fixes black edges when flying high with the camera snapped to the heli.
+- **`isVisible` culling**: same camera-derived logic on mobile; desktop retains heli-tile-based culling (unchanged behaviour).
+- **Commander SVG**: explicit `width: 186px` on the SVG element — fixes invisible commander on iOS (WebKit `width:auto` in flexbox bug).
+- **`game-state.ts` removed**: `G` and `GameState` merged into `state.ts` alongside `zstate`. No separate file needed.
+- **`settings-rankup/` renamed to `settings/`**: module directory reflects actual scope.
+
+---
+
 ## v23.3 — Mobile Controls (Hotfix 2)
 
 ### Fixes
@@ -21,7 +37,7 @@
 
 - Extracted all screen-specific CSS into co-located CSS files per module
 - Responsive rules moved into their respective CSS files; `responsive.css` removed
-- All UI screens extracted from `index.html` into standalone modules mounted at runtime: briefing (`ui/briefing/`), settings + rank-up (`ui/settings-rankup/`), campaign select, heli select, and all mission result screens
+- All UI screens extracted from `index.html` into standalone modules mounted at runtime: briefing (`ui/briefing/`), settings + rank-up (`ui/settings/`), campaign select, heli select, and all mission result screens
 - Cookie banner, credits, heli-info, heli-select each organised into their own subdirectory
 - All remaining hardcoded UI strings moved to `i18n.ts` (`CLICK_TO_DEPLOY`, `BACK`, `RETRY`, `RETURN_TO_BASE`, `TERMINATED`, `MISSION_COMPLETE`, `CAMPAIGN_COMPLETE`, `CAMPAIGN_FAILED`, and more)
 - `onclick=` attributes removed from HTML; all handlers now use `addEventListener`

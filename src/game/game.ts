@@ -22,7 +22,7 @@ import CARRIER_HULL_DEF from './models/carrier_hull.zdef';
 import CARRIER_TOWER_DEF from './models/carrier_tower.zdef';
 import { createSceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
-import { G } from './game-state';
+import { G } from './state';
 import {
     getGround,
     initGrid,
@@ -52,7 +52,7 @@ import {
 import { I18N } from './i18n';
 import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-banner';
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
-import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings-rankup/settings-rankup';
+import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings/settings';
 import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
 
@@ -206,6 +206,11 @@ function showMsg(txt: string) {
 }
 
 function isVisible(objX: number, objY: number, margin = 16) {
+    if (_isTouchDevice()) {
+        const viewCX = zstate.cam.x / tileW + zstate.cam.y / tileH;
+        const viewCY = zstate.cam.y / tileH - zstate.cam.x / tileW;
+        return Math.abs(objX - viewCX) < margin && Math.abs(objY - viewCY) < margin;
+    }
     const rx = zstate.introActive ? G.START_POS.x : G.heli.x;
     const ry = zstate.introActive ? G.START_POS.y : G.heli.y;
     return Math.abs(objX - rx) < margin && Math.abs(objY - ry) < margin;
@@ -218,6 +223,8 @@ function triggerCrash(reason: string) {
     spawnExplosion(G.heli, G.particles, G.debris, G.points, G.CARRIER);
     zstate.crashed = true;
     setTimeout(() => {
+        cancelAnimationFrame(_rafId);
+        _rafId = 0;
         document.getElementById('campaign-failed-reason')!.innerHTML = reason;
         document.getElementById('campaign-failed-screen')!.style.display = 'flex';
     }, 1800); // Explosion erst austoben lassen
@@ -268,6 +275,8 @@ function missionComplete() {
     saveSession(_session);
 
     if (next === 'DONE') {
+        cancelAnimationFrame(_rafId);
+        _rafId = 0;
         document.getElementById('campaign-complete-name')!.textContent = '';
         document.getElementById('campaign-complete-screen')!.style.display = 'flex';
         soundHandler.play(musicConfig.success || 'final', false);
@@ -280,6 +289,8 @@ function missionComplete() {
     G.START_POS = { x: nextPad.x + 4, y: nextPad.y + 4 };
     initGrid(gridSize, G.points);
 
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
     const successEl = document.getElementById('mission-success-screen')!;
     successEl.style.display = 'flex';
     successEl.onclick = () => {
@@ -1921,10 +1932,23 @@ const _renderTerrainBatched = (
 
 // Renders terrain with offscreen cache for day/rain mode, or batched for night/party.
 const _drawTerrain = (camX: number, camY: number, rx: number, ry: number, isNight: boolean, _rain: boolean) => {
-    const xFrom = Math.floor(rx - 14);
-    const xTo = Math.ceil(rx + 14);
-    const yFrom = Math.floor(ry - 14);
-    const yTo = Math.ceil(ry + 14);
+    // On mobile: camera snaps to heli including z-offset → derive visible tile center from camera position.
+    // On desktop: camera smoothly follows heli, heli stays near screen center → use heli tile coords directly.
+    let xFrom: number, xTo: number, yFrom: number, yTo: number;
+    if (_isTouchDevice()) {
+        const viewCX = camX / tileW + camY / tileH;
+        const viewCY = camY / tileH - camX / tileW;
+        const marginXY = Math.ceil((canvas.width / tileW + canvas.height / tileH) / 2) + 3;
+        xFrom = Math.floor(viewCX - marginXY);
+        xTo = Math.ceil(viewCX + marginXY);
+        yFrom = Math.floor(viewCY - marginXY);
+        yTo = Math.ceil(viewCY + marginXY);
+    } else {
+        xFrom = Math.floor(rx - 14);
+        xTo = Math.ceil(rx + 14);
+        yFrom = Math.floor(ry - 14);
+        yTo = Math.ceil(ry + 14);
+    }
 
     if (isNight) {
         // Night: spotlight cone is dynamic → path-batch on main canvas every frame
@@ -2090,9 +2114,22 @@ window.onkeydown = e => {
 window.onkeyup = e => (G.keys[e.code] = false);
 document.addEventListener('selectstart', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
+// On mobile: render at a larger logical size → canvas is CSS-scaled down → tiles appear smaller → more world visible
+const MOBILE_ZOOM_OUT = 0.65;
+
 const _resizeCanvas = () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (isMobile) {
+        canvas.width = Math.round(window.innerWidth / MOBILE_ZOOM_OUT);
+        canvas.height = Math.round(window.innerHeight / MOBILE_ZOOM_OUT);
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+    } else {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        canvas.style.width = '';
+        canvas.style.height = '';
+    }
 };
 window.onresize = _resizeCanvas;
 _resizeCanvas();
@@ -2339,14 +2376,20 @@ window.onload = () => {
     setupTouchControls();
     startMenuParticles();
 
+    const _showSplash = () => {
+        (document.getElementById('splash') as HTMLElement).style.display = 'flex';
+    };
+
     const _afterConsent = () => {
         const shown = showWhatsNewIfNeeded(_session.lastSeenVersion, () => {
             _session.lastSeenVersion = __APP_VERSION__;
             saveSession(_session);
+            _showSplash();
         });
         if (!shown) {
             _session.lastSeenVersion = __APP_VERSION__;
             saveSession(_session);
+            _showSplash();
         }
     };
 

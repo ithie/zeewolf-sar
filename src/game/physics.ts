@@ -1,6 +1,5 @@
-import { G } from './game-state';
 import { campaignHandler } from './main';
-import { zstate } from './state';
+import { G, zstate } from './state';
 import { getHeliType } from './heli-types';
 import { I18N } from './i18n';
 

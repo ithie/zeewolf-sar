@@ -1,12 +1,14 @@
 #whats-new-overlay {
-    position: fixed;
+    position: absolute;
     inset: 0;
     background: rgba(0, 4, 18, 0.96);
     display: none;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
-    z-index: 700;
+    overflow-y: auto;
+    padding: 40px 16px;
+    z-index: 200;
     gap: 20px;
     cursor: pointer;
 }
@@ -14,12 +16,15 @@
     font-size: 11px;
     color: #cc9900;
     letter-spacing: 8px;
+    flex-shrink: 0;
 }
 #whats-new-title {
     font-size: 28px;
     color: #ffcc00;
     letter-spacing: 4px;
     text-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+    flex-shrink: 0;
+    text-align: center;
 }
 #whats-new-items {
     list-style: none;
@@ -28,8 +33,9 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-width: 560px;
+    width: min(560px, 100%);
     text-align: center;
+    flex-shrink: 0;
 }
 #whats-new-items li {
     font-size: 13px;
@@ -46,4 +52,5 @@
     color: #333;
     letter-spacing: 4px;
     margin-top: 12px;
+    flex-shrink: 0;
 }
