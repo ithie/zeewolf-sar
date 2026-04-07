@@ -34,7 +34,7 @@ export const I18N = {
     MENU_SETTINGS: 'EINSTELLUNGEN',
     MENU_CREDITS: 'CREDITS',
 
-    // Navigation
+    NEXT: 'Weiter',
     BACK: '◀ ZURÜCK',
     RETRY: 'WIEDERHOLEN',
     RETURN_TO_BASE: 'ZURÜCK ZUR BASIS',
@@ -56,27 +56,22 @@ export const I18N = {
     CAMPAIGN_FAILED: 'CAMPAIGN FAILED',
     MISSION_ABORTED: 'MISSION ABORTED',
 
-    // Briefing
     CLICK_TO_DEPLOY: 'KLICKEN ZUM EINSATZ',
 
-    // Anrede
     PILOT_ADDRESS: (rank: string, callsign: string) => (callsign ? `${rank} ${callsign}` : rank),
     BRIEFING_ADDRESS: (rank: string, callsign: string) =>
         callsign ? `Ihre Mission, ${rank} ${callsign}` : `Ihre Mission`,
 
-    // Session / Einstellungen
     SAVE_CODE_INVALID: 'UNGÜLTIGER CODE',
     SAVE_CODE_LOADED: 'SPIELSTAND GELADEN',
     NO_SAVE_STATE: '  |  KEIN SPEICHERSTAND',
     STATS: (c: number, m: number) => `KAMPAGNEN: ${c}  |  MISSIONEN: ${m}`,
     CAMPAIGN_LOCKED: '[ GESPERRT ]',
 
-    // Datenschutz
     DELETE_SESSION: 'SPIELSTAND LÖSCHEN',
     DELETE_CONFIRM: 'WIRKLICH LÖSCHEN?',
     SESSION_DELETED: 'GELÖSCHT – SEITE WIRD NEU GELADEN…',
 
-    // Crashgründe
     CRASH_WATER: 'WASSERAUFPRALL',
     CRASH_BAD_ZONE: 'FALSCHES LANDEZIEL',
     CRASH_TOO_FAST: 'ZU SCHNELL',
@@ -89,7 +84,6 @@ export const I18N = {
     CRASH_BOAT: 'KOLLISION MIT BOOT',
     CRASH_TREE: 'BAUMKONTAKT',
 
-    // What's New
     WHATS_NEW_VERSION: 'v24.0',
     WHATS_NEW_TITLE: 'Physik, Wind & Mobile',
     WHATS_NEW_HINT: 'KLICKEN ZUM FORTFAHREN',
@@ -99,4 +93,24 @@ export const I18N = {
         'Mobile: Kamera klebt direkt am Heli — kein Davonfliegen mehr möglich',
         'Mobile: Steuerungsmodus wählbar — PROFI (relativ zum Heli) oder VEREINFACHT (oben = vorwärts)',
     ],
+
+    PILOT_HEADING: 'PROFIL',
+    PILOT_CALLSIGN: 'RUFZEICHEN (MAX. 8 ZEICHEN, A–Z)',
+    PILOT_SAVECODE: 'SAVE CODE',
+    PILOT_IMPORT: 'CODE IMPORTIEREN (ÜBERSCHREIBT SPIELSTAND)',
+    PILOT_IMPORTLOAD: 'LADEN',
+    CONTROLS_HEADING: 'STEUERUNG',
+    CONTROLS_SIMPLIFIED: 'VEREINFACHT',
+    CONTROLS_SIMPLIFIED_DETAILS: 'Rechter Stick dreht und beschleunigt relativ zum Heli.',
+    CONTROLS_PROFESSIONAL: 'PROFI',
+    CONTROLS_PROFESSIONAL_DETAILS: 'Rechter Stick: oben = vorwärts, unabhängig von Ausrichtung.',
+
+    MADE_WITH: 'MADE WITH \u2665 IN JAVASCRIPT',
+    COPYRIGHT: '\u00a9 2026 i.thie softworks \u2014 Alle Rechte vorbehalten.',
+
+    CREDITS_ROLE_DEVELOPMENT: 'SPIELDESIGN & ENTWICKLUNG',
+    CREDITS_ROLE_CAMPAIGN: 'KAMPAGNEN-DESIGN',
+    CREDITS_ROLE_SOUND: 'SOUND & MUSIK',
+    CREDITS_ROLE_TEST: 'TESTER',
+    CREDITS_ROLE_INSPIREDBY: 'INSPIRIERT VON',
 } as const;

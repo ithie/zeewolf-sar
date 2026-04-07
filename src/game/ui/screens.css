@@ -37,7 +37,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(5, 5, 5, 0.88);
+    background: rgb(5, 5, 5);
     display: flex;
     flex-direction: column;
     justify-content: center;

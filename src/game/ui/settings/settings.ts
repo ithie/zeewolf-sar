@@ -18,32 +18,32 @@ export const initSettings = (deps: Deps) => {
 
 export const mountSettingsRankup = () => {
     document.getElementById('settings-screen')!.innerHTML = `
-        <div class="title" style="font-size: 48px">EINSTELLUNGEN</div>
-        <div class="subtitle">PILOT PROFIL</div>
+        <div class="title" style="font-size: 48px">${I18N.MENU_SETTINGS}</div>
+        <div class="subtitle">${I18N.PILOT_HEADING}</div>
         <div id="settings-badge"></div>
         <div class="settings-field">
-            <label>RUFZEICHEN (MAX. 8 ZEICHEN, A–Z)</label>
+            <label>${I18N.PILOT_CALLSIGN}</label>
             <input id="player-name-input" type="text" maxlength="8" placeholder="—" />
         </div>
         <div id="settings-stats"></div>
         <div class="settings-field" style="margin-top: 8px">
-            <label>SAVE CODE</label>
+            <label>${I18N.PILOT_SAVECODE}</label>
             <div id="settings-code-display">—</div>
         </div>
         <div class="settings-field">
-            <label>CODE IMPORTIEREN (ÜBERSCHREIBT SPIELSTAND)</label>
+            <label>${I18N.PILOT_IMPORT}</label>
             <div style="display:flex; gap: 10px; align-items: center">
                 <input id="import-code-input" class="settings-field input" type="text" maxlength="10" placeholder="XXXXX-XXXX" />
-                <button class="settings-btn" id="apply-save-code-btn">LADEN</button>
+                <button class="settings-btn" id="apply-save-code-btn">${I18N.PILOT_IMPORTLOAD}</button>
             </div>
             <div id="import-code-msg" style="font-size: 12px; letter-spacing: 2px; min-height: 18px; margin-top: 4px"></div>
         </div>
         <div id="settings-ctrl-row" style="display:none; flex-direction:column; align-items:center; margin-top:16px; width:100%">
             <div class="settings-field" style="width:100%">
-                <label>STEUERUNG</label>
+                <label>${I18N.CONTROLS_HEADING}</label>
                 <div style="display:flex; gap:10px; margin-top:6px">
-                    <button class="settings-btn" id="ctrl-btn-profi">VEREINFACHT</button>
-                    <button class="settings-btn" id="ctrl-btn-vereinfacht">PROFI</button>
+                    <button class="settings-btn" id="ctrl-btn-profi">${I18N.CONTROLS_SIMPLIFIED}</button>
+                    <button class="settings-btn" id="ctrl-btn-vereinfacht">${I18N.CONTROLS_PROFESSIONAL}</button>
                 </div>
                 <div id="ctrl-mode-hint" style="font-size:11px; letter-spacing:1px; color:#8af; margin-top:4px; min-height:16px"></div>
             </div>
@@ -52,7 +52,7 @@ export const mountSettingsRankup = () => {
             <button id="delete-session-btn" class="settings-btn" style="background: #1a0000; border-color: #500; color: #c44">${I18N.DELETE_SESSION}</button>
             <div id="delete-session-msg" style="font-size: 12px; letter-spacing: 2px; color: #c44; min-height: 18px; margin-top: 6px"></div>
         </div>
-        <div class="back-btn" id="from-settings-btn">&#9664; ZURÜCK</div>`;
+        <div class="back-btn" id="from-settings-btn">${I18N.BACK}</div>`;
 
     document.getElementById('apply-save-code-btn')!.addEventListener('click', applySaveCode);
     document.getElementById('delete-session-btn')!.addEventListener('click', deleteSessionData);
@@ -71,7 +71,7 @@ export const mountSettingsRankup = () => {
         <div id="rankup-badge"></div>
         <div id="rankup-title"></div>
         <div id="rankup-address"></div>
-        <p class="start-hint" style="color: #cc9900; margin-top: 10px">WEITER</p>`;
+        <p class="start-hint" style="color: #cc9900; margin-top: 10px">${I18N.NEXT}</p>`;
 
     document.getElementById('rankup-overlay')!.addEventListener('click', dismissRankUp);
 };
@@ -92,10 +92,7 @@ const _refreshCtrlButtons = () => {
     profi.style.color = mode === 'heading' ? HL : '';
     vereinfacht.style.borderColor = mode === 'screen' ? HL : '';
     vereinfacht.style.color = mode === 'screen' ? HL : '';
-    hint.textContent =
-        mode === 'heading'
-            ? 'Rechter Stick dreht und beschleunigt relativ zum Heli.'
-            : 'Rechter Stick: oben = vorwärts, unabhängig von Ausrichtung.';
+    hint.textContent = mode === 'heading' ? I18N.CONTROLS_SIMPLIFIED_DETAILS : I18N.CONTROLS_PROFESSIONAL_DETAILS;
 };
 
 const _refreshSettingsScreen = () => {

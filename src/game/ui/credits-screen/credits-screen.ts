@@ -1,5 +1,6 @@
 import './credits-screen.css';
 import { soundHandler, musicConfig } from '../../main';
+import { I18N } from '../../i18n';
 
 export const toCredits = () => {
     document.getElementById('main-menu')!.style.display = 'none';
@@ -12,15 +13,15 @@ const _buildCredits = () => {
     const inner = document.getElementById('credits-inner')!;
     inner.innerHTML = '';
     const sections = [
-        { role: 'SPIELDESIGN & ENTWICKLUNG', names: ['Yarrick'] },
-        { role: 'KAMPAGNEN-DESIGN', names: ['Yarrick', 'Jay "G" Man'] },
-        { role: 'SOUND & MUSIK', names: ['Gaunt'] },
-        { role: 'BETA-TEST', names: ['Da Harp', 'Jay "G" Man', 'DBuhn'] },
-        { role: 'INSPIRIERT VON', names: ['Zeewolf (Binary Asylum, 1994)'] },
+        { role: I18N.CREDITS_ROLE_DEVELOPMENT, names: ['Yarrick'] },
+        { role: I18N.CREDITS_ROLE_CAMPAIGN, names: ['Yarrick', 'Jay "G" Man'] },
+        { role: I18N.CREDITS_ROLE_SOUND, names: ['Gaunt'] },
+        { role: I18N.CREDITS_ROLE_TEST, names: ['Da Harp', 'Jay "G" Man', 'DBuhn', 'Bri B.'] },
+        { role: I18N.CREDITS_ROLE_INSPIREDBY, names: ['Zeewolf (Binary Asylum, 1994)'] },
     ];
     const title = document.createElement('div');
     title.className = 'credits-title';
-    title.textContent = 'CREDITS';
+    title.textContent = I18N.MENU_CREDITS;
     inner.appendChild(title);
     let delay = 0.15;
     sections.forEach(s => {
@@ -45,11 +46,10 @@ const _buildCredits = () => {
     });
     const made = document.createElement('div');
     made.className = 'credits-made-with';
-    made.textContent = 'MADE WITH \u2665 IN JAVASCRIPT';
+    made.textContent = I18N.MADE_WITH;
     inner.appendChild(made);
     const copy = document.createElement('div');
     copy.className = 'credits-copyright';
-    copy.textContent = '\u00a9 2026 i.thie softworks \u2014 Alle Rechte vorbehalten.';
+    copy.textContent = I18N.COPYRIGHT;
     inner.appendChild(copy);
 };
-

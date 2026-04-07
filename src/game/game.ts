@@ -315,6 +315,9 @@ function missionComplete() {
 }
 
 function returnToBase() {
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     _partyMode = false;
     zstate.gameStarted = false;
@@ -400,8 +403,6 @@ function startGame(type: string) {
 
 function launchMission() {
     generateTerrain(G.points, G.PAD);
-    _terrainOffscreen = null; // invalidate cache for new mission
-
     // Populate per-mission cache — never call getCurrentMissionData() in the render loop
     const _lmd = campaignHandler.getCurrentMissionData();
     const _lmdObjs = _lmd.objects || [];
@@ -516,12 +517,15 @@ function drawScene() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (!zstate.introActive) {
-        let tx = (G.heli.x - G.heli.y) * (tileW / 2);
-        let ty = (G.heli.x + G.heli.y) * (tileH / 2) - G.heli.z * stepH;
+        const tx = (G.heli.x - G.heli.y) * (tileW / 2);
         if (_isTouchDevice()) {
+            // Mobile: snap camera to heli incl. altitude so terrain shifts with height
+            const ty = (G.heli.x + G.heli.y) * (tileH / 2) - G.heli.z * stepH;
             zstate.cam.x = tx;
             zstate.cam.y = ty;
         } else {
+            // Desktop: smooth-follow ground point only — camera doesn't rise with heli
+            const ty = (G.heli.x + G.heli.y) * (tileH / 2);
             zstate.cam.x += (tx - zstate.cam.x) * 0.1 * dt;
             zstate.cam.y += (ty - zstate.cam.y) * 0.1 * dt;
         }
@@ -544,10 +548,21 @@ function drawScene() {
         }
     }
 
-    let rx = zstate.introActive ? G.START_POS.x : G.heli.x;
-    let ry = zstate.introActive ? G.START_POS.y : G.heli.y;
     const camX = zstate.cam.x,
         camY = zstate.cam.y;
+
+    let rx: number, ry: number;
+    if (zstate.introActive) {
+        rx = G.START_POS.x;
+        ry = G.START_POS.y;
+    } else if (_isTouchDevice()) {
+        // Mobile: derive tile center from camera (includes z-shift)
+        rx = camX / tileW + camY / tileH;
+        ry = camY / tileH - camX / tileW;
+    } else {
+        rx = G.heli.x;
+        ry = G.heli.y;
+    }
 
     _drawTerrain(camX, camY, rx, ry, isNight, rain);
 
@@ -558,7 +573,7 @@ function drawScene() {
         if (isVisible(b.x, b.y, 15)) drawSailboat(b.x, b.y, b.angle, camX, camY);
     });
     if (hasPad() && isVisible(G.PAD.xMin + 3, G.PAD.yMin + 3)) drawHangar();
-    if (hasPad() && G.fuelTruck && isVisible(G.fuelTruck.x, G.fuelTruck.y, 20))
+    if (hasPad() && G.fuelTruck && isVisible(G.fuelTruck.x, G.fuelTruck.y))
         drawFuelTruck(G.fuelTruck.x, G.fuelTruck.y, G.fuelTruck.angle, {
             z: G.PAD ? G.PAD.z : 0,
             armExtend: G.fuelTruck.arm,
@@ -567,11 +582,11 @@ function drawScene() {
         });
     SceneRenderer.flush(camX, camY);
     if (hasPad()) drawPadLights(camX, camY, G.PAD.z, false);
-    if (hasPad() && isVisible(G.PAD.xMin, G.PAD.yMin)) drawWindsock(camX, camY);
+    if (hasPad() && isVisible(G.PAD.xMin, G.PAD.yMin)) drawWindsock(camX, camY); // pad always in range if visible
 
     // Test-Bäume
     G.TREES_MAP.forEach((t: any) => {
-        if (isVisible(t.x, t.y, 14))
+        if (isVisible(t.x, t.y))
             drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, _partyMode && t.type !== 'dead');
     });
 
@@ -912,7 +927,7 @@ function drawPayloadObjects(hangingOnly = false, ropeOnly = false) {
         if (payload.rescued && !payload.hanging) return;
         if (hangingOnly && !payload.hanging) return;
         if (!hangingOnly && payload.hanging) return;
-        if (!payload.hanging && !isVisible(payload.x, payload.y, 15)) return;
+        if (!payload.hanging && !isVisible(payload.x, payload.y)) return;
 
         if (isNight && !payload.hanging) {
             const dx = payload.x - G.heli.x,
@@ -1099,7 +1114,7 @@ function drawParkedHelis(cx: number, cy: number) {
     const angle = G.CARRIER.angle;
     const deckZ = G.CARRIER.zDeck;
     parkedHelis.forEach(h => {
-        if (!isVisible(G.CARRIER.x, G.CARRIER.y, 25)) return;
+        if (!isVisible(G.CARRIER.x, G.CARRIER.y)) return;
         const cosA = Math.cos(angle),
             sinA = Math.sin(angle);
         const wx = G.CARRIER.x + h.xRel * cosA - h.yRel * sinA;
@@ -1698,7 +1713,7 @@ function handleCollisionBoxes() {
         const camX2 = zstate.cam.x,
             camY2 = zstate.cam.y;
         G.TREES_MAP.forEach((t: any) => {
-            if (!isVisible(t.x, t.y, 16)) return;
+            if (!isVisible(t.x, t.y)) return;
             const r = 0.35 * t.s;
             const h = 2.3 * t.s;
             const corners = [
@@ -1736,7 +1751,7 @@ function handleCollisionBoxes() {
     }
     if (!zstate.introActive && !zstate.crashed) {
         G.TREES_MAP.forEach((t: any) => {
-            if (!isVisible(t.x, t.y, 16)) return;
+            if (!isVisible(t.x, t.y)) return;
             const r = 0.35 * t.s;
             const h = 2.3 * t.s;
             if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, t.x, t.y, 0, -r, r, -r, r, t.gz, t.gz + h)) {
@@ -1837,13 +1852,6 @@ const _physicsCtx = {
     triggerCrash,
 };
 
-// ─── terrain cache ────────────────────────────────────────────────────────────
-const TERRAIN_MARGIN_PX = 320;
-let _terrainOffscreen: OffscreenCanvas | null = null;
-let _terrainOffCtx: OffscreenCanvasRenderingContext2D | null = null;
-let _cacheCamX = Infinity;
-let _cacheCamY = Infinity;
-let _cacheMode = ''; // 'day' | 'night' | 'party'
 let _tileColors: string[][] = []; // precomputed day/rain colors, indexed [x][y]
 // Reusable batch map — cleared each render, no per-frame Map allocation
 const _terrainBatch = new Map<string, number[]>();
@@ -1866,13 +1874,12 @@ const _precomputeDayColors = (rain: boolean) => {
                     : '#003d7a';
         }
     }
-    _cacheCamX = Infinity; // force offscreen re-render
 };
 
 // Renders terrain via path-batching to any 2D context.
 // Uses inline iso math to avoid per-tile object allocations.
 const _renderTerrainBatched = (
-    tCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    tCtx: CanvasRenderingContext2D,
     tW: number,
     tH: number,
     ccX: number,
@@ -1931,24 +1938,11 @@ const _renderTerrainBatched = (
 };
 
 // Renders terrain with offscreen cache for day/rain mode, or batched for night/party.
-const _drawTerrain = (camX: number, camY: number, rx: number, ry: number, isNight: boolean, _rain: boolean) => {
-    // On mobile: camera snaps to heli including z-offset → derive visible tile center from camera position.
-    // On desktop: camera smoothly follows heli, heli stays near screen center → use heli tile coords directly.
-    let xFrom: number, xTo: number, yFrom: number, yTo: number;
-    if (_isTouchDevice()) {
-        const viewCX = camX / tileW + camY / tileH;
-        const viewCY = camY / tileH - camX / tileW;
-        const marginXY = Math.ceil((canvas.width / tileW + canvas.height / tileH) / 2) + 3;
-        xFrom = Math.floor(viewCX - marginXY);
-        xTo = Math.ceil(viewCX + marginXY);
-        yFrom = Math.floor(viewCY - marginXY);
-        yTo = Math.ceil(viewCY + marginXY);
-    } else {
-        xFrom = Math.floor(rx - 14);
-        xTo = Math.ceil(rx + 14);
-        yFrom = Math.floor(ry - 14);
-        yTo = Math.ceil(ry + 14);
-    }
+const _drawTerrain = (camX: number, camY: number, _rx: number, _ry: number, isNight: boolean, _rain: boolean) => {
+    const xFrom = Math.floor(_rx - 14);
+    const xTo = Math.ceil(_rx + 14);
+    const yFrom = Math.floor(_ry - 14);
+    const yTo = Math.ceil(_ry + 14);
 
     if (isNight) {
         // Night: spotlight cone is dynamic → path-batch on main canvas every frame
@@ -1974,7 +1968,6 @@ const _drawTerrain = (camX: number, camY: number, rx: number, ry: number, isNigh
                 ? `rgb(${intensity - 20},${intensity + 10},${intensity - 20})`
                 : `rgb(0,${Math.floor(intensity * 0.3)},${Math.floor(intensity * 0.6)})`;
         });
-        _cacheMode = 'night';
         return;
     }
 
@@ -1987,57 +1980,12 @@ const _drawTerrain = (camX: number, camY: number, rx: number, ry: number, isNigh
             const phase = Math.floor((Date.now() + tileOffset * 320) / 280);
             return _PARTY_PALETTE[phase % _PARTY_PALETTE.length];
         });
-        _cacheMode = 'party';
         return;
     }
 
-    // Day / rain mode — use offscreen cache
-    const needsOffscreen =
-        !_terrainOffscreen ||
-        canvas.width + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.width ||
-        canvas.height + TERRAIN_MARGIN_PX * 2 !== _terrainOffscreen.height;
-    if (needsOffscreen) {
-        _terrainOffscreen = new OffscreenCanvas(
-            canvas.width + TERRAIN_MARGIN_PX * 2,
-            canvas.height + TERRAIN_MARGIN_PX * 2
-        );
-        _terrainOffCtx = _terrainOffscreen.getContext('2d') as OffscreenCanvasRenderingContext2D;
-        _cacheCamX = Infinity; // force render
-    }
-
-    const camMoved =
-        Math.abs(camX - _cacheCamX) > TERRAIN_MARGIN_PX * 0.75 ||
-        Math.abs(camY - _cacheCamY) > TERRAIN_MARGIN_PX * 0.75;
-    const modeChanged = _cacheMode !== 'day';
-
-    if (camMoved || modeChanged) {
-        const oW = _terrainOffscreen!.width,
-            oH = _terrainOffscreen!.height;
-        _terrainOffCtx!.clearRect(0, 0, oW, oH);
-        // Render a wider area (viewport + margin) to the offscreen canvas
-        const marginTilesX = Math.ceil(TERRAIN_MARGIN_PX / tileW) + 2;
-        const marginTilesY = Math.ceil(TERRAIN_MARGIN_PX / tileH) + 2;
-        _renderTerrainBatched(
-            _terrainOffCtx!,
-            oW,
-            oH,
-            camX,
-            camY,
-            xFrom - marginTilesX,
-            xTo + marginTilesX,
-            yFrom - marginTilesY,
-            yTo + marginTilesY,
-            (x, y, _h0) => _tileColors[x]?.[y] ?? '#003d7a'
-        );
-        _cacheCamX = camX;
-        _cacheCamY = camY;
-        _cacheMode = 'day';
-    }
-
-    // Single drawImage — the entire terrain cost per frame in day mode
-    const offX = (canvas.width - _terrainOffscreen!.width) / 2 + (_cacheCamX - camX);
-    const offY = (canvas.height - _terrainOffscreen!.height) / 2 + (_cacheCamY - camY);
-    ctx.drawImage(_terrainOffscreen!, offX, offY);
+    // Day / rain mode — direct batched render every frame
+    _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY, xFrom, xTo, yFrom, yTo,
+        (x, y, _h0) => _tileColors[x]?.[y] ?? '#003d7a');
 };
 
 // ─── session ──────────────────────────────────────────────────────────────────
@@ -2134,7 +2082,9 @@ const _resizeCanvas = () => {
 window.onresize = _resizeCanvas;
 _resizeCanvas();
 
-const _isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const _isTouchDevice = () =>
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
+    window.matchMedia('(pointer: coarse)').matches;
 const setTouchVisible = (v: boolean) => {
     if (!_isTouchDevice()) return;
     const touchEl = document.getElementById('touch-controls');
