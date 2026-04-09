@@ -641,6 +641,7 @@ function launchMission() {
         G.heli.vx = 0;
         G.heli.vy = 0;
         G.heli.vz = 0;
+        G.heli.inAir = false;
         G.heli.angle = G.CARRIER.angle;
         G.heli.engineOn = false;
         G.heli.rotorRPM = 0;
@@ -1834,7 +1835,7 @@ function handleCollisionBoxes() {
         // Tower-Kollision – nur wenn Heli in der Luft ist
         if (!zstate.introActive && !zstate.crashed && G.heli.inAir) {
             if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, cx, cy, ca, 2.6, 4.1, 1.0, 5.5, deckZ, deckZ + 2.5)) {
-                triggerCrash(I18N.CRASH_CARRIER_TOWER);
+                _physicsCtx.triggerCrash(I18N.CRASH_CARRIER_TOWER);
             }
         }
 
@@ -1879,7 +1880,7 @@ function handleCollisionBoxes() {
                         deckZ + 0.1 + hb.z2
                     )
                 ) {
-                    triggerCrash(I18N.CRASH_PARKED_HELI);
+                    _physicsCtx.triggerCrash(I18N.CRASH_PARKED_HELI);
                 }
             }
         });
@@ -1897,7 +1898,7 @@ function handleCollisionBoxes() {
         if (showCollisionBoxes) drawCollisionBox(hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8, 'rgba(255,80,0,0.9)');
         if (!zstate.introActive && !zstate.crashed && G.heli.inAir) {
             if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, hmx, hmy, 0, -2, 2, -1, 1, hZ, hZ + 1.8)) {
-                triggerCrash(I18N.CRASH_HANGAR);
+                _physicsCtx.triggerCrash(I18N.CRASH_HANGAR);
             }
         }
     }
@@ -1912,7 +1913,7 @@ function handleCollisionBoxes() {
             if (
                 checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, ft.x, ft.y, ft.angle, 0, 2.2, -0.45, 0.45, fZ, fZ + 0.9)
             ) {
-                triggerCrash(I18N.CRASH_FUEL_TRUCK);
+                _physicsCtx.triggerCrash(I18N.CRASH_FUEL_TRUCK);
             }
         }
     }
@@ -1929,7 +1930,7 @@ function handleCollisionBoxes() {
 
             if (!zstate.introActive && !zstate.crashed) {
                 if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, lh.x, lh.y, 0, -1.0, 1.0, -1.0, 1.0, 0.4, 8.5)) {
-                    triggerCrash(I18N.CRASH_LIGHTHOUSE);
+                    _physicsCtx.triggerCrash(I18N.CRASH_LIGHTHOUSE);
                 }
             }
         }
@@ -1949,7 +1950,7 @@ function handleCollisionBoxes() {
                 checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, b.x, b.y, b.angle, -1.1, 1.3, -0.45, 0.45, 0, 0.35) ||
                 checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, b.x, b.y, b.angle, -0.4, -0.2, -0.1, 0.1, 0.35, 3.2)
             ) {
-                triggerCrash(I18N.CRASH_BOAT);
+                _physicsCtx.triggerCrash(I18N.CRASH_BOAT);
             }
         }
     });
@@ -2006,7 +2007,7 @@ function handleCollisionBoxes() {
             const r = 0.35 * t.s;
             const h = 2.3 * t.s;
             if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, t.x, t.y, 0, -r, r, -r, r, t.gz, t.gz + h)) {
-                triggerCrash(I18N.CRASH_TREE);
+                _physicsCtx.triggerCrash(I18N.CRASH_TREE);
             }
         });
     }
@@ -2591,12 +2592,12 @@ window.onload = () => {
 
     const _afterConsent = () => {
         const shown = showWhatsNewIfNeeded(_session.lastSeenVersion, () => {
-            _session.lastSeenVersion = __APP_VERSION__;
+            _session.lastSeenVersion = I18N.WHATS_NEW_VERSION;
             saveSession(_session);
             _showSplash();
         });
         if (!shown) {
-            _session.lastSeenVersion = __APP_VERSION__;
+            _session.lastSeenVersion = I18N.WHATS_NEW_VERSION;
             saveSession(_session);
             _showSplash();
         }

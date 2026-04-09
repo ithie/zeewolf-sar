@@ -73,9 +73,9 @@ export const MP_DEMO_CAMPAIGN: CampaignExport = {
             foliage: 'p340,385,9|p415,390,11|p385,425,8|p435,370,10|p370,430,9|p360,405,7',
             rain: false,
             night: false,
-            windDir: 45,
-            windStr: 2,
-            windVar: true,
+            windDir: 0,
+            windStr: 0,
+            windVar: false,
         },
     ],
 };
