@@ -1219,4 +1219,27 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
         }
         // lighthouse collision – handled by handleCollisionBoxes() in game.ts
     }
+
+    // ── Heli-Heli collision (Multiplayer) ────────────────────────────────────
+    if (!zstate.introActive && G.remoteHeli) {
+        const dx = G.heli.x - G.remoteHeli.x;
+        const dy = G.heli.y - G.remoteHeli.y;
+        // Flatten z contribution so altitude offset doesn't entirely mask XY proximity
+        const dz = (G.heli.z - G.remoteHeli.z) * 0.5;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const COLLISION_RADIUS = 1.4;
+        if (dist < COLLISION_RADIUS && dist > 0.001) {
+            const relVx = G.heli.vx - G.remoteHeli.vx;
+            const relVy = G.heli.vy - G.remoteHeli.vy;
+            const closingSpeed = Math.hypot(relVx, relVy);
+            if (closingSpeed > 0.08) {
+                ctx.triggerCrash(I18N.CRASH_REMOTE_HELI);
+            } else {
+                // Soft nudge apart
+                const nx = dx / dist, ny = dy / dist;
+                G.heli.vx += nx * 0.04 * dt;
+                G.heli.vy += ny * 0.04 * dt;
+            }
+        }
+    }
 }

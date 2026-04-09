@@ -2,9 +2,13 @@ export const STORAGE_KEY = 'zeewolf_session';
 
 export const CONSENT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 
+/** Bump this whenever the privacy notice changes — forces the banner to re-appear. */
+export const CONSENT_VERSION = 'v25.0';
+
 export interface PlayerSession {
     cookieConsent: boolean | null;
     consentTimestamp: number | null;  // Date.now() at time of consent
+    consentVersion: string;           // version of the notice the user last accepted
     playerName: string;
     campaignsDone: number;
     missionsDone: number;
@@ -31,9 +35,14 @@ export const isConsentExpired = (s: PlayerSession): boolean =>
     s.cookieConsent !== null &&
     (s.consentTimestamp === null || Date.now() - s.consentTimestamp > CONSENT_TTL_MS);
 
+/** True when the stored consent was for an older privacy notice version. */
+export const isConsentOutdated = (s: PlayerSession): boolean =>
+    s.cookieConsent !== null && s.consentVersion !== CONSENT_VERSION;
+
 const _default = (): PlayerSession => ({
     cookieConsent: null,
     consentTimestamp: null,
+    consentVersion: '',
     playerName: '',
     campaignsDone: 0,
     missionsDone: 0,

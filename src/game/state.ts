@@ -1,5 +1,15 @@
 import { HELI_TYPES } from './heli-types';
 
+// ─── Remote heli (Multiplayer) ────────────────────────────────────────────────
+export interface RemoteHeli {
+    type: string;
+    x: number; y: number; z: number;
+    vx: number; vy: number; vz: number;
+    angle: number; tilt: number; roll: number;
+    rotorRPM: number; rotationPos: number;
+    inAir: boolean;
+}
+
 const createZstate = () => {
     const state = {
         gameStarted: false,
@@ -71,6 +81,8 @@ export const G = {
     PAD: null as any,
     START_POS: null as any,
     fuelTruck: { state: 'PARKED', x: 0, y: 0, angle: 0, arm: 0, parkX: 0, parkY: 0, parkAngle: 0, t: 0, wps: null as null, wpI: 0, targetX: null as number | null, targetY: null as number | null },
+    /** Remote player's heli – set when multiplayer is active, null otherwise */
+    remoteHeli: null as RemoteHeli | null,
 };
 
 export type GameState = typeof G;
