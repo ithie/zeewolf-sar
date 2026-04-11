@@ -2,6 +2,27 @@ import './credits-screen.css';
 import { soundHandler, musicConfig } from '../../main';
 import { I18N } from '../../i18n';
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
+export const mountCreditsScreen = (onBack: () => void): void => {
+    const root = _ensureEl('credits-screen');
+    const canvas = document.createElement('canvas');
+    canvas.id = 'credits-canvas';
+    const inner = document.createElement('div');
+    inner.id = 'credits-inner';
+    const back = document.createElement('div');
+    back.className = 'back-btn';
+    back.innerHTML = '&#9664; ZURÜCK';
+    back.addEventListener('click', onBack);
+    root.appendChild(canvas);
+    root.appendChild(inner);
+    root.appendChild(back);
+};
+
 export const toCredits = () => {
     document.getElementById('main-menu')!.style.display = 'none';
     _buildCredits();

@@ -3,11 +3,21 @@ type Particle = { x: number; y: number; vy: number; alpha: number; size: number;
 let _particles: Particle[] | null = null;
 let _running = false;
 
+const _ensureCanvas = (): HTMLCanvasElement => {
+    let c = document.getElementById('menu-particles-canvas') as HTMLCanvasElement | null;
+    if (!c) {
+        c = document.createElement('canvas');
+        c.id = 'menu-particles-canvas';
+        Object.assign(c.style, { position: 'absolute', top: '0', left: '0', width: '100%', height: '100%', zIndex: '201', pointerEvents: 'none', display: 'none' });
+        document.body.appendChild(c);
+    }
+    return c;
+};
+
 export const startMenuParticles = () => {
     if (_running) return;
     _running = true;
-    const c = document.getElementById('menu-particles-canvas') as HTMLCanvasElement | null;
-    if (c) c.style.display = 'block';
+    _ensureCanvas().style.display = 'block';
     _animate();
 };
 
@@ -16,6 +26,7 @@ export const stopMenuParticles = () => {
     _particles = null;
     const c = document.getElementById('menu-particles-canvas') as HTMLCanvasElement | null;
     if (c) c.style.display = 'none';
+
 };
 
 const _animate = () => {

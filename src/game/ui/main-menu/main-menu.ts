@@ -10,8 +10,14 @@ type MainMenuCallbacks = {
     onSplashClick: () => void;
 };
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
 export const mountMainMenu = (cb: MainMenuCallbacks) => {
-    const splash = document.getElementById('splash')!;
+    const splash = _ensureEl('splash');
     splash.innerHTML = `
         <div class="title">${I18N.SPLASH_TITLE}</div>
         <div class="subtitle" id="splash-version"></div>
@@ -19,7 +25,7 @@ export const mountMainMenu = (cb: MainMenuCallbacks) => {
         <p class="start-hint">${I18N.SPLASH_HINT}</p>`;
     splash.addEventListener('click', cb.onSplashClick);
 
-    const menu = document.getElementById('main-menu')!;
+    const menu = _ensureEl('main-menu');
     menu.innerHTML = `
         <canvas id="main-menu-bg-canvas"></canvas>
         <div class="title">${I18N.MENU_TITLE}</div>

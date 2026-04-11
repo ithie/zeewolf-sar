@@ -1,8 +1,14 @@
 import './whats-new.css';
 import { I18N } from '../../i18n';
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
 export const mountWhatsNew = () => {
-    const el = document.getElementById('whats-new-overlay')!;
+    const el = _ensureEl('whats-new-overlay');
     el.innerHTML = `
         <div id="whats-new-version">NEUIGKEITEN · ${I18N.WHATS_NEW_VERSION}</div>
         <div id="whats-new-title">${I18N.WHATS_NEW_TITLE.toUpperCase()}</div>

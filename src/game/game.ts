@@ -1,6 +1,6 @@
 import '../styles/base.css';
 import './ui/screens.css';
-import './ui/touch-controls.css';
+import { mountTouchControls } from './ui/touch-controls/touch-controls';
 import { iso } from './render';
 import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
 import {
@@ -16,6 +16,7 @@ import {
     type Rank,
 } from './session';
 import { zstate } from './state';
+import { initHeliSound, updateHeliSound, stopHeliSound, setSfxEnabled } from './heli-sound';
 
 import HANGAR_DEF from './models/hangar.zdef';
 import LIGHTHOUSE_DEF from './models/lighthouse.zdef';
@@ -41,14 +42,14 @@ import {
 } from './physics';
 import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
-import { toCredits } from './ui/credits-screen/credits-screen';
+import { mountCreditsScreen, toCredits } from './ui/credits-screen/credits-screen';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
 import { mpState, resetMpState } from './multiplayer/mp-state';
 import { packHeli, applyHeliSnap, packWorld, applyWorldSnap } from './multiplayer/sync';
 import { MP_CAMPAIGN_INDEX, MP_COUNTDOWN_SEC, MP_PAD } from './multiplayer/mp-mission';
 import type { MpChannels } from './multiplayer/rtc';
 import { mountMpLobby, showMpLobby, hideMpLobby, setLobbyCallsign } from './ui/mp-lobby/mp-lobby';
-import { initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
+import { mountHeliInfoScreen, initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
 import {
     initHeliSelect,
     buildHeliSelect,
@@ -60,48 +61,13 @@ import { I18N } from './i18n';
 import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-banner';
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
 import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings/settings';
+import { mountMuteButton, refreshMuteButton } from './ui/mute-button/mute-button';
 import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
 
-const REQUIRED_IDS = [
-    'gameCanvas',
-    'audio-mute',
-    'audio-mute-active',
-    'audio-mute-inactive',
-    'splash',
-    'main-menu',
-    'menu-particles-canvas',
-    'heli-info',
-    'heli-info-stage',
-    'heli-cards-area',
-    'heli-detail-panel',
-    'credits-screen',
-    'credits-canvas',
-    'credits-inner',
-    'campaign-select',
-    'heli-select',
-    'crash-screen',
-    'mission-success-screen',
-    'win-screen',
-    'mission-briefing',
-    'campaign-complete-screen',
-    'campaign-failed-screen',
-    'settings-screen',
-    'rankup-overlay',
-    'cookie-banner',
-    'whats-new-overlay',
-    'mp-lobby-screen',
-    'touch-controls',
-    'debug-toggle',
-    'easter-egg',
-    'flash-overlay',
-    'msg',
-] as const;
-
 const assertDom = () => {
-    const missing = REQUIRED_IDS.filter(id => !document.getElementById(id));
-    if (missing.length > 0) {
-        throw new Error(`[zeewolf] Missing DOM elements: ${missing.join(', ')}`);
+    if (!document.getElementById('gameCanvas')) {
+        throw new Error('[zeewolf] Missing DOM element: gameCanvas');
     }
 };
 
@@ -227,6 +193,7 @@ function isVisible(objX: number, objY: number, margin = 16) {
 // ─── screens ────────────────────────────────────────────────────────────────
 function triggerCrash(reason: string) {
     if (zstate.crashed) return;
+    stopHeliSound();
     soundHandler.play(musicConfig.defeat || 'final', false);
     spawnExplosion(G.heli, G.particles, G.debris, G.points, G.CARRIER);
     zstate.crashed = true;
@@ -325,6 +292,7 @@ function missionComplete() {
 function returnToBase() {
     cancelAnimationFrame(_rafId);
     _rafId = 0;
+    stopHeliSound();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     _partyMode = false;
@@ -656,6 +624,7 @@ function launchMission() {
     }
 
     cancelAnimationFrame(_rafId);
+    initHeliSound(G.heli.type);
     _rafId = requestAnimationFrame(drawScene);
 }
 
@@ -1074,6 +1043,7 @@ function drawScene() {
 
     if (_partyMode) drawDiscoBall();
 
+    updateHeliSound(G.heli.rotorRPM, G.heli.engineOn, G.heli.type, Math.hypot(G.wind.x, G.wind.y));
     _rafId = requestAnimationFrame(drawScene);
 }
 
@@ -2481,6 +2451,7 @@ const _setupHeadingJoystick = (id: string) => {
 
 const setupTouchControls = () => {
     if (!_isTouchDevice()) return;
+    mountTouchControls();
     document.getElementById('debug-toggle')?.addEventListener('click', () => {
         showCollisionBoxes = !showCollisionBoxes;
         SceneRenderer.debugAltitude = showCollisionBoxes;
@@ -2511,7 +2482,25 @@ const setupTouchControls = () => {
     }
 };
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
+const mountGameOverlays = () => {
+    _ensureEl('flash-overlay');
+    _ensureEl('msg');
+    _ensureEl('debug-toggle');
+    const egg = _ensureEl('easter-egg');
+    egg.onclick = () => (window as any).launchEasterEgg?.();
+};
+
 const mountGameScreens = () => {
+    ['campaign-select','heli-select','crash-screen','mission-success-screen',
+     'win-screen','mission-briefing','campaign-complete-screen','campaign-failed-screen']
+        .forEach(id => _ensureEl(id));
+
     document.getElementById('campaign-select')!.innerHTML = `
         <div class="title">${I18N.CAMPAIGN_SELECT_TITLE}</div>
         <div class="subtitle">${I18N.CAMPAIGN_SELECT_SUB}</div>
@@ -2560,6 +2549,9 @@ declare const __APP_VERSION__: string;
 
 window.onload = () => {
     assertDom();
+    mountGameOverlays();
+    mountHeliInfoScreen(toMainMenu);
+    mountCreditsScreen(toMainMenu);
     mountMainMenu({
         onSplashClick: toMainMenu,
         onStart: toCampaignSelect,
@@ -2571,15 +2563,43 @@ window.onload = () => {
     mountMpLobby();
     (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
     zinit();
+    mountMuteButton({
+        isMuted: () => soundHandler.state.isMuted,
+        onToggle: () => {
+            soundHandler.state.isMuted ? soundHandler.unmute() : soundHandler.mute();
+            refreshMuteButton(soundHandler.state.isMuted);
+        },
+    });
     mountBriefing();
     initBriefing(dismissBriefing);
     mountSettingsRankup();
+    const _getPref = (key: string, def: boolean) => {
+        try { const v = localStorage.getItem(key); return v === null ? def : v === '1'; } catch { return def; }
+    };
+    const _setPref = (key: string, v: boolean) => { try { localStorage.setItem(key, v ? '1' : '0'); } catch {} };
+
+    // Apply saved preferences on startup
+    if (!_getPref('zw_music', true)) soundHandler.mute();
+    setSfxEnabled(_getPref('zw_sfx', true));
+    refreshMuteButton(soundHandler.state.isMuted);
+
     initSettings({
         getSession: () => _session,
         saveSession,
         getControlMode,
         setControlMode,
         isTouchDevice: _isTouchDevice,
+        isMusicEnabled: () => !soundHandler.state.isMuted,
+        setMusicEnabled: (v: boolean) => {
+            v ? soundHandler.unmute() : soundHandler.mute();
+            _setPref('zw_music', v);
+            refreshMuteButton(soundHandler.state.isMuted);
+        },
+        isSfxEnabled: () => _getPref('zw_sfx', true),
+        setSfxEnabled: (v: boolean) => {
+            setSfxEnabled(v);
+            _setPref('zw_sfx', v);
+        },
     });
     mountWhatsNew();
     mountGameScreens();

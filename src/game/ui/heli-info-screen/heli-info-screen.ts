@@ -6,6 +6,28 @@ import { tileW, tileH, stepH } from '../../render-config';
 let _G: any;
 let _drawHeli: (...args: any[]) => void;
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
+let _onBack: (() => void) | null = null;
+
+export const mountHeliInfoScreen = (onBack: () => void): void => {
+    _onBack = onBack;
+    const root = _ensureEl('heli-info');
+    root.innerHTML = `
+        <div class="title">HANGAR</div>
+        <div class="subtitle">TYPENÜBERSICHT</div>
+        <div id="heli-info-stage">
+            <div id="heli-cards-area"></div>
+            <div id="heli-detail-panel"></div>
+        </div>
+        <div class="back-btn" id="heli-info-back">&#9664; ZURÜCK</div>`;
+    document.getElementById('heli-info-back')!.addEventListener('click', () => _onBack?.());
+};
+
 export const initHeliInfoScreen = (G: any, drawHeli: (...args: any[]) => void) => {
     _G = G;
     _drawHeli = drawHeli;

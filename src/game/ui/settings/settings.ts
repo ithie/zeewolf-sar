@@ -8,6 +8,10 @@ type Deps = {
     getControlMode: () => 'heading' | 'screen';
     setControlMode: (m: 'heading' | 'screen') => void;
     isTouchDevice: () => boolean;
+    isMusicEnabled: () => boolean;
+    setMusicEnabled: (v: boolean) => void;
+    isSfxEnabled: () => boolean;
+    setSfxEnabled: (v: boolean) => void;
 };
 
 let _deps: Deps;
@@ -16,7 +20,15 @@ export const initSettings = (deps: Deps) => {
     _deps = deps;
 };
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
 export const mountSettingsRankup = () => {
+    _ensureEl('settings-screen');
+    _ensureEl('rankup-overlay');
     document.getElementById('settings-screen')!.innerHTML = `
         <div class="title" style="font-size: 48px">${I18N.MENU_SETTINGS}</div>
         <div class="subtitle">${I18N.PILOT_HEADING}</div>
@@ -48,6 +60,22 @@ export const mountSettingsRankup = () => {
                 <div id="ctrl-mode-hint" style="font-size:11px; letter-spacing:1px; color:#8af; margin-top:4px; min-height:16px"></div>
             </div>
         </div>
+        <div style="margin-top: 20px; border-top: 1px solid #1a1a2e; padding-top: 16px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px">
+            <div class="settings-field" style="width:100%">
+                <label>MUSIK</label>
+                <div style="display:flex; gap:10px; margin-top:6px">
+                    <button class="settings-btn" id="music-on-btn">AN</button>
+                    <button class="settings-btn" id="music-off-btn">AUS</button>
+                </div>
+            </div>
+            <div class="settings-field" style="width:100%">
+                <label>SOUND-EFFEKTE</label>
+                <div style="display:flex; gap:10px; margin-top:6px">
+                    <button class="settings-btn" id="sfx-on-btn">AN</button>
+                    <button class="settings-btn" id="sfx-off-btn">AUS</button>
+                </div>
+            </div>
+        </div>
         <div style="margin-top: 20px; border-top: 1px solid #1a1a2e; padding-top: 16px; width: 100%; display: flex; flex-direction: column; align-items: center">
             <button id="delete-session-btn" class="settings-btn" style="background: #1a0000; border-color: #500; color: #c44">${I18N.DELETE_SESSION}</button>
             <div id="delete-session-msg" style="font-size: 12px; letter-spacing: 2px; color: #c44; min-height: 18px; margin-top: 6px"></div>
@@ -57,6 +85,10 @@ export const mountSettingsRankup = () => {
     document.getElementById('apply-save-code-btn')!.addEventListener('click', applySaveCode);
     document.getElementById('delete-session-btn')!.addEventListener('click', deleteSessionData);
     document.getElementById('from-settings-btn')!.addEventListener('click', fromSettings);
+    document.getElementById('music-on-btn')!.addEventListener('click', () => { _deps.setMusicEnabled(true);  _refreshAudioButtons(); });
+    document.getElementById('music-off-btn')!.addEventListener('click', () => { _deps.setMusicEnabled(false); _refreshAudioButtons(); });
+    document.getElementById('sfx-on-btn')!.addEventListener('click', () => { _deps.setSfxEnabled(true);  _refreshAudioButtons(); });
+    document.getElementById('sfx-off-btn')!.addEventListener('click', () => { _deps.setSfxEnabled(false); _refreshAudioButtons(); });
     document.getElementById('ctrl-btn-profi')!.addEventListener('click', () => {
         _deps.setControlMode('heading');
         _refreshCtrlButtons();
@@ -82,12 +114,26 @@ export const rankBadgeHtml = (rank: Rank) =>
     `<span class="rank-label">${rank.name.toUpperCase()}</span>` +
     `</div>`;
 
+const HL = 'var(--accent, #4af)';
+
+const _refreshAudioButtons = () => {
+    const musicOn  = document.getElementById('music-on-btn')  as HTMLButtonElement;
+    const musicOff = document.getElementById('music-off-btn') as HTMLButtonElement;
+    const sfxOn    = document.getElementById('sfx-on-btn')    as HTMLButtonElement;
+    const sfxOff   = document.getElementById('sfx-off-btn')   as HTMLButtonElement;
+    const music = _deps.isMusicEnabled();
+    const sfx   = _deps.isSfxEnabled();
+    musicOn.style.borderColor  = music ? HL : '';  musicOn.style.color  = music ? HL : '';
+    musicOff.style.borderColor = music ? '' : HL;  musicOff.style.color = music ? '' : HL;
+    sfxOn.style.borderColor    = sfx   ? HL : '';  sfxOn.style.color    = sfx   ? HL : '';
+    sfxOff.style.borderColor   = sfx   ? '' : HL;  sfxOff.style.color   = sfx   ? '' : HL;
+};
+
 const _refreshCtrlButtons = () => {
     const mode = _deps.getControlMode();
     const profi = document.getElementById('ctrl-btn-profi') as HTMLButtonElement;
     const vereinfacht = document.getElementById('ctrl-btn-vereinfacht') as HTMLButtonElement;
     const hint = document.getElementById('ctrl-mode-hint') as HTMLElement;
-    const HL = 'var(--accent, #4af)';
     profi.style.borderColor = mode === 'heading' ? HL : '';
     profi.style.color = mode === 'heading' ? HL : '';
     vereinfacht.style.borderColor = mode === 'screen' ? HL : '';
@@ -128,6 +174,7 @@ export const toSettings = () => {
     } else {
         ctrlRow.style.display = 'none';
     }
+    _refreshAudioButtons();
     (document.getElementById('main-menu') as HTMLElement).style.display = 'none';
     (document.getElementById('settings-screen') as HTMLElement).style.display = 'flex';
 };

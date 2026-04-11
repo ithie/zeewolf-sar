@@ -110,15 +110,15 @@ export const I18N = {
     CRASH_BOAT: 'KOLLISION MIT BOOT',
     CRASH_TREE: 'BAUMKONTAKT',
 
-    WHATS_NEW_VERSION: 'v25.0',
-    WHATS_NEW_TITLE: 'Multiplayer',
+    WHATS_NEW_VERSION: 'v25.2',
+    WHATS_NEW_TITLE: 'Sound & UI',
     WHATS_NEW_HINT: 'KLICKEN ZUM FORTFAHREN',
     WHATS_NEW_ITEMS: [
-        'Koop-Multiplayer für 2 Piloten — über den Menüpunkt MULTIPLAYER',
-        'Verbindungsaufbau per Copy & Paste — kein Server, kein Account nötig',
-        'Beide Piloten wählen ihren Heli selbst (Überraschung!)',
-        'Absturz? Respawn am Startplatz — der Einsatz läuft weiter',
-        'Hinweis: Für den Verbindungsaufbau werden Google STUN-Server genutzt',
+        'Prozedurale Rotor-Sounds — jeder Heli klingt anders',
+        'Wind reagiert auf den echten Spielwind inkl. Böen',
+        'Musik und Sound-Effekte separat ein-/ausschaltbar (Einstellungen)',
+        'Sound Lab in der Workbench: Rotor, Wind und Möwen zum Experimentieren',
+        'Alle UI-Elemente als eigenständige Module — sauberere Architektur',
     ],
 
     PILOT_HEADING: 'PROFIL',

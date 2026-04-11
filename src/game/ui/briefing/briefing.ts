@@ -2,8 +2,14 @@ import './briefing.css';
 import { I18N } from '../../i18n';
 import { COMMANDER_SVG } from '../../main';
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
 export const mountBriefing = () => {
-    const el = document.getElementById('mission-briefing')!;
+    const el = _ensureEl('mission-briefing');
     el.innerHTML = `
         <div id="briefing-content">
             <img id="briefing-map" src="" alt="Mission Map" />

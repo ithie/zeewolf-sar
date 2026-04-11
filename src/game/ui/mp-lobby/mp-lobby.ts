@@ -12,6 +12,12 @@ export type MpLobbyCallbacks = {
 
 // ─── DOM helpers ──────────────────────────────────────────────────────────────
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
 const screen = () => document.getElementById('mp-lobby-screen')!;
 const el = (id: string) => document.getElementById(id)!;
 const setStatus = (id: string, txt: string, cls?: 'ok' | 'error') => {
@@ -25,6 +31,7 @@ const hide = (id: string) => { el(id).style.display = 'none'; };
 // ─── mount (called once at startup) ──────────────────────────────────────────
 
 export const mountMpLobby = (): void => {
+    _ensureEl('mp-lobby-screen');
     const heliCards = HELI_TYPES
         .filter(h => h.id !== 'glider')
         .map(h => `

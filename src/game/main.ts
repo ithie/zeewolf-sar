@@ -149,34 +149,4 @@ const createCampaignHandler = () => {
 
 export const campaignHandler = createCampaignHandler();
 export { soundHandler };
-export const zinit = () => {
-    const handle = (key: string, visibility: 'flex' | 'none') => {
-        document.getElementById(key)!.style.display = visibility;
-    };
-    const muteUnmute = document.getElementById('audio-mute');
-    if (!muteUnmute) {
-        return;
-    }
-    const onClick = (evt: Event) => {
-        evt.preventDefault();
-        if (!soundHandler.state.isMuted) {
-            soundHandler.mute();
-            handle('audio-mute-active', 'flex');
-            handle('audio-mute-inactive', 'none');
-        } else {
-            soundHandler.unmute();
-            handle('audio-mute-active', 'none');
-            handle('audio-mute-inactive', 'flex');
-        }
-    };
-
-    if (soundHandler.state.isMuted) {
-        handle('audio-mute-active', 'flex');
-        handle('audio-mute-inactive', 'none');
-    } else {
-        handle('audio-mute-active', 'none');
-        handle('audio-mute-inactive', 'flex');
-    }
-
-    muteUnmute.onclick = onClick;
-};
+export const zinit = () => { /* wired via mountMuteButton in game.ts */ };
