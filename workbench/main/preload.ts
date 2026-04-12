@@ -51,4 +51,9 @@ contextBridge.exposeInMainWorld('workbench', {
   // Test runner
   runTests: (): Promise<{ testResults: any; coverage: any; projectRoot: string }> =>
     ipcRenderer.invoke('run-tests'),
+
+  // Console panel
+  onConsoleMessage: (cb: (msg: { level: number; message: string; line: number; sourceId: string }) => void): void => {
+    ipcRenderer.on('console-message', (_e, msg) => cb(msg));
+  },
 });

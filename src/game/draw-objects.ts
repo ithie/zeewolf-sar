@@ -474,9 +474,10 @@ export function createDrawObjects(
         const actualIso = tIso ?? iso;
 
         const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
-        const _htId = type === 'osprey_plane' ? 'osprey' : type;
-        let s = getHeliType(_htId).scale;
-        if (scaleOverride > 0) s = scaleOverride * getHeliType(_htId).scale;
+        const _isOsprey = type === 'osprey' || type === 'osprey_plane';
+        const _baseScale = _isOsprey ? 1.0 : getHeliType(type).scale;
+        let s = _baseScale;
+        if (scaleOverride > 0) s = scaleOverride * _baseScale;
 
         function p(lx: number, ly: number, lz: number) {
             lx *= s; ly *= s; lz *= s;

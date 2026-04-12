@@ -16,7 +16,7 @@ import {
     type Rank,
 } from './session';
 import { zstate } from './state';
-import { initHeliSound, updateHeliSound, stopHeliSound, setSfxEnabled } from './heli-sound';
+import { initHeliSound, updateHeliSound, stopHeliSound, setSfxEnabled, isSfxEnabled } from './heli-sound';
 
 import HANGAR_DEF from './models/hangar.zdef';
 import LIGHTHOUSE_DEF from './models/lighthouse.zdef';
@@ -2563,13 +2563,6 @@ window.onload = () => {
     mountMpLobby();
     (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
     zinit();
-    mountMuteButton({
-        isMuted: () => soundHandler.state.isMuted,
-        onToggle: () => {
-            soundHandler.state.isMuted ? soundHandler.unmute() : soundHandler.mute();
-            refreshMuteButton(soundHandler.state.isMuted);
-        },
-    });
     mountBriefing();
     initBriefing(dismissBriefing);
     mountSettingsRankup();
@@ -2581,7 +2574,27 @@ window.onload = () => {
     // Apply saved preferences on startup
     if (!_getPref('zw_music', true)) soundHandler.mute();
     setSfxEnabled(_getPref('zw_sfx', true));
-    refreshMuteButton(soundHandler.state.isMuted);
+
+    // DEV mode: mute everything initially
+    if (import.meta.env.DEV) {
+        soundHandler.mute();
+        setSfxEnabled(false);
+    }
+
+    const _allMuted = () => soundHandler.state.isMuted && !isSfxEnabled();
+
+    mountMuteButton({
+        isMuted: _allMuted,
+        onToggle: () => {
+            const muted = _allMuted();
+            soundHandler.state.isMuted ? soundHandler.unmute() : soundHandler.mute();
+            setSfxEnabled(muted);
+            _setPref('zw_music', muted);
+            _setPref('zw_sfx', muted);
+            refreshMuteButton(_allMuted());
+        },
+    });
+    refreshMuteButton(_allMuted());
 
     initSettings({
         getSession: () => _session,
@@ -2593,12 +2606,13 @@ window.onload = () => {
         setMusicEnabled: (v: boolean) => {
             v ? soundHandler.unmute() : soundHandler.mute();
             _setPref('zw_music', v);
-            refreshMuteButton(soundHandler.state.isMuted);
+            refreshMuteButton(_allMuted());
         },
-        isSfxEnabled: () => _getPref('zw_sfx', true),
+        isSfxEnabled: () => isSfxEnabled(),
         setSfxEnabled: (v: boolean) => {
             setSfxEnabled(v);
             _setPref('zw_sfx', v);
+            refreshMuteButton(_allMuted());
         },
     });
     mountWhatsNew();

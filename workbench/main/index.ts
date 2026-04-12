@@ -70,7 +70,7 @@ function waitForVite(): Promise<void> {
   });
 }
 
-async function createWindow(): Promise<void> {
+async function createWindow(): Promise<BrowserWindow> {
   const preloadPath = path.join(__dirname, 'preload.cjs');
 
   const win = new BrowserWindow({
@@ -89,6 +89,7 @@ async function createWindow(): Promise<void> {
 
   await waitForVite();
   await win.loadURL(`http://localhost:${VITE_PORT}/workbench/renderer/index.html`);
+  return win;
 }
 
 app.whenReady().then(async () => {
@@ -279,7 +280,11 @@ app.whenReady().then(async () => {
     return { testResults, coverage, projectRoot: PROJECT_ROOT };
   });
 
-  await createWindow();
+  const win = await createWindow();
+
+  win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    win.webContents.send('console-message', { level, message, line, sourceId });
+  });
 });
 
 app.on('window-all-closed', () => {

@@ -105,7 +105,7 @@
     #root {
       display: flex;
       width: 100%;
-      height: calc(100vh - 36px);
+      height: calc(100vh - 36px - var(--console-h, 28px));
       overflow: hidden;
     }
 
@@ -523,6 +523,122 @@
     }
     .test-empty { padding: 20px 10px; font-size: 12px; color: var(--text-dim); font-style: italic; }
 
+    /* ── Console panel ───────────────────────────────────────────────────── */
+    #console-panel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 28px;
+      background: var(--bg2);
+      border-top: 2px solid var(--border);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #console-panel.open { height: var(--console-open-h, 220px); }
+
+    #console-resize-handle {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      cursor: ns-resize;
+      z-index: 1;
+    }
+    #console-resize-handle:hover { background: var(--accent); opacity: 0.5; }
+
+    #console-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      padding: 0 8px;
+      flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    #console-toggle-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    #console-panel.open #console-toggle-label { color: var(--text); }
+    #console-chevron { font-size: 9px; color: var(--text-dim); }
+    .console-filters {
+      display: flex;
+      gap: 2px;
+      margin-left: 6px;
+    }
+    .con-filter {
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 1px 6px;
+      cursor: pointer;
+    }
+    .con-filter:hover { color: var(--text); background: var(--bg4); }
+    .con-filter.active { border-color: var(--border); color: var(--text); background: var(--bg3); }
+    .con-badge {
+      display: inline-block;
+      background: var(--bg4);
+      border-radius: 8px;
+      padding: 0 4px;
+      font-size: 10px;
+      min-width: 14px;
+      text-align: center;
+    }
+    .con-badge.has-err { background: var(--error); color: #fff; }
+    .con-badge.has-warn { background: #a07030; color: #fff; }
+    #con-clear {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 1px 6px;
+      border-radius: 2px;
+    }
+    #con-clear:hover { background: var(--bg4); color: var(--text); }
+
+    #console-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      font-family: 'Fira Code', Consolas, monospace;
+      font-size: 11px;
+    }
+    #console-body::-webkit-scrollbar { width: 6px; }
+    #console-body::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    .con-entry {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 1px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      line-height: 1.5;
+    }
+    .con-entry:hover { background: var(--tree-hover); }
+    .con-icon { flex-shrink: 0; font-size: 10px; width: 12px; }
+    .con-msg  { flex: 1; white-space: pre-wrap; word-break: break-all; color: var(--text); }
+    .con-src  { flex-shrink: 0; color: var(--text-dim); font-size: 10px; white-space: nowrap; }
+    .con-entry.level-2 .con-msg { color: #ce9178; }
+    .con-entry.level-2 .con-icon { color: #ce9178; }
+    .con-entry.level-3 .con-msg { color: var(--error); }
+    .con-entry.level-3 .con-icon { color: var(--error); }
+    .con-entry.level-0 .con-msg { color: var(--text-dim); }
+
+    #console-empty {
+      padding: 8px 10px;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-style: italic;
+    }
+
     /* ── Overlay blocker during resize ──────────────────────────────────── */
     #iframe-blocker {
       display: none;
@@ -682,6 +798,24 @@
         <iframe src="http://localhost:5173/src/modelviewer.html" id="iframe-model"></iframe>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Console panel -->
+  <div id="console-panel">
+    <div id="console-resize-handle"></div>
+    <div id="console-header">
+      <span id="console-chevron">▶</span>
+      <span id="console-toggle-label">KONSOLE</span>
+      <div class="console-filters" id="con-filters">
+        <button class="con-filter active" data-level="all">Alle</button>
+        <button class="con-filter" data-level="3">Fehler <span class="con-badge" id="con-badge-err">0</span></button>
+        <button class="con-filter" data-level="2">Warn <span class="con-badge" id="con-badge-warn">0</span></button>
+      </div>
+      <button id="con-clear">✕ Leeren</button>
+    </div>
+    <div id="console-body">
+      <div id="console-empty">Keine Ausgaben.</div>
     </div>
   </div>
 
@@ -1786,6 +1920,141 @@
       if (btn.dataset.tab === 'editor') setTimeout(edRefreshPanel, 100);
     });
   });
+
+  // ── Console panel ─────────────────────────────────────────────────────────
+  {
+    const panel      = document.getElementById('console-panel');
+    const header     = document.getElementById('console-header');
+    const body       = document.getElementById('console-body');
+    const empty      = document.getElementById('console-empty');
+    const chevron    = document.getElementById('console-chevron');
+    const badgeErr   = document.getElementById('con-badge-err');
+    const badgeWarn  = document.getElementById('con-badge-warn');
+    const resizeHnd  = document.getElementById('console-resize-handle');
+
+    let conOpen     = false;
+    let conFilter   = 'all';
+    let errCount    = 0;
+    let warnCount   = 0;
+    let openHeight  = 220;
+    const entries   = [];  // { level, message, line, sourceId }
+
+    const ICONS = { 0: '·', 1: '·', 2: '⚠', 3: '✕' };
+
+    const shortSrc = (src, line) => {
+      if (!src) return '';
+      const file = src.split('/').pop().split('?')[0];
+      return line ? `${file}:${line}` : file;
+    };
+
+    const applyHeight = () => {
+      const h = conOpen ? openHeight : 28;
+      document.documentElement.style.setProperty('--console-h', h + 'px');
+      document.documentElement.style.setProperty('--console-open-h', openHeight + 'px');
+      panel.classList.toggle('open', conOpen);
+      chevron.textContent = conOpen ? '▼' : '▶';
+    };
+
+    const renderEntries = () => {
+      const visible = conFilter === 'all' ? entries : entries.filter(e => e.level === +conFilter);
+      body.innerHTML = '';
+      if (visible.length === 0) {
+        body.appendChild(empty);
+        empty.textContent = entries.length === 0 ? 'Keine Ausgaben.' : 'Kein Treffer für diesen Filter.';
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      visible.forEach(e => {
+        const row = document.createElement('div');
+        row.className = `con-entry level-${e.level}`;
+        row.innerHTML =
+          `<span class="con-icon">${ICONS[e.level] ?? '·'}</span>` +
+          `<span class="con-msg">${e.message.replace(/</g, '&lt;')}</span>` +
+          `<span class="con-src">${shortSrc(e.sourceId, e.line)}</span>`;
+        frag.appendChild(row);
+      });
+      body.appendChild(frag);
+      body.scrollTop = body.scrollHeight;
+    };
+
+    const updateBadges = () => {
+      badgeErr.textContent  = String(errCount);
+      badgeWarn.textContent = String(warnCount);
+      badgeErr.className  = 'con-badge' + (errCount  > 0 ? ' has-err'  : '');
+      badgeWarn.className = 'con-badge' + (warnCount > 0 ? ' has-warn' : '');
+    };
+
+    // Toggle open/close on header click
+    header.addEventListener('click', e => {
+      if (e.target.closest('.con-filter, #con-clear')) return;
+      conOpen = !conOpen;
+      applyHeight();
+    });
+
+    // Filter buttons
+    document.getElementById('con-filters').addEventListener('click', e => {
+      const btn = e.target.closest('.con-filter');
+      if (!btn) return;
+      e.stopPropagation();
+      conFilter = btn.dataset.level;
+      document.querySelectorAll('.con-filter').forEach(b => b.classList.toggle('active', b === btn));
+      if (!conOpen) { conOpen = true; applyHeight(); }
+      renderEntries();
+    });
+
+    // Clear
+    document.getElementById('con-clear').addEventListener('click', e => {
+      e.stopPropagation();
+      entries.length = 0;
+      errCount = warnCount = 0;
+      updateBadges();
+      renderEntries();
+    });
+
+    // Resize handle drag
+    let dragY = 0, dragH = 0;
+    resizeHnd.addEventListener('mousedown', e => {
+      e.preventDefault();
+      dragY = e.clientY;
+      dragH = openHeight;
+      const blocker = document.getElementById('iframe-blocker');
+      blocker.classList.add('active');
+      const onMove = ev => {
+        const delta = dragY - ev.clientY;
+        openHeight = Math.max(80, Math.min(window.innerHeight - 100, dragH + delta));
+        if (conOpen) applyHeight();
+      };
+      const onUp = () => {
+        blocker.classList.remove('active');
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    // Receive messages from main process
+    wb.onConsoleMessage(msg => {
+      entries.push(msg);
+      if (msg.level === 3) { errCount++; updateBadges(); }
+      if (msg.level === 2) { warnCount++; updateBadges(); }
+      // Auto-open on errors
+      if (msg.level === 3 && !conOpen) { conOpen = true; applyHeight(); }
+      if (conFilter === 'all' || +conFilter === msg.level) {
+        empty.remove();
+        const row = document.createElement('div');
+        row.className = `con-entry level-${msg.level}`;
+        row.innerHTML =
+          `<span class="con-icon">${ICONS[msg.level] ?? '·'}</span>` +
+          `<span class="con-msg">${msg.message.replace(/</g, '&lt;')}</span>` +
+          `<span class="con-src">${shortSrc(msg.sourceId, msg.line)}</span>`;
+        body.appendChild(row);
+        body.scrollTop = body.scrollHeight;
+      }
+    });
+
+    applyHeight();
+  }
   </script>
 
   <script type="module">

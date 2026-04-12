@@ -1,3 +1,5 @@
+import './mute-button.css';
+
 const HTML = `
 <svg xmlns="http://www.w3.org/2000/svg" id="audio-mute-inactive" viewBox="0 0 32 32" width="32" height="32">
   <defs><filter id="glow"><feGaussianBlur stdDeviation="1.5" result="blur"/>
@@ -30,9 +32,14 @@ type MuteButtonDeps = {
     onToggle: () => void;
 };
 
+const _ensureEl = (id: string): HTMLElement => {
+    let el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+    return el;
+};
+
 export const mountMuteButton = (deps: MuteButtonDeps) => {
-    const el = document.getElementById('audio-mute');
-    if (!el) return;
+    const el = _ensureEl('audio-mute');
     el.innerHTML = HTML;
     el.onclick = (evt) => { evt.preventDefault(); deps.onToggle(); };
 };

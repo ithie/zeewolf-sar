@@ -34,6 +34,8 @@ interface HeliSoundNodes {
 let _nodes: HeliSoundNodes | null = null;
 let _sfxEnabled = true;
 
+export const isSfxEnabled = (): boolean => _sfxEnabled;
+
 export const setSfxEnabled = (enabled: boolean): void => {
     _sfxEnabled = enabled;
     if (_nodes && !enabled) {
