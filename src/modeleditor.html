@@ -79,6 +79,12 @@
     #canvas { display: block; position: absolute; top: 0; left: 0; }
     #hint { position: absolute; bottom: 8px; right: 8px; font-size: 10px;
       color: rgba(255,255,255,0.25); pointer-events: none; }
+    #quad-overlays { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .quad-reset { position: absolute; width: 20px; height: 20px; padding: 0; font-size: 13px;
+      line-height: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(30,30,30,0.75); color: rgba(255,255,255,0.35); border-radius: 2px;
+      cursor: pointer; pointer-events: all; }
+    .quad-reset:hover { background: rgba(100,180,255,0.25); color: #fff; border-color: rgba(100,180,255,0.5); }
   </style>
 </head>
 <body>
@@ -138,16 +144,6 @@
     <!-- View controls -->
     <div class="sec">
       <div class="sec-title">Ansicht</div>
-      <div class="row">
-        <label>Rotation:</label>
-        <input type="range" id="view-angle" min="0" max="360" value="225" style="flex:1">
-        <span id="view-angle-val" style="width:32px;text-align:right;font-size:10px">225°</span>
-      </div>
-      <div class="row">
-        <label>Zoom:</label>
-        <input type="range" id="view-zoom" min="0.5" max="12" step="0.5" value="3" style="flex:1">
-        <span id="view-zoom-val" style="width:32px;text-align:right;font-size:10px">3.0×</span>
-      </div>
       <label><input type="checkbox" id="show-cboxes" checked> Kollisionsboxen</label>
     </div>
 
@@ -202,12 +198,42 @@
       </div>
     </div>
 
+    <!-- Grid floor -->
+    <div class="sec">
+      <div class="sec-title">Boden-Gitter</div>
+      <label><input type="checkbox" id="grid-visible" checked> Sichtbar</label>
+      <div class="row" style="margin-top:5px">
+        <label>X:</label><input type="number" id="grid-x" step="0.5" value="0" style="width:52px">
+        <label>Y:</label><input type="number" id="grid-y" step="0.5" value="0" style="width:52px">
+        <label>Z:</label><input type="number" id="grid-z" step="0.5" value="0" style="width:52px">
+      </div>
+      <div style="margin-top:5px;font-size:10px;color:var(--dim)">Klick = wählen · Shift+Ziehen = verschieben · ESC = abwählen</div>
+    </div>
+
+    <!-- Grid wall -->
+    <div class="sec">
+      <div class="sec-title">Wand-Gitter</div>
+      <label><input type="checkbox" id="gridv-visible" checked> Sichtbar</label>
+      <div class="row" style="margin-top:5px">
+        <label>X:</label><input type="number" id="gridv-x" step="0.5" value="0" style="width:52px">
+        <label>Y:</label><input type="number" id="gridv-y" step="0.5" value="0" style="width:52px">
+        <label>Z:</label><input type="number" id="gridv-z" step="0.5" value="0" style="width:52px">
+      </div>
+      <div style="margin-top:5px;font-size:10px;color:var(--dim)">Klick = wählen · Shift+Ziehen = verschieben · ESC = abwählen</div>
+    </div>
+
   </div>
 
   <!-- ── Canvas ── -->
   <div id="canvas-area">
     <canvas id="canvas"></canvas>
-    <div id="hint">Scrollen = Zoom · Ziehen = Kamera · Klick = Fläche/Vertex</div>
+    <div id="quad-overlays">
+      <button class="quad-reset" data-q="0">⟳</button>
+      <button class="quad-reset" data-q="1">⟳</button>
+      <button class="quad-reset" data-q="2">⟳</button>
+      <button class="quad-reset" data-q="3">⟳</button>
+    </div>
+    <div id="hint">Scrollen = Zoom · Ziehen = Kamera · Shift+Ziehen = Rotation · Vertex ziehen = XY · Shift+Vertex = Z · Klick = Fläche/Vertex</div>
   </div>
 </div>
 
@@ -257,23 +283,36 @@ const state = {
   filename: null,
 };
 
-let cam       = { x: 0, y: 0 };
-let zoom      = 3.0;
-let viewAngle = (225 / 180) * Math.PI;
+const DEG = Math.PI / 180;
+const QUAD_DEFAULT_ANGLES = [225, 315, 135, 45];
+const quads = QUAD_DEFAULT_ANGLES.map(a => ({ angle: a * DEG, defaultAngle: a * DEG, cam: { x: 0, y: 0 }, zoom: 3.0 }));
+let activeQ = 0, lockedQ = 0;
+let renderCx = 0, renderCy = 0, renderZoom = 3.0, renderViewAngle = 225 * DEG;
+let renderCam = quads[0].cam;
+const grid    = { visible: true, x: 0, y: 0, z: 0, selected: false };
+const gridV   = { visible: true, x: 0, y: 0, z: 0, selected: false };
+const gridDrag = { active: false, moved: false, target: 'floor', snapFaceIdx: -1, snapVertIdx: -1 };
 
 // ── Canvas setup ───────────────────────────────────────────────────────────────
 const area   = document.getElementById('canvas-area');
 const canvas = document.getElementById('canvas');
 const ctx    = canvas.getContext('2d');
 
-function resize() { canvas.width = area.clientWidth; canvas.height = area.clientHeight; draw(); }
+const positionResetButtons = () => {
+  const qw = area.clientWidth / 2, qh = area.clientHeight / 2;
+  document.querySelectorAll('.quad-reset').forEach((btn, q) => {
+    btn.style.top  = (Math.floor(q / 2) * qh + 4) + 'px';
+    btn.style.left = ((q % 2) * qw + qw - 24) + 'px';
+  });
+};
+function resize() { canvas.width = area.clientWidth; canvas.height = area.clientHeight; positionResetButtons(); draw(); }
 new ResizeObserver(resize).observe(area);
 
 // ── Isometric projection (world-space, same signature as game / modelviewer) ──
 function iso(wx, wy, wz, camX, camY) {
   return {
-    x: canvas.width  / 2 + (wx - wy) * (TW * zoom / 2) - camX,
-    y: canvas.height / 2 + (wx + wy) * (TH * zoom / 2) - wz * SH * zoom - camY,
+    x: renderCx + (wx - wy) * (TW * renderZoom / 2) - camX,
+    y: renderCy + (wx + wy) * (TH * renderZoom / 2) - wz * SH * renderZoom - camY,
   };
 }
 
@@ -282,8 +321,8 @@ const SceneRenderer = createSceneRenderer(ctx, iso);
 
 // Project a local model coordinate to screen (for overlays: highlights, vertex dots, arrow)
 function localToScreen(lx, ly, lz) {
-  const cosA = Math.cos(viewAngle), sinA = Math.sin(viewAngle);
-  return iso(lx * cosA - ly * sinA, lx * sinA + ly * cosA, lz, cam.x, cam.y);
+  const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
+  return iso(lx * cosA - ly * sinA, lx * sinA + ly * cosA, lz, renderCam.x, renderCam.y);
 }
 
 // ── Drawing ────────────────────────────────────────────────────────────────────
@@ -301,60 +340,148 @@ function drawDirectionArrow() {
   ctx.closePath(); ctx.fill();
 }
 
+const drawGrid = () => {
+  if (!grid.visible) return;
+  const H = 8, STEP = 1;
+  ctx.save();
+  ctx.lineWidth = 1;
+
+  // Grid lines
+  ctx.strokeStyle = grid.selected ? 'rgba(100,180,255,0.45)' : 'rgba(100,140,180,0.22)';
+  for (let yi = -H; yi <= H; yi += STEP) {
+    const p0 = localToScreen(grid.x - H, grid.y + yi, grid.z);
+    const p1 = localToScreen(grid.x + H, grid.y + yi, grid.z);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  }
+  for (let xi = -H; xi <= H; xi += STEP) {
+    const p0 = localToScreen(grid.x + xi, grid.y - H, grid.z);
+    const p1 = localToScreen(grid.x + xi, grid.y + H, grid.z);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  }
+
+  // Center axes (brighter)
+  ctx.strokeStyle = grid.selected ? 'rgba(120,200,255,0.75)' : 'rgba(160,190,230,0.40)';
+  ctx.lineWidth = 1.5;
+  const ax0 = localToScreen(grid.x - H, grid.y, grid.z), ax1 = localToScreen(grid.x + H, grid.y, grid.z);
+  ctx.beginPath(); ctx.moveTo(ax0.x, ax0.y); ctx.lineTo(ax1.x, ax1.y); ctx.stroke();
+  const ay0 = localToScreen(grid.x, grid.y - H, grid.z), ay1 = localToScreen(grid.x, grid.y + H, grid.z);
+  ctx.beginPath(); ctx.moveTo(ay0.x, ay0.y); ctx.lineTo(ay1.x, ay1.y); ctx.stroke();
+
+  ctx.restore();
+};
+
+const drawGridV = () => {
+  if (!gridV.visible) return;
+  const H = 8, STEP = 1;
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = gridV.selected ? 'rgba(255,160,100,0.45)' : 'rgba(180,140,100,0.22)';
+  for (let zi = -H; zi <= H; zi += STEP) {
+    const p0 = localToScreen(gridV.x - H, gridV.y, gridV.z + zi);
+    const p1 = localToScreen(gridV.x + H, gridV.y, gridV.z + zi);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  }
+  for (let xi = -H; xi <= H; xi += STEP) {
+    const p0 = localToScreen(gridV.x + xi, gridV.y, gridV.z - H);
+    const p1 = localToScreen(gridV.x + xi, gridV.y, gridV.z + H);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  }
+  ctx.strokeStyle = gridV.selected ? 'rgba(255,180,120,0.75)' : 'rgba(220,180,140,0.40)';
+  ctx.lineWidth = 1.5;
+  const ax0 = localToScreen(gridV.x - H, gridV.y, gridV.z), ax1 = localToScreen(gridV.x + H, gridV.y, gridV.z);
+  ctx.beginPath(); ctx.moveTo(ax0.x, ax0.y); ctx.lineTo(ax1.x, ax1.y); ctx.stroke();
+  const az0 = localToScreen(gridV.x, gridV.y, gridV.z - H), az1 = localToScreen(gridV.x, gridV.y, gridV.z + H);
+  ctx.beginPath(); ctx.moveTo(az0.x, az0.y); ctx.lineTo(az1.x, az1.y); ctx.stroke();
+  ctx.restore();
+};
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!state.def) {
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.font = '13px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('Kein Modell geladen — Preset wählen oder Datei öffnen', canvas.width / 2, canvas.height / 2);
-    return;
-  }
+  const qw = canvas.width / 2, qh = canvas.height / 2;
+  const showCboxes = document.getElementById('show-cboxes').checked;
 
-  // Highlight selected face via color override; SceneRenderer handles culling + depth sort
-  const colors = {};
-  if (state.selectedFaceIdx >= 0 && state.def.faces[state.selectedFaceIdx]) {
-    colors[state.def.faces[state.selectedFaceIdx].id] = '#ffdd44';
-  }
+  for (let q = 0; q < 4; q++) {
+    setRenderContext(q);
+    const col = q % 2, row = Math.floor(q / 2);
+    const ox = col * qw, oy = row * qh;
 
-  SceneRenderer.debugCollision = document.getElementById('show-cboxes').checked;
-  SceneRenderer.add(state.def, { x: 0, y: 0, angle: viewAngle, colors });
-  SceneRenderer.flush(cam.x, cam.y);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(ox, oy, qw, qh); ctx.clip();
 
-  // Selected face outline (drawn after flush so it's always on top)
-  if (state.selectedFaceIdx >= 0) {
-    const face = state.def.faces[state.selectedFaceIdx];
-    if (face && face.verts.length >= 2) {
-      const pts = face.verts.map(v => localToScreen(v[0], v[1], v[2]));
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-      ctx.closePath();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    drawGrid();
+    drawGridV();
+
+    if (!state.def) {
+      ctx.fillStyle = 'rgba(255,255,255,0.07)';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Kein Modell', ox + qw / 2, oy + qh / 2);
+    } else {
+      const colors = {};
+      if (state.selectedFaceIdx >= 0 && state.def.faces[state.selectedFaceIdx]) {
+        colors[state.def.faces[state.selectedFaceIdx].id] = '#ffdd44';
+      }
+      SceneRenderer.debugCollision = showCboxes;
+      SceneRenderer.add(state.def, { x: 0, y: 0, angle: renderViewAngle, colors });
+      SceneRenderer.flush(renderCam.x, renderCam.y);
+
+      if (state.selectedFaceIdx >= 0) {
+        const face = state.def.faces[state.selectedFaceIdx];
+        if (face && face.verts.length >= 2) {
+          const pts = face.verts.map(v => localToScreen(v[0], v[1], v[2]));
+          ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+          ctx.closePath(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+        }
+      }
+
+      if (!state.meta.isStatic) drawDirectionArrow();
+
+      if (state.selectedFaceIdx >= 0) {
+        const face = state.def.faces[state.selectedFaceIdx];
+        if (face) {
+          face.verts.forEach((v, i) => {
+            const pt = localToScreen(v[0], v[1], v[2]);
+            const sel = i === state.selectedVertIdx;
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, sel ? 5 : 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = sel ? '#ff4444' : '#ffee00'; ctx.fill();
+            ctx.strokeStyle = sel ? '#fff' : '#888'; ctx.lineWidth = 1; ctx.stroke();
+          });
+        }
+      }
+
+      if (gridDrag.active && gridDrag.snapFaceIdx >= 0) {
+        const snapFace = state.def.faces[gridDrag.snapFaceIdx];
+        if (snapFace) {
+          const sv = snapFace.verts[gridDrag.snapVertIdx];
+          const spt = localToScreen(sv[0], sv[1], sv[2]);
+          ctx.beginPath(); ctx.arc(spt.x, spt.y, 8, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ffee00'; ctx.lineWidth = 2; ctx.stroke();
+        }
+      }
     }
+
+    // Quadrant border
+    ctx.strokeStyle = q === activeQ ? 'rgba(100,180,255,0.55)' : 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = q === activeQ ? 2 : 1;
+    ctx.strokeRect(ox + 0.5, oy + 0.5, qw - 1, qh - 1);
+
+    // Angle label
+    const deg = ((Math.round(quads[q].angle * 180 / Math.PI) % 360) + 360) % 360;
+    ctx.fillStyle = q === activeQ ? 'rgba(140,200,255,0.8)' : 'rgba(255,255,255,0.2)';
+    ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(`${deg}°`, ox + 6, oy + 14);
+
+    ctx.restore();
   }
 
-  if (!state.meta.isStatic) drawDirectionArrow();
-
-  // Vertex dots for selected face
-  if (state.selectedFaceIdx >= 0) {
-    const face = state.def.faces[state.selectedFaceIdx];
-    if (face) {
-      face.verts.forEach((v, i) => {
-        const pt = localToScreen(v[0], v[1], v[2]);
-        const sel = i === state.selectedVertIdx;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, sel ? 5 : 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = sel ? '#ff4444' : '#ffee00';
-        ctx.fill();
-        ctx.strokeStyle = sel ? '#fff' : '#888';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      });
-    }
-  }
+  // Dividing lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(qw, 0); ctx.lineTo(qw, canvas.height);
+  ctx.moveTo(0, qh); ctx.lineTo(canvas.width, qh);
+  ctx.stroke();
 }
 
 // ── Sidebar render ─────────────────────────────────────────────────────────────
@@ -505,6 +632,74 @@ function toColorInput(c) {
 
 function markDirty() { state.dirty = true; }
 
+const getQuadrant = (mx, my) => (mx < canvas.width / 2 ? 0 : 1) + (my < canvas.height / 2 ? 0 : 2);
+
+const setRenderContext = (q) => {
+  const qw = canvas.width / 2, qh = canvas.height / 2;
+  renderCx = (q % 2) * qw + qw / 2;
+  renderCy = Math.floor(q / 2) * qh + qh / 2;
+  renderZoom = quads[q].zoom;
+  renderViewAngle = quads[q].angle;
+  renderCam = quads[q].cam;
+};
+
+const hitTestGrid = (mx, my) => {
+  if (!grid.visible) return false;
+  const H = 8;
+  const corners = [
+    localToScreen(grid.x - H, grid.y - H, grid.z),
+    localToScreen(grid.x + H, grid.y - H, grid.z),
+    localToScreen(grid.x + H, grid.y + H, grid.z),
+    localToScreen(grid.x - H, grid.y + H, grid.z),
+  ];
+  return pointInPolygon(mx, my, corners);
+};
+
+const hitTestGridV = (mx, my) => {
+  if (!gridV.visible) return false;
+  const H = 8;
+  const corners = [
+    localToScreen(gridV.x - H, gridV.y, gridV.z - H),
+    localToScreen(gridV.x + H, gridV.y, gridV.z - H),
+    localToScreen(gridV.x + H, gridV.y, gridV.z + H),
+    localToScreen(gridV.x - H, gridV.y, gridV.z + H),
+  ];
+  return pointInPolygon(mx, my, corners);
+};
+
+const syncGridUI = () => {
+  document.getElementById('grid-x').value  = grid.x.toFixed(2);
+  document.getElementById('grid-y').value  = grid.y.toFixed(2);
+  document.getElementById('grid-z').value  = grid.z.toFixed(2);
+  document.getElementById('gridv-x').value = gridV.x.toFixed(2);
+  document.getElementById('gridv-y').value = gridV.y.toFixed(2);
+  document.getElementById('gridv-z').value = gridV.z.toFixed(2);
+};
+
+const snapGrid = () => {
+  if (!state.def) { gridDrag.snapFaceIdx = -1; gridDrag.snapVertIdx = -1; return; }
+  const g = gridDrag.target === 'wall' ? gridV : grid;
+  const T = 0.35;
+  let bestDist = Infinity, bestFi = -1, bestVi = -1;
+  for (let fi = 0; fi < state.def.faces.length; fi++) {
+    for (let vi = 0; vi < state.def.faces[fi].verts.length; vi++) {
+      const v = state.def.faces[fi].verts[vi];
+      const d = Math.min(Math.abs(v[2] - g.z), Math.hypot(v[0] - g.x, v[1] - g.y));
+      if (d < bestDist) { bestDist = d; bestFi = fi; bestVi = vi; }
+    }
+  }
+  if (bestFi >= 0 && bestDist < T) {
+    const v = state.def.faces[bestFi].verts[bestVi];
+    if (Math.abs(v[2] - g.z) < T) g.z = v[2];
+    if (Math.hypot(v[0] - g.x, v[1] - g.y) < T) { g.x = v[0]; g.y = v[1]; }
+    gridDrag.snapFaceIdx = bestFi;
+    gridDrag.snapVertIdx = bestVi;
+  } else {
+    gridDrag.snapFaceIdx = -1;
+    gridDrag.snapVertIdx = -1;
+  }
+};
+
 function pointInPolygon(mx, my, pts) {
   let inside = false;
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
@@ -517,69 +712,205 @@ function pointInPolygon(mx, my, pts) {
 // ── Canvas interaction ─────────────────────────────────────────────────────────
 let isDragging = false, dragMoved = false;
 let lastMouse  = { x: 0, y: 0 };
+const vertDrag = { active: false, vertIdx: -1, moved: false };
+
+const hitTestVertex = (mx, my) => {
+  if (state.selectedFaceIdx < 0 || !state.def) return -1;
+  const face = state.def.faces[state.selectedFaceIdx];
+  if (!face) return -1;
+  for (let i = 0; i < face.verts.length; i++) {
+    const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
+    if (Math.hypot(mx - pt.x, my - pt.y) < 8) return i;
+  }
+  return -1;
+};
+
+const syncVertRow = (face, i) => {
+  const row = document.querySelector(`#vert-list .vert-row[data-i="${i}"]`);
+  if (!row) return;
+  const v = face.verts[i];
+  row.querySelector('.vx').value = v[0].toFixed(3);
+  row.querySelector('.vy').value = v[1].toFixed(3);
+  row.querySelector('.vz').value = v[2].toFixed(3);
+};
 
 area.addEventListener('mousedown', e => {
-  isDragging = true; dragMoved = false;
-  lastMouse  = { x: e.clientX, y: e.clientY };
-});
-window.addEventListener('mouseup', () => { isDragging = false; });
-window.addEventListener('mousemove', e => {
-  if (!isDragging) return;
-  const dx = e.clientX - lastMouse.x, dy = e.clientY - lastMouse.y;
-  if (Math.abs(dx) + Math.abs(dy) > 3) dragMoved = true;
-  cam.x -= dx; cam.y -= dy;
+  vertDrag.moved = false;
+  gridDrag.moved = false;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  activeQ = getQuadrant(mx, my);
+  lockedQ = activeQ;
+  setRenderContext(lockedQ);
+  const vi = hitTestVertex(mx, my);
+  if (vi >= 0) {
+    vertDrag.active = true;
+    vertDrag.vertIdx = vi;
+    area.style.cursor = 'grabbing';
+    if (state.selectedVertIdx !== vi) {
+      state.selectedVertIdx = vi;
+      renderFaceEditor();
+      draw();
+    }
+  } else if (e.shiftKey && grid.selected && grid.visible && hitTestGrid(mx, my)) {
+    gridDrag.active = true;
+    gridDrag.target = 'floor';
+    area.style.cursor = 'grabbing';
+  } else if (e.shiftKey && gridV.selected && gridV.visible && hitTestGridV(mx, my)) {
+    gridDrag.active = true;
+    gridDrag.target = 'wall';
+    area.style.cursor = 'grabbing';
+  } else {
+    isDragging = true;
+    dragMoved = false;
+  }
   lastMouse = { x: e.clientX, y: e.clientY };
-  draw();
+});
+
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  vertDrag.active = false;
+  gridDrag.active = false;
+  gridDrag.snapFaceIdx = -1;
+  gridDrag.snapVertIdx = -1;
+  area.style.cursor = '';
+});
+
+window.addEventListener('mousemove', e => {
+  const dsx = e.clientX - lastMouse.x;
+  const dsy = e.clientY - lastMouse.y;
+  lastMouse = { x: e.clientX, y: e.clientY };
+
+  if (vertDrag.active && state.selectedFaceIdx >= 0 && state.def) {
+    setRenderContext(lockedQ);
+    const face = state.def.faces[state.selectedFaceIdx];
+    if (face && (Math.abs(dsx) + Math.abs(dsy) > 0)) {
+      const v = face.verts[vertDrag.vertIdx];
+      if (e.shiftKey) {
+        v[2] -= dsy / (SH * renderZoom);
+      } else {
+        const tw2 = TW * renderZoom / 2, th2 = TH * renderZoom / 2;
+        const dwx = (dsx / tw2 + dsy / th2) / 2;
+        const dwy = (dsy / th2 - dsx / tw2) / 2;
+        const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
+        v[0] +=  dwx * cosA + dwy * sinA;
+        v[1] += -dwx * sinA + dwy * cosA;
+      }
+      vertDrag.moved = true;
+      markDirty();
+      syncVertRow(face, vertDrag.vertIdx);
+      draw();
+    }
+    return;
+  }
+
+  if (gridDrag.active && (Math.abs(dsx) + Math.abs(dsy) > 0)) {
+    setRenderContext(lockedQ);
+    const g = gridDrag.target === 'wall' ? gridV : grid;
+    const tw2 = TW * renderZoom / 2;
+    const dwx = dsx / tw2 / 2, dwy = -dsx / tw2 / 2;
+    const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
+    g.x +=  dwx * cosA + dwy * sinA;
+    g.y += -dwx * sinA + dwy * cosA;
+    g.z -= dsy / (SH * renderZoom);
+    gridDrag.moved = true;
+    snapGrid();
+    syncGridUI();
+    draw();
+    return;
+  }
+
+  if (isDragging) {
+    if (Math.abs(dsx) + Math.abs(dsy) > 3) dragMoved = true;
+    if (e.shiftKey) {
+      quads[lockedQ].angle = (quads[lockedQ].angle + dsx * 0.008) % (Math.PI * 2);
+      if (quads[lockedQ].angle < 0) quads[lockedQ].angle += Math.PI * 2;
+    } else {
+      quads[lockedQ].cam.x -= dsx;
+      quads[lockedQ].cam.y -= dsy;
+    }
+    draw();
+  }
+});
+
+area.addEventListener('mousemove', e => {
+  if (vertDrag.active || isDragging || gridDrag.active) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const newQ = getQuadrant(mx, my);
+  if (newQ !== activeQ) { activeQ = newQ; draw(); }
+  setRenderContext(activeQ);
+  const vi = hitTestVertex(mx, my);
+  if (vi >= 0) { area.style.cursor = 'grab'; return; }
+  if (grid.visible && grid.selected && e.shiftKey && hitTestGrid(mx, my)) { area.style.cursor = 'grab'; return; }
+  if (gridV.visible && gridV.selected && e.shiftKey && hitTestGridV(mx, my)) { area.style.cursor = 'grab'; return; }
+  area.style.cursor = '';
 });
 
 // Centroid depth for picking sort only (front face = highest wx+wy)
 function faceCentroidDepth(face) {
-  const cosA = Math.cos(viewAngle), sinA = Math.sin(viewAngle);
+  const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
   let d = 0;
   for (const v of face.verts) d += v[0] * cosA - v[1] * sinA + v[0] * sinA + v[1] * cosA;
   return d / face.verts.length;
 }
 
 area.addEventListener('click', e => {
-  if (dragMoved || !state.def) return;
+  if (dragMoved || vertDrag.moved || gridDrag.moved) return;
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  setRenderContext(lockedQ);
 
-  // Vertex picking (selected face only)
-  if (state.selectedFaceIdx >= 0) {
-    const face = state.def.faces[state.selectedFaceIdx];
-    if (face) {
-      for (let i = 0; i < face.verts.length; i++) {
-        const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
-        if (Math.hypot(mx - pt.x, my - pt.y) < 8) {
-          state.selectedVertIdx = i;
-          renderFaceEditor(); draw(); return;
+  if (state.def) {
+    // Vertex picking (selected face only)
+    if (state.selectedFaceIdx >= 0) {
+      const face = state.def.faces[state.selectedFaceIdx];
+      if (face) {
+        for (let i = 0; i < face.verts.length; i++) {
+          const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
+          if (Math.hypot(mx - pt.x, my - pt.y) < 8) {
+            state.selectedVertIdx = i;
+            renderFaceEditor(); draw(); return;
+          }
         }
       }
     }
+
+    // Face picking: front to back (highest depth first), skip backface-culled faces
+    const faces = state.def.faces;
+    const order = faces.map((_, i) => i).sort((a, b) => faceCentroidDepth(faces[b]) - faceCentroidDepth(faces[a]));
+    for (const i of order) {
+      const f = faces[i];
+      if (f.normal) {
+        const [nx, ny] = f.normal;
+        const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
+        if ((nx * cosA - ny * sinA) + (nx * sinA + ny * cosA) <= 0) continue;
+      }
+      const pts = f.verts.map(v => localToScreen(v[0], v[1], v[2]));
+      if (pointInPolygon(mx, my, pts)) { selectFace(i); return; }
+    }
   }
 
-  // Face picking: front to back (highest depth first), skip backface-culled faces
-  const faces = state.def.faces;
-  const order = faces.map((_, i) => i).sort((a, b) => faceCentroidDepth(faces[b]) - faceCentroidDepth(faces[a]));
-  for (const i of order) {
-    const f = faces[i];
-    if (f.normal) {
-      const [nx, ny] = f.normal;
-      const cosA = Math.cos(viewAngle), sinA = Math.sin(viewAngle);
-      if ((nx * cosA - ny * sinA) + (nx * sinA + ny * cosA) <= 0) continue;
-    }
-    const pts = f.verts.map(v => localToScreen(v[0], v[1], v[2]));
-    if (pointInPolygon(mx, my, pts)) { selectFace(i); return; }
+  // Grid selection (works without model too)
+  if (grid.visible && hitTestGrid(mx, my)) { grid.selected = true; draw(); return; }
+  if (gridV.visible && hitTestGridV(mx, my)) { gridV.selected = true; draw(); return; }
+  if (grid.selected) { grid.selected = false; draw(); }
+  else if (gridV.selected) { gridV.selected = false; draw(); }
+});
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (grid.selected) { grid.selected = false; draw(); }
+    else if (gridV.selected) { gridV.selected = false; draw(); }
   }
 });
 
 area.addEventListener('wheel', e => {
   e.preventDefault();
-  zoom *= e.deltaY > 0 ? 0.9 : 1.1;
-  zoom = Math.max(0.5, Math.min(20, zoom));
-  document.getElementById('view-zoom').value = zoom;
-  document.getElementById('view-zoom-val').textContent = zoom.toFixed(1) + '×';
+  const rect = canvas.getBoundingClientRect();
+  const q = getQuadrant(e.clientX - rect.left, e.clientY - rect.top);
+  quads[q].zoom *= e.deltaY > 0 ? 0.9 : 1.1;
+  quads[q].zoom = Math.max(0.5, Math.min(20, quads[q].zoom));
   draw();
 }, { passive: false });
 
@@ -604,16 +935,6 @@ document.querySelectorAll('input[name="mobil"]').forEach(r => {
 });
 document.getElementById('move-type').addEventListener('change', e => { state.meta.movementType = e.target.value; markDirty(); });
 
-document.getElementById('view-angle').addEventListener('input', e => {
-  viewAngle = (parseInt(e.target.value) / 180) * Math.PI;
-  document.getElementById('view-angle-val').textContent = e.target.value + '°';
-  draw();
-});
-document.getElementById('view-zoom').addEventListener('input', e => {
-  zoom = parseFloat(e.target.value);
-  document.getElementById('view-zoom-val').textContent = zoom.toFixed(1) + '×';
-  draw();
-});
 document.getElementById('show-cboxes').addEventListener('change', () => draw());
 
 // Face editor events
@@ -715,6 +1036,34 @@ document.getElementById('btn-add-cbox').addEventListener('click', () => {
   if (!state.def.collisionBoxes) state.def.collisionBoxes = [];
   state.def.collisionBoxes.push({ id: 'box_' + state.def.collisionBoxes.length, xMin:-1,xMax:1,yMin:-1,yMax:1,zMin:0,zMax:1 });
   markDirty(); renderCboxList(); draw();
+});
+
+// ── Grid UI events ─────────────────────────────────────────────────────────────
+document.getElementById('grid-visible').addEventListener('change', e => {
+  grid.visible = e.target.checked;
+  if (!grid.visible) grid.selected = false;
+  draw();
+});
+document.getElementById('grid-x').addEventListener('input', e => { grid.x = parseFloat(e.target.value) || 0; draw(); });
+document.getElementById('grid-y').addEventListener('input', e => { grid.y = parseFloat(e.target.value) || 0; draw(); });
+document.getElementById('grid-z').addEventListener('input', e => { grid.z = parseFloat(e.target.value) || 0; draw(); });
+
+document.getElementById('gridv-visible').addEventListener('change', e => {
+  gridV.visible = e.target.checked;
+  if (!gridV.visible) gridV.selected = false;
+  draw();
+});
+document.getElementById('gridv-x').addEventListener('input', e => { gridV.x = parseFloat(e.target.value) || 0; draw(); });
+document.getElementById('gridv-y').addEventListener('input', e => { gridV.y = parseFloat(e.target.value) || 0; draw(); });
+document.getElementById('gridv-z').addEventListener('input', e => { gridV.z = parseFloat(e.target.value) || 0; draw(); });
+
+document.querySelectorAll('.quad-reset').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const q = parseInt(btn.dataset.q);
+    quads[q].angle = quads[q].defaultAngle;
+    draw();
+  });
 });
 
 // ── Serialization ──────────────────────────────────────────────────────────────
