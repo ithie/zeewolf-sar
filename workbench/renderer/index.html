@@ -390,6 +390,32 @@
       background: var(--bg2);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pane-label span { flex: 1; }
+    #btn-preview-reset {
+      font-size: 10px;
+      padding: 1px 7px;
+      background: rgba(255,102,0,0.12);
+      border: 1px solid rgba(255,102,0,0.35);
+      border-radius: 4px;
+      color: rgba(255,102,0,0.75);
+      cursor: pointer;
+      font-family: monospace;
+      letter-spacing: 0.05em;
+    }
+    #btn-preview-reset:hover { background: rgba(255,102,0,0.22); color: #ff6600; }
+    #preview-heli-select {
+      font-size: 10px;
+      font-family: monospace;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-dim);
+      padding: 1px 4px;
+      cursor: pointer;
     }
 
     .view-pane iframe {
@@ -797,7 +823,16 @@
     <div id="right-panel">
 
       <div id="game-pane" class="view-pane">
-        <div class="pane-label">Game</div>
+        <div class="pane-label">
+          <span>Vorschau</span>
+          <select id="preview-heli-select" title="Helikopter für Vorschau" style="display:none">
+            <option value="dolphin">SA 365 Dauphin</option>
+            <option value="jayhawk">MH-60T Jayhawk</option>
+            <option value="chinook">CH-47 Chinook</option>
+            <option value="glider">ASK-21</option>
+          </select>
+          <button id="btn-preview-reset" title="Mission neu starten" style="display:none">↺ Reset</button>
+        </div>
         <iframe src="http://localhost:5173/" id="iframe-game"></iframe>
       </div>
 
@@ -1056,14 +1091,27 @@
     if (tab === 'code' && editor) editor.layout();
     if (tab === 'music') wbLoadMusicConfig();
 
-    // Right panel: hide entirely for Models tab so editor gets full width
-    const hideRight = tab === 'models';
-    document.getElementById('right-panel').style.display = hideRight ? 'none' : '';
-    document.getElementById('resize-h').style.display    = hideRight ? 'none' : '';
-    document.getElementById('left-panel').style.width    = hideRight ? '100%' : '';
+    // Right panel: only visible for 'code' (game) and 'editor' (mission preview)
+    const showRight = tab === 'code' || tab === 'editor';
+    document.getElementById('right-panel').style.display = showRight ? '' : 'none';
+    document.getElementById('resize-h').style.display    = showRight ? '' : 'none';
+    document.getElementById('left-panel').style.width    = showRight ? '' : '100%';
+
+    // Switch game iframe src based on tab
+    const gameFrame = document.getElementById('iframe-game');
+    if (tab === 'editor' && !gameFrame.src.includes('preview=1')) {
+      gameFrame.src = 'http://localhost:5173/?preview=1';
+    } else if (tab === 'code' && gameFrame.src.includes('preview=1')) {
+      gameFrame.src = 'http://localhost:5173/';
+    }
+
     document.getElementById('game-pane').style.display   = 'flex';
     document.getElementById('model-pane').style.display  = 'none';
     document.getElementById('resize-v').style.display    = 'none';
+    const isPreviewTab = tab === 'editor';
+    document.getElementById('btn-preview-reset').style.display  = isPreviewTab ? '' : 'none';
+    document.getElementById('preview-heli-select').style.display = isPreviewTab ? '' : 'none';
+    document.querySelector('#game-pane .pane-label span').textContent = isPreviewTab ? 'Vorschau' : 'Game';
   };
 
   // Restore last active tab on load (survives Vite HMR reloads)
@@ -1706,11 +1754,12 @@
     { v:'lighthouse', l:'🗼 Turm' },
     { v:'carrier',    l:'🚢 Träger' },
     { v:'boat',       l:'⛵ Boot' },
+    { v:'submarine',  l:'🤿 U-Boot' },
     { v:'person',     l:'🟡 Person' },
     { v:'crate',      l:'🟠 Crate' },
     { v:'foliage',    l:'🌲 Bäume' },
   ];
-  const OBJ_ICONS = { pad:'🟩', carrier:'🚢', boat:'⛵', lighthouse:'🔦' };
+  const OBJ_ICONS = { pad:'🟩', carrier:'🚢', boat:'⛵', submarine:'🤿', lighthouse:'🔦' };
 
   const edRenderPanel = st => {
     const controls = document.getElementById('editor-controls');
@@ -1883,9 +1932,35 @@
     `;
   }
 
+  // ── Preview sync ────────────────────────────────────────────────────────────
+  const gameFrame = document.getElementById('iframe-game');
+
+  const previewHeliSelect = document.getElementById('preview-heli-select');
+
+  const edSendPreview = () => {
+    const w = edIframe.contentWindow;
+    if (!w || !w.editorGetPreviewMission) return;
+    const mission = w.editorGetPreviewMission();
+    if (!mission) return;
+    const heliType = previewHeliSelect.value;
+    gameFrame.contentWindow?.postMessage({ type: 'preview-mission', mission, heliType }, '*');
+  };
+
+  previewHeliSelect.addEventListener('change', () => edSendPreview());
+
+  document.getElementById('btn-preview-reset').addEventListener('click', () => {
+    const heliType = previewHeliSelect.value;
+    gameFrame.contentWindow?.postMessage({ type: 'preview-reset', heliType }, '*');
+  });
+
   // Listen for state changes from editor iframe
   window.addEventListener('message', (e) => {
-    if (e.data?.type === 'editor-state-changed') edRefreshPanel();
+    if (e.data?.type === 'editor-state-changed') { edRefreshPanel(); edSendPreview(); }
+  });
+
+  // Send preview when game iframe finishes loading
+  gameFrame.addEventListener('load', () => {
+    setTimeout(edSendPreview, 600);
   });
 
   // Restore open files after Vite HMR reloads — each iframe re-initialises from scratch

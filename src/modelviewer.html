@@ -53,6 +53,7 @@
             import DOLPHIN_DEF from '/src/game/models/dolphin.zdef';
             import CHINOOK_DEF from '/src/game/models/chinook.zdef';
             import GLIDER_DEF from '/src/game/models/glider.zdef';
+            import SUBMARINE_DEF from '/src/game/models/submarine.zdef';
             import CARRIER_HULL_DEF from '/src/game/models/carrier_hull.zdef';
             import CARRIER_TOWER_DEF from '/src/game/models/carrier_tower.zdef';
             import OSPREY_HELI_DEF from '/src/game/models/osprey_heli.zdef';
@@ -91,8 +92,9 @@
                 { id: 'chinook', type: 'heli', x: 45, y: 0, color: '#c40', label: 'CH-47 CHINOOK' },
                 { id: 'carrier', type: 'ship', x: -15, y: 25, color: '#445', label: 'CARRIER' },
                 { id: 'sailboat', type: 'def', x: 5, y: 25, color: '#fff', label: 'SAILBOAT' },
-                { id: 'survivor', type: 'misc', x: 25, y: 25, color: '#aaa', label: 'SURVIVOR' },
-                { id: 'rescuer', type: 'misc', x: 45, y: 25, color: '#f60', label: 'RETTER' },
+                { id: 'submarine', type: 'def', x: 25, y: 25, color: '#333', label: 'SUBMARINE' },
+                { id: 'survivor', type: 'misc', x: 45, y: 25, color: '#aaa', label: 'SURVIVOR' },
+                { id: 'rescuer', type: 'misc', x: 65, y: 25, color: '#f60', label: 'RETTER' },
                 { id: 'tree_pine', type: 'foliage', x: -35, y: 50, color: '#1a4a1a', label: 'PINE' },
                 { id: 'tree_oak', type: 'foliage', x: -20, y: 50, color: '#2a5a10', label: 'OAK' },
                 { id: 'tree_bush', type: 'foliage', x: -8, y: 50, color: '#1a4a0a', label: 'BUSH' },
@@ -641,12 +643,14 @@
                 SceneRenderer.add(SAILBOAT_DEF, { x: 5, y: 25, z: 0, angle: spin });
                 SceneRenderer.flush(cam.x, cam.y);
 
-                drawPerson(25, 25, 0, spin, true, cam.x, cam.y, 'survivor');
-                drawPerson(45, 25, 0, spin, true, cam.x, cam.y, 'rescuer');
+                SceneRenderer.add(SUBMARINE_DEF, { x: 25, y: 25, z: 0, angle: spin });
+                SceneRenderer.flush(cam.x, cam.y);
+
+                drawPerson(45, 25, 0, spin, true, cam.x, cam.y, 'survivor');
+                drawPerson(65, 25, 0, spin, true, cam.x, cam.y, 'rescuer');
                 if (showCollision) {
-                    // Person: small upright box, roughly ±0.15 x/y, height ~0.7 (in world units ~stepH based)
-                    drawCollisionBox(cam.x, cam.y, 25, 25, 0, -0.2, 0.2, -0.2, 0.2, 0, 0.65);
                     drawCollisionBox(cam.x, cam.y, 45, 25, 0, -0.2, 0.2, -0.2, 0.2, 0, 0.65);
+                    drawCollisionBox(cam.x, cam.y, 65, 25, 0, -0.2, 0.2, -0.2, 0.2, 0, 0.65);
                 }
 
                 // --- ROW 3: Foliage & Vehicles ---

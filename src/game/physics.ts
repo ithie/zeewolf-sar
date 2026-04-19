@@ -84,6 +84,34 @@ function getCarrierLocal(globX: number, globY: number, CARRIER = G.CARRIER) {
     };
 }
 
+// ─── deliver-mode helpers ────────────────────────────────────────────────────
+let _prevKeyR = false;
+
+
+const _pointInVesselZone = (wx: number, wy: number, vessel: any, zone: any): boolean => {
+    const c = Math.cos(-vessel.angle), s = Math.sin(-vessel.angle);
+    const dx = wx - vessel.x, dy = wy - vessel.y;
+    const lx = dx * c - dy * s, ly = dx * s + dy * c;
+    return Math.abs(lx - zone.x) <= zone.w && Math.abs(ly - zone.y) <= zone.h;
+};
+
+const _inDropzone = (wx: number, wy: number): boolean => {
+    if (G.CARRIER?.rescueZones?.length) {
+        for (const z of G.CARRIER.rescueZones) {
+            if (z.role === 'pickup') continue;
+            if (_pointInVesselZone(wx, wy, G.CARRIER, z)) return true;
+        }
+    }
+    for (const boat of G.BOATS) {
+        if (!boat.rescueZones?.length) continue;
+        for (const z of boat.rescueZones) {
+            if (z.role === 'pickup') continue;
+            if (_pointInVesselZone(wx, wy, boat, z)) return true;
+        }
+    }
+    return false;
+};
+
 // ─── carrier ────────────────────────────────────────────────────────────────
 export function updateCarrierPos(CARRIER: any, seaTimeRef: any, forceUpdate = false, dt = 1) {
     if (!CARRIER || CARRIER.x === undefined) return;
@@ -120,8 +148,8 @@ export function updateCarrierPos(CARRIER: any, seaTimeRef: any, forceUpdate = fa
 
 function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
     const angleRad = (obj.angle ?? 0) * (Math.PI / 180);
-    vessel.w = obj.type === 'carrier' ? 3.5 : 1.5;
-    vessel.l = obj.type === 'carrier' ? 8.0 : 3.0;
+    vessel.w = obj.type === 'carrier' ? 8.0 : 1.5;
+    vessel.l = obj.type === 'carrier' ? 3.5 : 3.0;
     vessel.zDeck = obj.type === 'carrier' ? 4.2 : 0.35;
     vessel.zHull = obj.type === 'carrier' ? 3.8 : 0.15;
     vessel.path = obj.path ?? 'static';
@@ -1126,10 +1154,40 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
         if (G.keys['KeyE']) G.heli.winch = Math.min(5.0, G.heli.winch + 0.02 * dt);
     }
 
+    // deliver-mode toggle (R key — rising edge only)
+    const keyR = !!G.keys['KeyR'];
+    if (keyR && !_prevKeyR && G.heli.type !== 'glider') {
+        if (G.deliverMode) {
+            G.deliverMode = false;
+        } else if (G.heli.onboard > 0 && !G.activePayload) {
+            G.deliverMode = true;
+        }
+    }
+    _prevKeyR = keyR;
+
+    // deliver-mode: lower a person from onboard when winch extends
+    if (G.deliverMode && G.heli.type !== 'glider' && !G.activePayload && G.heli.onboard > 0 && G.heli.winch > 0.3) {
+        const dp: any = {
+            x: G.rescuerSwing.x, y: G.rescuerSwing.y,
+            z: G.heli.z - G.heli.winch,
+            vx: 0, vy: 0,
+            type: 'person',
+            rescued: false,
+            hanging: true,
+            isDelivery: true,
+            attachTo: null,
+            npcTarget: false,
+            outfitColors: { shirt: '#4488cc', pants: '#223355' },
+        };
+        G.activePayload = dp;
+        G.payloads.push(dp);
+        G.heli.onboard--;
+    }
+
     // pickup
-    if (G.heli.type !== 'glider' && !G.activePayload) {
+    if (G.heli.type !== 'glider' && !G.activePayload && !G.deliverMode) {
         for (let p of G.payloads) {
-            if (p.rescued || p.hanging || p.npcTarget) continue;
+            if (p.rescued || p.hanging || p.npcTarget || p.isDelivery) continue;
             let dist = Math.hypot(G.heli.x - p.x, G.heli.y - p.y);
             let hZ = G.heli.z - G.heli.winch;
             if (dist < 1.8 && Math.abs(hZ - getGround(p.x, p.y)) < 1.0) {
@@ -1164,7 +1222,24 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     // deposit / winch-in
     if (G.heli.type !== 'glider' && G.activePayload && G.heli.winch < 0.5) {
         let p = G.activePayload;
-        if (p.type === 'person') {
+        if (p.isDelivery) {
+            // deliver-mode payload winched back in
+            const inZone = _inDropzone(p.x, p.y);
+            G.payloads.splice(G.payloads.indexOf(p), 1);
+            p.hanging = false;
+            p.rescued = true;
+            G.activePayload = null;
+            if (inZone) {
+                G.totalRescued++;
+                ctx.showMsg(I18N.DELIVERED_TO_ZONE);
+                if (G.totalRescued >= G.goalCount) ctx.missionComplete();
+            } else {
+                G.heli.onboard++;
+                ctx.showMsg(I18N.DELIVER_NO_ZONE);
+                G.heli.winch = 0.6;
+            }
+            if (G.heli.onboard === 0) G.deliverMode = false;
+        } else if (p.type === 'person') {
             if (G.heli.onboard < G.heli.maxLoad) {
                 p.hanging = false;
                 p.rescued = true;

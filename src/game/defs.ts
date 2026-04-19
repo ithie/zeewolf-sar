@@ -21,12 +21,36 @@ export interface DEFCollisionBox {
     zMin: number; zMax: number;
 }
 
+export interface DEFRotateNode {
+    /** Pivot point in local object space */
+    pivot: [number, number, number];
+    /** Unit rotation axis, e.g. [0,0,1] for Z */
+    axis: [number, number, number];
+    /** Name of the runtime parameter that drives the angle (radians) */
+    param: string;
+    faces: DEFFace[];
+}
+
+export interface DEFPart {
+    id: string;
+    faces: DEFFace[];
+    rotate?: {
+        pivot: [number, number, number];
+        axis: [number, number, number];
+        param: string;
+    };
+}
+
 export interface DEF {
     id: string;
     /** Rotation pivot in local coords (default [0,0,0]) */
     pivot?: number[];
     faces: DEFFace[];
     collisionBoxes?: DEFCollisionBox[];
+    /** Legacy: runtime-animated sub-geometry — use parts instead */
+    rotateNodes?: DEFRotateNode[];
+    /** Named sub-geometry groups; call applyParts() before passing to SceneRenderer */
+    parts?: DEFPart[];
 }
 
 // ─── Cylinder helpers ─────────────────────────────────────────────────────────

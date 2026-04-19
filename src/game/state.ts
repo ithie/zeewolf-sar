@@ -44,10 +44,11 @@ export const G = {
     activePayload: null as any,
     rescuerSwing: { x: 0, y: 0, vx: 0, vy: 0 },
     parkedHelis: [
-        { type: 'jayhawk', xRel: -2.5, yRel: -7.0, angle: Math.PI * 0.19 },
-        { type: 'jayhawk', xRel: -2.7, yRel: -1.5, angle: Math.PI * 0.15 },
-        { type: 'dolphin', xRel: 2.5, yRel: -7.0, angle: Math.PI * 0.55 },
+        { type: 'jayhawk', xRel:  7.0, yRel: -2.5, angle: Math.PI * 0.19 },
+        { type: 'jayhawk', xRel:  1.5, yRel: -2.7, angle: Math.PI * 0.15 },
+        { type: 'dolphin', xRel:  7.0, yRel:  2.5, angle: Math.PI * 0.55 },
     ],
+    deliverMode: false,
     heli: {
         type: 'dolphin',
         x: 0,

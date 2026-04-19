@@ -17,9 +17,18 @@ type BoatObject = {
     speed: number;
     radius: number;
 };
+type SubmarineObject = {
+    type: 'submarine';
+    x: number;
+    y: number;
+    angle: number;
+    path: 'circle' | 'straight' | 'static';
+    speed: number;
+    radius: number;
+};
 type LighthouseObject = { type: 'lighthouse'; x: number; y: number };
 
-type MissionObject = PadObject | CarrierObject | BoatObject | LighthouseObject;
+type MissionObject = PadObject | CarrierObject | BoatObject | SubmarineObject | LighthouseObject;
 
 export type Objective =
     | { type: 'rescue_all' }
@@ -29,7 +38,7 @@ export type MissionPayload = {
     type: 'person' | 'crate';
     x: number;
     y: number;
-    attachTo?: { objectType: 'carrier' | 'boat'; objectIdx: number };
+    attachTo?: { objectType: 'carrier' | 'boat' | 'submarine'; objectIdx: number };
     npcTarget?: boolean;
 };
 

@@ -30,17 +30,128 @@
     gap: 8px;
     pointer-events: all;
 }
-#touch-winch {
+#touch-top-row {
     display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+/* ─── pitch wheel ─────────────────────────────────────────────────────────── */
+#touch-pitch-wheel {
+    width: 52px;
+    height: 96px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 102, 0, 0.28);
+    background: rgba(255, 102, 0, 0.04);
+    box-shadow: 0 0 16px rgba(255, 102, 0, 0.06), inset 0 0 20px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+    cursor: ns-resize;
+}
+#touch-pitch-drum {
+    position: absolute;
+    top: -100%;
+    left: 0; right: 0;
+    height: 300%;
+    background: repeating-linear-gradient(
+        180deg,
+        transparent 0px,
+        transparent 7px,
+        rgba(255, 102, 0, 0.10) 7px,
+        rgba(255, 102, 0, 0.10) 9px
+    );
+    pointer-events: none;
+}
+#touch-pitch-indicator {
+    position: absolute;
+    left: 5px; right: 5px;
+    height: 18px;
+    border-radius: 5px;
+    background: rgba(255, 102, 0, 0.18);
+    border: 1px solid rgba(255, 102, 0, 0.45);
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+#touch-pitch-indicator.active {
+    background: rgba(255, 102, 0, 0.32);
+    border-color: rgba(255, 102, 0, 0.9);
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.3);
+}
+#touch-pitch-wheel.active-up { border-color: rgba(255, 102, 0, 0.8); }
+#touch-pitch-wheel.active-dn { border-color: rgba(255, 102, 0, 0.8); }
+.pitch-label {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-family: monospace;
+    color: rgba(255, 102, 0, 0.28);
+    pointer-events: none;
+    line-height: 1;
+}
+.pitch-up { top: 5px; }
+.pitch-dn { bottom: 5px; }
+
+/* ─── deliver toggle ──────────────────────────────────────────────────────── */
+#touch-deliver-toggle {
+    width: 52px;
+    height: 96px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 6px;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
-.touch-winch-btn {
-    flex: 1;
-    height: 44px;
-    font-size: 13px;
-    letter-spacing: 1px;
-    opacity: 0.75;
+.deliver-label {
+    font-size: 18px;
+    color: rgba(255, 102, 0, 0.45);
+    line-height: 1;
+    pointer-events: none;
 }
+.toggle-track {
+    width: 34px;
+    height: 20px;
+    border-radius: 10px;
+    background: rgba(255, 102, 0, 0.08);
+    border: 1px solid rgba(255, 102, 0, 0.28);
+    position: relative;
+    pointer-events: none;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.toggle-knob {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255, 102, 0, 0.4);
+    border: 1px solid rgba(255, 102, 0, 0.6);
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+}
+#touch-deliver-toggle.on .toggle-track {
+    background: rgba(255, 102, 0, 0.22);
+    border-color: rgba(255, 102, 0, 0.9);
+    box-shadow: 0 0 12px rgba(255, 102, 0, 0.25);
+}
+#touch-deliver-toggle.on .toggle-knob {
+    transform: translateX(14px);
+    background: #ff6600;
+    box-shadow: 0 0 8px rgba(255, 102, 0, 0.6);
+}
+#touch-deliver-toggle.on .deliver-label {
+    color: #ff6600;
+    text-shadow: 0 0 10px rgba(255, 102, 0, 0.6);
+}
+
+/* ─── joystick ────────────────────────────────────────────────────────────── */
 .joystick {
     width: 130px;
     height: 130px;
@@ -79,6 +190,8 @@
 .js-s { bottom: 7px; left: 50%; transform: translateX(-50%); }
 .js-w { left: 7px;   top: 50%;  transform: translateY(-50%); }
 .js-e { right: 7px;  top: 50%;  transform: translateY(-50%); }
+
+/* ─── generic touch button ────────────────────────────────────────────────── */
 .touch-btn {
     background: rgba(255, 102, 0, 0.06);
     border: 1px solid rgba(255, 102, 0, 0.25);

@@ -1,6 +1,6 @@
 import '../styles/base.css';
 import './ui/screens.css';
-import { mountTouchControls } from './ui/touch-controls/touch-controls';
+import { mountTouchControls, setDeliverToggle, initPitchWheel } from './ui/touch-controls/touch-controls';
 import { iso } from './render';
 import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
 import {
@@ -21,8 +21,8 @@ import { initHeliSound, updateHeliSound, stopHeliSound, setSfxEnabled, isSfxEnab
 import HANGAR_DEF from './models/hangar.zdef';
 import LIGHTHOUSE_DEF from './models/lighthouse.zdef';
 import SAILBOAT_DEF from './models/sailboat.zdef';
-import CARRIER_HULL_DEF from './models/carrier_hull.zdef';
-import CARRIER_TOWER_DEF from './models/carrier_tower.zdef';
+import CARRIER_DEF from './models/carrier.zdef';
+import { applyParts } from './def-utils';
 import { createSceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
 import { G } from './state';
@@ -575,9 +575,11 @@ function launchMission() {
 
     _precomputeDayColors(_missionRain);
     initCarrierFromMission();
+    if (G.CARRIER && G.CARRIER.x !== undefined) G.CARRIER.rescueZones = CARRIER_DEF.rescueZones || [];
     initBoatsFromMission();
     initFoliageFromMission();
     initBirds();
+    G.deliverMode = false;
     initPayloadsFromMission();
     if (hasPad()) initFuelTruck();
 
@@ -914,6 +916,15 @@ function drawScene() {
         ctx.fillText(`FUEL: ${Math.max(0, Math.round(G.heli.fuel))}%`, hX, hY + 48);
         ctx.fillStyle = G.heli.onboard >= G.heli.maxLoad ? '#f90' : '#5f5';
         ctx.fillText(`PAX: ${G.heli.onboard}/${G.heli.maxLoad}`, hX, hY + 64);
+        if (G.deliverMode) {
+            ctx.save();
+            ctx.fillStyle = '#f90';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText(I18N.DELIVER_MODE_ON, canvas.width / 2, 28);
+            ctx.restore();
+        }
+        setDeliverToggle(G.deliverMode);
         ctx.fillStyle = '#5f5';
         const landObj = G.objectives.find(o => o.type === 'land_at');
         if (landObj) {
@@ -1220,19 +1231,19 @@ function drawVectorCarrier(cx: number, cy: number) {
         return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA };
     }
     // Pass 1: Hull (flush alone so deck objects always render on top)
-    SceneRenderer.add(CARRIER_HULL_DEF, { x: objX, y: objY, z: 0, angle });
+    SceneRenderer.add(applyParts(CARRIER_DEF, {}, { only: ['hull'] }), { x: objX, y: objY, z: 0, angle });
     SceneRenderer.flush(cx, cy);
 
     // Pass 2: Tractors (drawFn) + Tower (depth-sorted together)
-    const ix = 2.6,
-        iy = 1.0,
-        iw = 1.5,
-        il = 4.5,
+    const ix = -5.5,
+        iy = 2.6,
+        iw = 4.5,
+        il = 1.5,
         ih = 2.5;
     const tractorData = [
         {
-            tx: ix + 0.1,
-            ty: iy - 1.2,
+            tx: 0.2,
+            ty: 2.7,
             ta: 0,
             bc: '#9a7a00',
             bs: '#c8a000',
@@ -1242,8 +1253,8 @@ function drawVectorCarrier(cx: number, cy: number) {
             ct: '#caa800',
         },
         {
-            tx: ix + 0.1,
-            ty: iy - 2.4,
+            tx: 1.4,
+            ty: 2.7,
             ta: 0,
             bc: '#9a7a00',
             bs: '#c8a000',
@@ -1253,8 +1264,8 @@ function drawVectorCarrier(cx: number, cy: number) {
             ct: '#caa800',
         },
         {
-            tx: ix + 0.1,
-            ty: iy - 3.8,
+            tx: 2.8,
+            ty: 2.7,
             ta: 0.25,
             bc: '#888888',
             bs: '#dddddd',
@@ -1277,7 +1288,7 @@ function drawVectorCarrier(cx: number, cy: number) {
     });
     const towerWX = objX + (ix + iw / 2) * cosA - (iy + il / 2) * sinA;
     const towerWY = objY + (ix + iw / 2) * sinA + (iy + il / 2) * cosA;
-    SceneRenderer.add(CARRIER_TOWER_DEF, { x: objX, y: objY, z: 0, angle, depth: towerWX + towerWY });
+    SceneRenderer.add(applyParts(CARRIER_DEF, {}, { only: ['tower'] }), { x: objX, y: objY, z: 0, angle, depth: towerWX + towerWY });
     SceneRenderer.flush(cx, cy);
 
     // Antenna
@@ -1292,41 +1303,12 @@ function drawVectorCarrier(cx: number, cy: number) {
     ctx.lineTo(a1.x, a1.y);
     ctx.stroke();
 
-    // Radar
-    const rBase = r(ix + iw * 0.5, iy + il * 0.5);
-    const rZ = deckZ + ih + 0.18;
-    const rHub = iso(rBase.x, rBase.y, rZ, cx, cy, { stepH, tileW, tileH, canvas });
-    const rm0 = iso(rBase.x, rBase.y, deckZ + ih, cx, cy, { stepH, tileW, tileH, canvas });
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(rm0.x, rm0.y);
-    ctx.lineTo(rHub.x, rHub.y);
-    ctx.stroke();
-    const rA = Date.now() * 0.002,
-        rL = 0.22;
-    const rt = iso(rBase.x + Math.cos(rA) * rL, rBase.y + Math.sin(rA) * rL, rZ, cx, cy, {
-        stepH,
-        tileW,
-        tileH,
-        canvas,
-    });
-    const rtl = iso(rBase.x - Math.cos(rA) * rL, rBase.y - Math.sin(rA) * rL, rZ, cx, cy, {
-        stepH,
-        tileW,
-        tileH,
-        canvas,
-    });
-    ctx.strokeStyle = '#ccc';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(rtl.x, rtl.y);
-    ctx.lineTo(rt.x, rt.y);
-    ctx.stroke();
-    ctx.fillStyle = '#aaa';
-    ctx.beginPath();
-    ctx.arc(rHub.x, rHub.y, 2, 0, Math.PI * 2);
-    ctx.fill();
+    // Radar (DEF-based, rotateNode drives the arm)
+    SceneRenderer.add(
+        applyParts(CARRIER_DEF, { radarAngle: Date.now() * 0.002 }, { only: ['radar_mast', 'radar_arm'] }),
+        { x: objX, y: objY, z: 0, angle, depth: towerWX + towerWY + 0.01 },
+    );
+    SceneRenderer.flush(cx, cy);
 
     drawPadLights(cx, cy, G.CARRIER.zDeck, true);
 }
@@ -2456,7 +2438,9 @@ const setupTouchControls = () => {
         showCollisionBoxes = !showCollisionBoxes;
         SceneRenderer.debugAltitude = showCollisionBoxes;
     });
-    // winch buttons (Q/E)
+    // pitch wheel (winch)
+    initPitchWheel((key, val) => { (G.keys as Record<string, boolean>)[key] = val; });
+    // touch buttons (R / any future data-key buttons)
     document.querySelectorAll<HTMLElement>('.touch-btn').forEach(btn => {
         const key = btn.dataset.key;
         if (!key) return;
@@ -2546,6 +2530,66 @@ const mountGameScreens = () => {
 };
 
 declare const __APP_VERSION__: string;
+
+// ─── Preview mode (Kampagnen-Editor Live-Preview) — DEV only ──────────────────
+const _previewLaunch = !import.meta.env.DEV ? undefined : (missionData: any, heliType?: string) => {
+    (campaignHandler as any).setPreviewMission(missionData);
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
+    stopHeliSound();
+
+    // Reset all screens
+    ['campaign-select','heli-select','crash-screen','mission-success-screen',
+     'win-screen','mission-briefing','campaign-complete-screen','campaign-failed-screen',
+     'splash','main-menu'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    hideBriefing();
+
+    // Reset heli + state
+    zstate.crashed = false;
+    zstate.gameStarted = false;
+    zstate.introActive = false;
+    zstate.introProgress = 0;
+    G.heli.fuel = 100;
+    G.heli.onboard = 0;
+    G.heli.engineOn = false;
+    G.heli.rotorRPM = 0;
+    G.heli.vx = 0; G.heli.vy = 0; G.heli.vz = 0;
+    G.heli.winch = 0;
+    G.deliverMode = false;
+    G.particles = []; G.debris = []; G.totalRescued = 0;
+
+    // Setup from mission objects
+    const objs = missionData.objects || [];
+    const padObj = objs.find((o: any) => o.type === 'pad') || objs.find((o: any) => o.type === 'carrier') || { x: 10, y: 10 };
+    G.PAD = { xMin: padObj.x, xMax: padObj.x + 7, yMin: padObj.y, yMax: padObj.y + 7, z: 0.5 };
+    G.START_POS = { x: padObj.x + 4, y: padObj.y + 4 };
+    initGrid(missionData.gridSize, G.points);
+
+    // Use selected heli type, fall back to current or dolphin
+    const previewHeliType = heliType || G.heli.type || 'dolphin';
+    const _ht = getHeliType(previewHeliType);
+    G.heli.type = previewHeliType;
+    G.heli.maxLoad   = _ht.maxLoad;
+    G.heli.accel     = _ht.accel;
+    G.heli.friction  = _ht.friction;
+    G.heli.tiltSpeed = _ht.tiltSpeed;
+    G.heli.fuelRate  = _ht.fuelRate;
+    G.heli.liftPower = _ht.liftPower;
+    G.heli.cargoResist = _ht.cargoResist;
+
+    launchMission();
+    setTouchVisible(true);
+};
+
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('preview') && _previewLaunch) {
+    window.addEventListener('message', e => {
+        if (e.data?.type === 'preview-mission') _previewLaunch(e.data.mission, e.data.heliType);
+        if (e.data?.type === 'preview-reset')   _previewLaunch((campaignHandler as any).getPreviewMissionData?.(), e.data.heliType);
+    });
+}
 
 window.onload = () => {
     assertDom();

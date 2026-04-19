@@ -15,11 +15,13 @@ export const drawMap = () => {
     const pUI = document.getElementById('ui_pad') as HTMLElement;
     const cUI = document.getElementById('ui_carrier') as HTMLElement;
     const bUI = document.getElementById('ui_boat') as HTMLElement;
+    const sUI = document.getElementById('ui_submarine') as HTMLElement;
     const wUI = document.getElementById('ui_wind') as HTMLElement;
 
     if (pUI) pUI.style.display = 'none';
     if (cUI) cUI.style.display = 'none';
     if (bUI) bUI.style.display = 'none';
+    if (sUI) sUI.style.display = 'none';
     if (wUI) wUI.style.display = 'none';
 
     // ── Terrain ────────────────────────────────────────────────────────────────
@@ -158,6 +160,54 @@ export const drawMap = () => {
                     }
                 }
             }
+        } else if (obj.type === 'submarine') {
+            const rad = (obj.angle * Math.PI) / 180;
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = '#666';
+            if (obj.path === 'straight') {
+                ctx.beginPath();
+                ctx.moveTo(ox, oy);
+                ctx.lineTo(ox + Math.cos(rad) * 1000, oy + Math.sin(rad) * 1000);
+                ctx.stroke();
+            } else if (obj.path === 'circle') {
+                const rX = obj.radius * tSize, rY = rX * 0.8;
+                const t0 = Math.atan2(-Math.cos(rad) / rX, Math.sin(rad) / rY);
+                const c_px = ((obj.x - Math.cos(t0) * obj.radius) - state.panX) * tSize;
+                const c_py = ((obj.y - Math.sin(t0) * obj.radius * 0.8) - state.panY) * tSize;
+                ctx.beginPath(); ctx.ellipse(c_px, c_py, rX, rY, 0, 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.restore();
+            ctx.save();
+            ctx.translate(ox, oy);
+            ctx.rotate(rad);
+            if (isSelected) { ctx.shadowBlur = 10; ctx.shadowColor = '#aaa'; }
+            // Hull
+            ctx.fillStyle = '#111';
+            ctx.beginPath();
+            ctx.moveTo(6 * tSize, 0);
+            ctx.lineTo(4 * tSize, -1.2 * tSize);
+            ctx.lineTo(-5 * tSize, -1.2 * tSize);
+            ctx.lineTo(-5.5 * tSize, 0);
+            ctx.lineTo(-5 * tSize, 1.2 * tSize);
+            ctx.lineTo(4 * tSize, 1.2 * tSize);
+            ctx.closePath();
+            ctx.fill();
+            // Conning tower
+            ctx.fillStyle = '#222';
+            ctx.fillRect(0.5 * tSize, -0.5 * tSize, 1.8 * tSize, 1 * tSize);
+            ctx.shadowBlur = 0;
+            ctx.rotate(-rad);
+            ctx.fillStyle = '#999';
+            ctx.font = 'bold 11px monospace';
+            ctx.fillText(obj.speed + 'kn', -15, 4);
+            ctx.restore();
+            if (isSelected && sUI) {
+                sUI.style.display = 'block';
+                sUI.style.left = Math.min(600 - 180, Math.max(0, ox + 20)) + 'px';
+                sUI.style.top = Math.min(600 - 150, Math.max(0, oy + 20)) + 'px';
+                syncVesselUI(obj, 'submarine');
+            }
         } else if (obj.type === 'lighthouse') {
             const lx = (obj.x + 0.5 - state.panX) * tSize;
             const ly = (obj.y + 0.5 - state.panY) * tSize;
@@ -293,8 +343,8 @@ export const drawMap = () => {
 };
 
 // Sync vessel settings from m.objects[idx] into the shared vessel UI panel
-const syncVesselUI = (obj: any, kind: 'carrier' | 'boat') => {
-    const prefix = kind === 'carrier' ? 'carrier' : 'boat';
+const syncVesselUI = (obj: any, kind: 'carrier' | 'boat' | 'submarine') => {
+    const prefix = kind === 'carrier' ? 'carrier' : kind === 'submarine' ? 'submarine' : 'boat';
     const pathEl = document.getElementById(`m_${prefix}_path`) as HTMLSelectElement;
     const speedEl = document.getElementById(`m_${prefix}_speed`) as HTMLInputElement;
     const radiusEl = document.getElementById(`m_${prefix}_radius`) as HTMLInputElement;

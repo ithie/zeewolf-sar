@@ -80,7 +80,7 @@ export const renderObjectList = () => {
     m.objects.forEach((obj, idx) => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;font-size:11px';
-        const icons: Record<string, string> = { pad: '🟩', carrier: '🚢', boat: '⛵', lighthouse: '🔦' };
+        const icons: Record<string, string> = { pad: '🟩', carrier: '🚢', boat: '⛵', submarine: '🤿', lighthouse: '🔦' };
         const label = document.createElement('span');
         label.style.flex = '1';
         label.innerText = `${icons[obj.type] || '?'} ${obj.type} @ (${obj.x}, ${obj.y})`;
@@ -144,12 +144,12 @@ export const syncToData = () => {
 };
 
 // Sync vessel form fields back into the currently-selected object
-const syncVesselFromUI = (kind: 'carrier' | 'boat') => {
+const syncVesselFromUI = (kind: 'carrier' | 'boat' | 'submarine') => {
     const m = getCurrentMission();
     if (!m || state.selectedObjectIdx === null) return;
     const obj = m.objects[state.selectedObjectIdx] as any;
     if (!obj || obj.type !== kind) return;
-    const prefix = kind === 'carrier' ? 'carrier' : 'boat';
+    const prefix = kind === 'carrier' ? 'carrier' : kind === 'submarine' ? 'submarine' : 'boat';
     obj.path = (document.getElementById(`m_${prefix}_path`) as HTMLSelectElement)?.value ?? obj.path;
     obj.speed = parseFloat((document.getElementById(`m_${prefix}_speed`) as HTMLInputElement)?.value) || 0;
     obj.radius = parseFloat((document.getElementById(`m_${prefix}_radius`) as HTMLInputElement)?.value) || 40;
@@ -281,7 +281,7 @@ const makePayload = (type: 'person' | 'crate', gx: number, gy: number, m: Missio
         nearestDist = SNAP_RADIUS;
     for (let i = 0; i < m.objects.length; i++) {
         const obj = m.objects[i];
-        if (obj.type !== 'carrier' && obj.type !== 'boat') continue;
+        if (obj.type !== 'carrier' && obj.type !== 'boat' && obj.type !== 'submarine') continue;
         const d = Math.hypot(gx - obj.x, gy - obj.y);
         if (d <= nearestDist) {
             nearestDist = d;
@@ -290,7 +290,7 @@ const makePayload = (type: 'person' | 'crate', gx: number, gy: number, m: Missio
     }
     if (nearestIdx >= 0) {
         const obj = m.objects[nearestIdx] as any;
-        return { type, x: gx, y: gy, attachTo: { objectType: obj.type as 'carrier' | 'boat', objectIdx: nearestIdx } };
+        return { type, x: gx, y: gy, attachTo: { objectType: obj.type as 'carrier' | 'boat' | 'submarine', objectIdx: nearestIdx } };
     }
     return { type, x: gx, y: gy };
 };
@@ -411,6 +411,28 @@ const paint = (e: MouseEvent) => {
                 m.objects[nearestIdx] = { ...m.objects[nearestIdx], x: gx, y: gy };
             } else {
                 m.objects.push({ type: 'boat', x: gx, y: gy, angle: 0, path: 'circle', speed: 3, radius: 20 });
+            }
+        }
+    } else if (state.currentTool === 'submarine') {
+        if (e.shiftKey) {
+            let nearestIdx = -1, nearestDist = 8;
+            m.objects.forEach((o, i) => {
+                if (o.type !== 'submarine') return;
+                const d = Math.hypot(o.x - gx, o.y - gy);
+                if (d < nearestDist) { nearestDist = d; nearestIdx = i; }
+            });
+            if (nearestIdx >= 0) m.objects.splice(nearestIdx, 1);
+        } else {
+            let nearestIdx = -1, nearestDist = 8;
+            m.objects.forEach((o, i) => {
+                if (o.type !== 'submarine') return;
+                const d = Math.hypot(o.x - gx, o.y - gy);
+                if (d < nearestDist) { nearestDist = d; nearestIdx = i; }
+            });
+            if (nearestIdx >= 0) {
+                m.objects[nearestIdx] = { ...m.objects[nearestIdx], x: gx, y: gy };
+            } else {
+                m.objects.push({ type: 'submarine', x: gx, y: gy, angle: 0, path: 'static', speed: 0, radius: 20 });
             }
         }
     } else if (state.currentTool === 'lighthouse') {
@@ -578,6 +600,10 @@ export const initUI = () => {
         state.selectedObjectIdx = null;
         drawMap();
     });
+    safeClick('close-submarine', () => {
+        state.selectedObjectIdx = null;
+        drawMap();
+    });
 
     // Spawn buttons
     safeClick('btn_spawn_pad', () => {
@@ -595,6 +621,9 @@ export const initUI = () => {
     );
     ['boat_path', 'boat_speed', 'boat_radius', 'boat_angle'].forEach(id =>
         document.getElementById(`m_${id}`)?.addEventListener('input', () => syncVesselFromUI('boat'))
+    );
+    ['submarine_path', 'submarine_speed', 'submarine_radius', 'submarine_angle'].forEach(id =>
+        document.getElementById(`m_${id}`)?.addEventListener('input', () => syncVesselFromUI('submarine'))
     );
 
     // General sync
@@ -620,11 +649,12 @@ export const initUI = () => {
     document.body.appendChild(cursorEl);
     const cursorCtx = cursorEl.getContext('2d')!;
     const PAINT_TOOLS = new Set(['terrain', 'flatten', 'foliage']);
-    const POINT_TOOLS = new Set(['pad', 'carrier', 'boat', 'lighthouse', 'person', 'crate']);
+    const POINT_TOOLS = new Set(['pad', 'carrier', 'boat', 'submarine', 'lighthouse', 'person', 'crate']);
     const dotColors: Record<string, string> = {
         pad: '#5f5',
         carrier: '#88aaff',
         boat: '#4af',
+        submarine: '#888',
         lighthouse: '#ffdd44',
         person: '#ffe033',
         crate: '#ff8800',
@@ -789,7 +819,7 @@ export const initUI = () => {
                 const obj = m.objects[i];
                 let hit = false;
                 if (obj.type === 'pad') hit = gx >= obj.x && gx <= obj.x + 8 && gy >= obj.y && gy <= obj.y + 8;
-                else if (obj.type === 'carrier' || obj.type === 'boat') hit = Math.hypot(gx - obj.x, gy - obj.y) < 6;
+                else if (obj.type === 'carrier' || obj.type === 'boat' || obj.type === 'submarine') hit = Math.hypot(gx - obj.x, gy - obj.y) < 6;
                 else if (obj.type === 'lighthouse') hit = Math.hypot(gx - obj.x, gy - obj.y) < 2;
                 if (hit) {
                     state.selectedObjectIdx = state.selectedObjectIdx === i ? null : i;
@@ -830,6 +860,7 @@ export const initUI = () => {
                 state.currentTool !== 'person' &&
                 state.currentTool !== 'crate' &&
                 state.currentTool !== 'boat' &&
+                state.currentTool !== 'submarine' &&
                 state.currentTool !== 'carrier' &&
                 state.currentTool !== 'pad' &&
                 state.currentTool !== 'lighthouse' &&

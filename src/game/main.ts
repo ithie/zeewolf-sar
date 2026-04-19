@@ -148,5 +148,31 @@ const createCampaignHandler = () => {
 };
 
 export const campaignHandler = createCampaignHandler();
+
+// ─── Preview mode — DEV only, stripped from production bundle ─────────────────
+if (import.meta.env.DEV) {
+    let _previewLevel: MissionData | null = null;
+    let _previewTerrain: { terrain: number[][]; gridSize: number } | null = null;
+
+    const _origGetMission = campaignHandler.getCurrentMissionData.bind(campaignHandler);
+    const _origGetTerrain = campaignHandler.getTerrain.bind(campaignHandler);
+
+    (campaignHandler as any).setPreviewMission = (levelData: MissionData) => {
+        _previewLevel = levelData;
+        _previewTerrain = null;
+        campaignHandler.getCurrentMissionData = () => _previewLevel ?? _origGetMission();
+        campaignHandler.getTerrain = () => {
+            if (!_previewLevel) return _origGetTerrain();
+            if (!_previewTerrain) _previewTerrain = {
+                terrain: decompressTerrain(_previewLevel.terrain as string, _previewLevel.gridSize),
+                gridSize: _previewLevel.gridSize,
+            };
+            return _previewTerrain;
+        };
+    };
+
+    (campaignHandler as any).getPreviewMissionData = (): MissionData | null => _previewLevel;
+}
+
 export { soundHandler };
 export const zinit = () => { /* wired via mountMuteButton in game.ts */ };
