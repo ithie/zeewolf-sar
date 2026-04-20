@@ -6,7 +6,6 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    overflow-y: auto;
     padding: 40px 16px;
     z-index: 200;
     gap: 20px;

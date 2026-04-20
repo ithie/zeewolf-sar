@@ -10,6 +10,7 @@ const _ensureEl = (id: string): HTMLElement => {
 
 export const mountBriefing = () => {
     const el = _ensureEl('mission-briefing');
+    el.classList.add('ui-screen');
     el.innerHTML = `
         <div id="briefing-content">
             <img id="briefing-map" src="" alt="Mission Map" />

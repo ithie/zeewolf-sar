@@ -199,12 +199,12 @@
 
             // Antenna and radar — drawn after SceneRenderer.flush() (always on top, no depth conflict)
             function drawCarrierDetails(objX, objY, angle, cx, cy) {
-                const deckZ = 4.2, ix = 2.6, iy = 1.0, iw = 1.5, il = 4.5, ih = 2.5;
+                const deckZ = 4.2, ix = -5.5, iy = 2.6, iw = 4.5, il = 1.5, ih = 2.5;
                 const cosA = Math.cos(angle), sinA = Math.sin(angle);
                 function r(rx, ry) { return { x: objX + rx * cosA - ry * sinA, y: objY + rx * sinA + ry * cosA }; }
 
                 // Antenna
-                const antB = r(ix + iw * 0.5, iy + il * 0.25);
+                const antB = r(ix + iw * 0.75, iy + il * 0.5);
                 const a0 = iso(antB.x, antB.y, deckZ + ih, cx, cy);
                 const a1 = iso(antB.x, antB.y, deckZ + ih + 0.6, cx, cy);
                 ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
@@ -529,7 +529,7 @@
                 drawLighthouseBeam(-35, 0, time, cam.x, cam.y);
                 SceneRenderer.add(HANGAR_DEF, { x: -15, y: 0, z: 0, angle: spin });
                 SceneRenderer.flush(cam.x, cam.y);
-                const carrierAngle = spin + Math.PI / 2; // CARRIER_DEF uses +Y=stern; offset aligns bow to +X
+                const carrierAngle = spin;
                 const carrierX = -15,
                     carrierY = 25;
                 const cosCA = Math.cos(carrierAngle),
@@ -538,9 +538,9 @@
                     return { x: carrierX + rx * cosCA - ry * sinCA, y: carrierY + rx * sinCA + ry * cosCA };
                 }
                 const parked = [
-                    { type: 'jayhawk', xRel: -2.5, yRel: -7.0, angle: Math.PI * 0.19 },
-                    { type: 'jayhawk', xRel: -2.7, yRel: -1.5, angle: Math.PI * 0.15 },
-                    { type: 'dolphin', xRel:  2.5, yRel: -7.0, angle: Math.PI * 0.55 },
+                    { type: 'jayhawk', xRel:  7.0, yRel: -2.5, angle: Math.PI * 0.69 },
+                    { type: 'jayhawk', xRel:  1.5, yRel: -2.7, angle: Math.PI * 0.65 },
+                    { type: 'dolphin', xRel:  7.0, yRel:  2.5, angle: Math.PI * 1.05 },
                 ];
 
                 // Tower depth = max depth of any tower corner (closest face wins).
@@ -549,7 +549,7 @@
                 // Local tower corners: (2.6,1.0), (4.1,1.0), (4.1,5.5), (2.6,5.5)
                 const towerDepth = Math.max(
                     ...[
-                        [2.6, 1.0], [4.1, 1.0], [4.1, 5.5], [2.6, 5.5],
+                        [-1.0, 2.6], [-1.0, 4.1], [-5.5, 4.1], [-5.5, 2.6],
                     ].map(([lx, ly]) => {
                         const wx = carrierX + lx * cosCA - ly * sinCA;
                         const wy = carrierY + lx * sinCA + ly * cosCA;
@@ -585,15 +585,14 @@
                     });
                 });
                 // Tractors as drawFn instances — depth-sorted against helis and tower.
-                const ix = 2.6, iy = 1.0;
                 const tractors = [
-                    { tx: ix+0.1, ty: iy-1.2, ta: 0,    bc:'#9a7a00',bs:'#c8a000',bd:'#8a6c00',cc:'#b09000',cs:'#e0b800',ct:'#caa800' },
-                    { tx: ix+0.1, ty: iy-2.4, ta: 0,    bc:'#9a7a00',bs:'#c8a000',bd:'#8a6c00',cc:'#b09000',cs:'#e0b800',ct:'#caa800' },
-                    { tx: ix+0.1, ty: iy-3.8, ta: 0.25, bc:'#888888',bs:'#dddddd',bd:'#666666',cc:'#aaaaaa',cs:'#ffffff',ct:'#eeeeee' },
+                    { tx:  0.2, ty: 2.7, ta: Math.PI / 2,        bc:'#9a7a00',bs:'#c8a000',bd:'#8a6c00',cc:'#b09000',cs:'#e0b800',ct:'#caa800' },
+                    { tx:  1.4, ty: 2.7, ta: Math.PI / 2,        bc:'#9a7a00',bs:'#c8a000',bd:'#8a6c00',cc:'#b09000',cs:'#e0b800',ct:'#caa800' },
+                    { tx:  2.8, ty: 2.7, ta: 0.25 + Math.PI / 2, bc:'#888888',bs:'#dddddd',bd:'#666666',cc:'#aaaaaa',cs:'#ffffff',ct:'#eeeeee' },
                 ];
                 tractors.forEach(t => {
-                    const wx = carrierX + (t.tx + 0.5) * cosCA - (t.ty + 0.35) * sinCA;
-                    const wy = carrierY + (t.tx + 0.5) * sinCA + (t.ty + 0.35) * cosCA;
+                    const wx = carrierX + (t.tx - 0.35) * cosCA - (t.ty + 0.5) * sinCA;
+                    const wy = carrierY + (t.tx - 0.35) * sinCA + (t.ty + 0.5) * cosCA;
                     SceneRenderer.add(null, {
                         x: wx, y: wy, z: 0,
                         drawFn: (cx, cy) => drawTractor(carrierX, carrierY, carrierAngle, 4.2, cx, cy,

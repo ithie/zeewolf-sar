@@ -92,7 +92,6 @@
 @media (max-height: 520px) {
     #mission-briefing {
         align-items: flex-start;
-        overflow-y: auto;
         padding: 12px 0;
     }
     #briefing-content {

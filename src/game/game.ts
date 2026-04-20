@@ -1440,14 +1440,12 @@ function drawWindsock(cx: number, cy: number) {
 }
 
 function drawSailboat(sX: number, sY: number, angle: number, cx: number, cy: number) {
-    // SAILBOAT_DEF bow faces +x; game convention is bow at -y (angle=0) → offset by -π/2
-    SceneRenderer.add(SAILBOAT_DEF, { x: sX, y: sY, z: 0, angle: angle - Math.PI / 2 });
+    SceneRenderer.add(SAILBOAT_DEF, { x: sX, y: sY, z: 0, angle });
     SceneRenderer.flush(cx, cy);
 }
 
 function drawSubmarine(sX: number, sY: number, angle: number, cx: number, cy: number) {
-    // SUBMARINE_DEF bow faces +x; same convention offset as sailboat
-    SceneRenderer.add(SUBMARINE_DEF, { x: sX, y: sY, z: 0, angle: angle - Math.PI / 2 });
+    SceneRenderer.add(SUBMARINE_DEF, { x: sX, y: sY, z: 0, angle });
     SceneRenderer.flush(cx, cy);
 }
 
@@ -1925,15 +1923,15 @@ function handleCollisionBoxes() {
     G.SUBMARINES.forEach(s => {
         // Hull box: from submarine.zdef collision box coords
         if (showCollisionBoxes)
-            drawCollisionBox(s.x, s.y, s.angle, -0.7, 0.7, -5.6, 5.2, 0, 0.3, 'rgba(0,180,255,0.8)');
+            drawCollisionBox(s.x, s.y, s.angle, -5.2, 5.6, -0.7, 0.7, 0, 0.3, 'rgba(0,180,255,0.8)');
         // Tower box
         if (showCollisionBoxes)
-            drawCollisionBox(s.x, s.y, s.angle, -0.32, 0.32, -2.3, -0.8, 0.3, 2.4, 'rgba(255,80,0,0.9)');
+            drawCollisionBox(s.x, s.y, s.angle, 0.8, 2.3, -0.32, 0.32, 0.3, 2.4, 'rgba(255,80,0,0.9)');
 
         if (!zstate.introActive && !zstate.crashed) {
             if (
-                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, s.x, s.y, s.angle, -0.7, 0.7, -5.6, 5.2, 0, 0.3) ||
-                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, s.x, s.y, s.angle, -0.32, 0.32, -2.3, -0.8, 0.3, 2.4)
+                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, s.x, s.y, s.angle, -5.2, 5.6, -0.7, 0.7, 0, 0.3) ||
+                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, s.x, s.y, s.angle, 0.8, 2.3, -0.32, 0.32, 0.3, 2.4)
             ) {
                 _physicsCtx.triggerCrash(I18N.CRASH_SUBMARINE);
             }
@@ -2516,7 +2514,7 @@ const mountGameOverlays = () => {
 const mountGameScreens = () => {
     ['campaign-select','heli-select','crash-screen','mission-success-screen',
      'win-screen','mission-briefing','campaign-complete-screen','campaign-failed-screen']
-        .forEach(id => _ensureEl(id));
+        .forEach(id => { _ensureEl(id).classList.add('ui-screen'); });
 
     document.getElementById('campaign-select')!.innerHTML = `
         <div class="title">${I18N.CAMPAIGN_SELECT_TITLE}</div>

@@ -40,6 +40,9 @@
     cursor: default;
     gap: 22px;
 }
+@media (max-height: 600px) {
+    #settings-screen { gap: 14px; }
+}
 #settings-stats {
     color: #444;
     font-size: 13px;

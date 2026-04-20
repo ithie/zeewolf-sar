@@ -189,9 +189,6 @@ function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
         const r = obj.radius ?? 45;
         vessel.speed = ((obj.speed ?? 0) * knotsToUnits) / r;
     }
-    // Carrier renders with angle directly (no -π/2 offset); boats/subs offset by -π/2 in drawFn.
-    // So carrier needs standard atan2(dy,dx); boats/subs need atan2(dx,-dy) (= atan2(dy,dx)+π/2).
-    const isCarrier = obj.type === 'carrier';
     if (obj.path === 'circle') {
         const r = obj.radius ?? 45;
         vessel.radiusX = r;
@@ -203,13 +200,11 @@ function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
         vessel.x = vessel.centerX + Math.cos(t0) * vessel.radiusX;
         vessel.y = vessel.centerY + Math.sin(t0) * vessel.radiusY;
         // tangent at t0: dx/dt = -radiusX*sin(t0), dy/dt = radiusY*cos(t0)
-        vessel.angle = isCarrier
-            ? Math.atan2(vessel.radiusY * Math.cos(t0), -vessel.radiusX * Math.sin(t0))
-            : Math.atan2(-vessel.radiusX * Math.sin(t0), -vessel.radiusY * Math.cos(t0));
+        vessel.angle = Math.atan2(vessel.radiusY * Math.cos(t0), -vessel.radiusX * Math.sin(t0));
     } else if (obj.path === 'straight') {
         vessel.x = obj.x;
         vessel.y = obj.y;
-        vessel.angle = isCarrier ? angleRad : Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
+        vessel.angle = angleRad;
         vessel.lineStartX = obj.x;
         vessel.lineStartY = obj.y;
         vessel.lineDirX = Math.cos(angleRad);
@@ -230,7 +225,7 @@ function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
     } else {
         vessel.x = obj.x;
         vessel.y = obj.y;
-        vessel.angle = isCarrier ? angleRad : Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
+        vessel.angle = angleRad;
     }
 }
 
@@ -292,7 +287,7 @@ export function updateSubmarines(SUBMARINES: any[], dt: number) {
             const nx = s.lineStartX + s.lineDirX * s.lineProgress;
             const ny = s.lineStartY + s.lineDirY * s.lineProgress;
             const dx = nx - s.x, dy = ny - s.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) s.angle = Math.atan2(dx, -dy);
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) s.angle = Math.atan2(dy, dx);
             s.x = nx;
             s.y = ny;
         } else if (s.path === 'circle') {
@@ -300,7 +295,7 @@ export function updateSubmarines(SUBMARINES: any[], dt: number) {
             const nx = s.centerX + Math.cos(s._seaTime) * s.radiusX;
             const ny = s.centerY + Math.sin(s._seaTime) * s.radiusY;
             const dx = nx - s.x, dy = ny - s.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) s.angle = Math.atan2(dx, -dy);
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) s.angle = Math.atan2(dy, dx);
             s.x = nx;
             s.y = ny;
         }
@@ -354,7 +349,7 @@ export function updateBoats(BOATS: any[], dt: number) {
             const ny = b.lineStartY + b.lineDirY * b.lineProgress;
             const dx = nx - b.x,
                 dy = ny - b.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dx, -dy);
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dy, dx);
             b.x = nx;
             b.y = ny;
         } else if (b.path === 'circle') {
@@ -363,7 +358,7 @@ export function updateBoats(BOATS: any[], dt: number) {
             const ny = b.centerY + Math.sin(b._seaTime) * b.radiusY;
             const dx = nx - b.x,
                 dy = ny - b.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dx, -dy);
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) b.angle = Math.atan2(dy, dx);
             b.x = nx;
             b.y = ny;
         }

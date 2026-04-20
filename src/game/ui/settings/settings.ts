@@ -27,7 +27,7 @@ const _ensureEl = (id: string): HTMLElement => {
 };
 
 export const mountSettingsRankup = () => {
-    _ensureEl('settings-screen');
+    _ensureEl('settings-screen').classList.add('ui-screen');
     _ensureEl('rankup-overlay');
     document.getElementById('settings-screen')!.innerHTML = `
         <div class="title" style="font-size: 48px">${I18N.MENU_SETTINGS}</div>

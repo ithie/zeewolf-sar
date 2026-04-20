@@ -18,6 +18,7 @@ const _ensureEl = (id: string): HTMLElement => {
 
 export const mountMainMenu = (cb: MainMenuCallbacks) => {
     const splash = _ensureEl('splash');
+    splash.classList.add('ui-screen');
     splash.innerHTML = `
         <div class="title">${I18N.SPLASH_TITLE}</div>
         <div class="subtitle" id="splash-version"></div>
@@ -26,6 +27,7 @@ export const mountMainMenu = (cb: MainMenuCallbacks) => {
     splash.addEventListener('click', cb.onSplashClick);
 
     const menu = _ensureEl('main-menu');
+    menu.classList.add('ui-screen');
     menu.innerHTML = `
         <canvas id="main-menu-bg-canvas"></canvas>
         <div class="title">${I18N.MENU_TITLE}</div>

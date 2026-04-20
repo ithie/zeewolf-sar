@@ -17,6 +17,7 @@ let _onBack: (() => void) | null = null;
 export const mountHeliInfoScreen = (onBack: () => void): void => {
     _onBack = onBack;
     const root = _ensureEl('heli-info');
+    root.classList.add('ui-screen');
     root.innerHTML = `
         <div class="title">HANGAR</div>
         <div class="subtitle">TYPENÜBERSICHT</div>

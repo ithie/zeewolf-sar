@@ -31,7 +31,7 @@ const hide = (id: string) => { el(id).style.display = 'none'; };
 // ─── mount (called once at startup) ──────────────────────────────────────────
 
 export const mountMpLobby = (): void => {
-    _ensureEl('mp-lobby-screen');
+    _ensureEl('mp-lobby-screen').classList.add('ui-screen');
     const heliCards = HELI_TYPES
         .filter(h => h.id !== 'glider')
         .map(h => `

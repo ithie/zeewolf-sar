@@ -1,3 +1,16 @@
+/* ─── shared full-screen overlay base ───────────────────────────────────── */
+.ui-screen {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    padding: clamp(14px, 3vh, 28px) 0;
+}
+@media (max-height: 600px) {
+    .ui-screen { justify-content: flex-start; }
+}
+
+/* ─── campaign-complete ──────────────────────────────────────────────────── */
 #campaign-complete-screen {
     position: absolute;
     top: 0;

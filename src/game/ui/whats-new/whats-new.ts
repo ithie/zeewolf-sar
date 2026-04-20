@@ -9,6 +9,7 @@ const _ensureEl = (id: string): HTMLElement => {
 
 export const mountWhatsNew = () => {
     const el = _ensureEl('whats-new-overlay');
+    el.classList.add('ui-screen');
     el.innerHTML = `
         <div id="whats-new-version">NEUIGKEITEN · ${I18N.WHATS_NEW_VERSION}</div>
         <div id="whats-new-title">${I18N.WHATS_NEW_TITLE.toUpperCase()}</div>

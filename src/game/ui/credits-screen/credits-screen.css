@@ -11,10 +11,6 @@
     justify-content: center;
     align-items: center;
     z-index: 200;
-    overflow-x: hidden;
-    overflow-y: auto;
-    padding: 24px 0;
-    box-sizing: border-box;
     cursor: default;
 }
 #credits-canvas {
@@ -126,5 +122,5 @@
     .credits-name { font-size: 14px; letter-spacing: 2px; }
     .credits-divider { margin: 8px auto; }
     .credits-made-with { font-size: 11px; margin-top: 14px; }
-    #credits-screen { justify-content: flex-start; padding-top: 12px; overflow-y: auto; }
+    #credits-screen { padding-top: 12px; }
 }

@@ -10,6 +10,7 @@ const _ensureEl = (id: string): HTMLElement => {
 
 export const mountCreditsScreen = (onBack: () => void): void => {
     const root = _ensureEl('credits-screen');
+    root.classList.add('ui-screen');
     const canvas = document.createElement('canvas');
     canvas.id = 'credits-canvas';
     const inner = document.createElement('div');
