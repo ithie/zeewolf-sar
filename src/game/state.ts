@@ -39,6 +39,7 @@ export const G = {
     debris: [] as any[],
     CARRIER: {} as any,
     BOATS: [] as any[],
+    SUBMARINES: [] as any[],
     seaTime: 0,
     payloads: [] as any[],
     activePayload: null as any,

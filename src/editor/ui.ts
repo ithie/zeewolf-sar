@@ -35,13 +35,17 @@ export const renderPayloadList = () => {
         return;
     }
     payloads.forEach((p, i) => {
+        const pa = p as any;
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'margin:3px 0';
+
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;font-size:11px';
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px';
         const icon = p.type === 'person' ? '🟡' : '🟠';
         const label = document.createElement('span');
         label.style.flex = '1';
-        const attach = (p as any).attachTo
-            ? ` → ${(p as any).attachTo.objectType} #${(p as any).attachTo.objectIdx + 1}`
+        const attach = pa.attachTo
+            ? ` → ${pa.attachTo.objectType} #${pa.attachTo.objectIdx + 1}`
             : '';
         label.innerText = `${i + 1}. ${icon} ${p.type === 'person' ? 'Person' : 'Crate'} @ (${p.x}, ${p.y})${attach}`;
 
@@ -50,23 +54,45 @@ export const renderPayloadList = () => {
         npcLabel.style.cssText = 'display:flex;align-items:center;gap:2px;color:#8af;white-space:nowrap;cursor:pointer';
         const npcCb = document.createElement('input');
         npcCb.type = 'checkbox';
-        npcCb.checked = !!(p as any).npcTarget;
-        npcCb.onchange = () => {
-            (p as any).npcTarget = npcCb.checked;
-            drawMap();
-        };
+        npcCb.checked = !!pa.npcTarget;
+        npcCb.onchange = () => { pa.npcTarget = npcCb.checked; drawMap(); };
         npcLabel.append(npcCb, 'NPC');
 
         const btnDel = document.createElement('button');
         btnDel.innerText = 'X';
         btnDel.style.cssText = 'background:#822;color:#fff;border:none;padding:2px 6px;cursor:pointer;font-size:10px';
-        btnDel.onclick = () => {
-            m.payloads.splice(i, 1);
-            renderPayloadList();
-            drawMap();
-        };
+        btnDel.onclick = () => { m.payloads.splice(i, 1); renderPayloadList(); drawMap(); };
         row.append(label, npcLabel, btnDel);
-        container.appendChild(row);
+        wrap.appendChild(row);
+
+        // localX / localY — only when attached to a vessel
+        if (pa.attachTo) {
+            const offsetRow = document.createElement('div');
+            offsetRow.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:10px;color:#aaa;padding-left:12px;margin-top:2px';
+            const makeOffsetInput = (axis: 'localX' | 'localY', axisLabel: string) => {
+                const lbl = document.createElement('span');
+                lbl.innerText = axisLabel + ':';
+                const inp = document.createElement('input');
+                inp.type = 'number';
+                inp.step = '0.5';
+                inp.value = String(pa.attachTo[axis] ?? 0);
+                inp.style.cssText = 'width:48px;background:#222;color:#ddd;border:1px solid #444;padding:1px 3px;font-size:10px';
+                inp.onchange = () => {
+                    pa.attachTo[axis] = parseFloat(inp.value) || 0;
+                    notifyWorkbench();
+                    drawMap();
+                };
+                return [lbl, inp];
+            };
+            offsetRow.append(
+                document.createTextNode('offset '),
+                ...makeOffsetInput('localX', 'X'),
+                ...makeOffsetInput('localY', 'Y'),
+            );
+            wrap.appendChild(offsetRow);
+        }
+
+        container.appendChild(wrap);
     });
     notifyWorkbench();
 };

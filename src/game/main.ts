@@ -5,6 +5,7 @@ import AddCamp from './campaigns/addCamp.json';
 import ArchipelDemo from './campaigns/archipeldemo.json';
 import Glider from './campaigns/glider.json';
 import Julian from './campaigns/julian.json';
+import TransferDemo from './campaigns/transferdemo.json';
 import { MP_DEMO_CAMPAIGN } from './multiplayer/mp-mission';
 import { decompressTerrain } from '../shared/utils';
 import ZsynthPlayer from '../tracker/ZsynthPlayer';
@@ -79,6 +80,7 @@ const createCampaignHandler = () => {
         Glider as unknown as CampaignExport,
         Julian as unknown as CampaignExport,
         MP_DEMO_CAMPAIGN,  // index 5 – must match MP_CAMPAIGN_INDEX in mp-mission.ts
+        TransferDemo as unknown as CampaignExport,  // index 6
     ];
 
     const campaignState = {

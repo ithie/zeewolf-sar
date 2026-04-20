@@ -56,6 +56,13 @@ export function getGround(fx: number, fy: number, points = G.points, CARRIER = G
             return CARRIER.zDeck;
         }
     }
+    for (const s of G.SUBMARINES) {
+        const dx = fx - s.x, dy = fy - s.y;
+        const cosA = Math.cos(-s.angle), sinA = Math.sin(-s.angle);
+        const lx = dx * cosA - dy * sinA;
+        const ly = dx * sinA + dy * cosA;
+        if (Math.abs(lx) <= s.w && Math.abs(ly) <= s.l) return s.zDeck;
+    }
     const { gridSize } = campaignHandler.getTerrain();
     let x1 = Math.floor(fx),
         y1 = Math.floor(fy);
@@ -84,6 +91,12 @@ function getCarrierLocal(globX: number, globY: number, CARRIER = G.CARRIER) {
     };
 }
 
+// ─── vessel local-offset helper ──────────────────────────────────────────────
+const _applyVesselOffset = (vessel: any, localX: number, localY: number) => {
+    const c = Math.cos(vessel.angle), s = Math.sin(vessel.angle);
+    return { x: vessel.x + localX * c - localY * s, y: vessel.y + localX * s + localY * c };
+};
+
 // ─── deliver-mode helpers ────────────────────────────────────────────────────
 let _prevKeyR = false;
 
@@ -93,6 +106,13 @@ const _pointInVesselZone = (wx: number, wy: number, vessel: any, zone: any): boo
     const dx = wx - vessel.x, dy = wy - vessel.y;
     const lx = dx * c - dy * s, ly = dx * s + dy * c;
     return Math.abs(lx - zone.x) <= zone.w && Math.abs(ly - zone.y) <= zone.h;
+};
+
+const _vesselPickupAllowed = (wx: number, wy: number, vessel: any): boolean => {
+    if (!vessel.rescueZones?.length) return true;
+    const pickupZones = vessel.rescueZones.filter((z: any) => z.role === 'pickup' || z.role === 'both');
+    if (!pickupZones.length) return true;
+    return pickupZones.some((z: any) => _pointInVesselZone(wx, wy, vessel, z));
 };
 
 const _inDropzone = (wx: number, wy: number): boolean => {
@@ -109,12 +129,20 @@ const _inDropzone = (wx: number, wy: number): boolean => {
             if (_pointInVesselZone(wx, wy, boat, z)) return true;
         }
     }
+    for (const sub of G.SUBMARINES) {
+        if (!sub.rescueZones?.length) continue;
+        for (const z of sub.rescueZones) {
+            if (z.role === 'pickup') continue;
+            if (_pointInVesselZone(wx, wy, sub, z)) return true;
+        }
+    }
     return false;
 };
 
 // ─── carrier ────────────────────────────────────────────────────────────────
 export function updateCarrierPos(CARRIER: any, seaTimeRef: any, forceUpdate = false, dt = 1) {
     if (!CARRIER || CARRIER.x === undefined) return;
+    if (CARRIER.path === 'static') return;
 
     if (CARRIER.path === 'straight') {
         if (!forceUpdate) {
@@ -123,7 +151,7 @@ export function updateCarrierPos(CARRIER: any, seaTimeRef: any, forceUpdate = fa
             const ny = CARRIER.lineStartY + CARRIER.lineDirY * CARRIER.lineProgress;
             const dx = nx - CARRIER.x,
                 dy = ny - CARRIER.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dx, -dy);
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dy, dx);
             CARRIER.x = nx;
             CARRIER.y = ny;
         }
@@ -132,14 +160,15 @@ export function updateCarrierPos(CARRIER: any, seaTimeRef: any, forceUpdate = fa
         const nx = CARRIER.centerX + Math.cos(seaTimeRef.t) * CARRIER.radiusX;
         const ny = CARRIER.centerY + Math.sin(seaTimeRef.t) * CARRIER.radiusY;
         if (forceUpdate) {
+            // tangent direction: dx/dt = -radiusX*sin(t), dy/dt = radiusY*cos(t)
             CARRIER.angle = Math.atan2(
-                -CARRIER.radiusX * Math.sin(seaTimeRef.t),
-                -CARRIER.radiusY * Math.cos(seaTimeRef.t)
+                CARRIER.radiusY * Math.cos(seaTimeRef.t),
+                -CARRIER.radiusX * Math.sin(seaTimeRef.t)
             );
         } else {
             const dx = nx - CARRIER.x,
                 dy = ny - CARRIER.y;
-            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dx, -dy);
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) CARRIER.angle = Math.atan2(dy, dx);
         }
         CARRIER.x = nx;
         CARRIER.y = ny;
@@ -160,6 +189,9 @@ function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
         const r = obj.radius ?? 45;
         vessel.speed = ((obj.speed ?? 0) * knotsToUnits) / r;
     }
+    // Carrier renders with angle directly (no -π/2 offset); boats/subs offset by -π/2 in drawFn.
+    // So carrier needs standard atan2(dy,dx); boats/subs need atan2(dx,-dy) (= atan2(dy,dx)+π/2).
+    const isCarrier = obj.type === 'carrier';
     if (obj.path === 'circle') {
         const r = obj.radius ?? 45;
         vessel.radiusX = r;
@@ -170,11 +202,14 @@ function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
         seaTimeRef.t = t0;
         vessel.x = vessel.centerX + Math.cos(t0) * vessel.radiusX;
         vessel.y = vessel.centerY + Math.sin(t0) * vessel.radiusY;
-        vessel.angle = Math.atan2(-vessel.radiusX * Math.sin(t0), -vessel.radiusY * Math.cos(t0));
+        // tangent at t0: dx/dt = -radiusX*sin(t0), dy/dt = radiusY*cos(t0)
+        vessel.angle = isCarrier
+            ? Math.atan2(vessel.radiusY * Math.cos(t0), -vessel.radiusX * Math.sin(t0))
+            : Math.atan2(-vessel.radiusX * Math.sin(t0), -vessel.radiusY * Math.cos(t0));
     } else if (obj.path === 'straight') {
         vessel.x = obj.x;
         vessel.y = obj.y;
-        vessel.angle = Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
+        vessel.angle = isCarrier ? angleRad : Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
         vessel.lineStartX = obj.x;
         vessel.lineStartY = obj.y;
         vessel.lineDirX = Math.cos(angleRad);
@@ -195,7 +230,7 @@ function initVessel(obj: any, vessel: any, seaTimeRef: { t: number }) {
     } else {
         vessel.x = obj.x;
         vessel.y = obj.y;
-        vessel.angle = Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
+        vessel.angle = isCarrier ? angleRad : Math.atan2(Math.cos(angleRad), -Math.sin(angleRad));
     }
 }
 
@@ -212,6 +247,64 @@ export function initCarrierFromMission() {
     };
     initVessel(carrierObj, G.CARRIER, seaTimeRef);
     updateCarrierPos(G.CARRIER, seaTimeRef, true);
+}
+
+export function initSubmarinesFromMission() {
+    const allObjects = getObjects();
+    G.SUBMARINES = getObjectsByType('submarine').map((obj: any) => {
+        const objIdx = allObjects.indexOf(obj);
+        const s = {
+            x: obj.x,
+            y: obj.y,
+            angle: 0,
+            path: 'static',
+            speed: 0,
+            w: 0.7,
+            l: 5.4,
+            zDeck: 0.25,
+            zHull: 0,
+            rescueZones: (obj as any).rescueZones || [],
+            radiusX: 0,
+            radiusY: 0,
+            centerX: 0,
+            centerY: 0,
+            lineStartX: 0,
+            lineStartY: 0,
+            lineDirX: 0,
+            lineDirY: 0,
+            lineProgress: 0,
+            _seaTime: 0,
+            _objIdx: objIdx,
+        };
+        const st = {
+            get t() { return s._seaTime; },
+            set t(v) { s._seaTime = v; },
+        };
+        initVessel(obj, s, st);
+        return s;
+    });
+}
+
+export function updateSubmarines(SUBMARINES: any[], dt: number) {
+    SUBMARINES.forEach(s => {
+        if (s.path === 'straight') {
+            s.lineProgress += s.speed * dt;
+            const nx = s.lineStartX + s.lineDirX * s.lineProgress;
+            const ny = s.lineStartY + s.lineDirY * s.lineProgress;
+            const dx = nx - s.x, dy = ny - s.y;
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) s.angle = Math.atan2(dx, -dy);
+            s.x = nx;
+            s.y = ny;
+        } else if (s.path === 'circle') {
+            s._seaTime += s.speed * dt;
+            const nx = s.centerX + Math.cos(s._seaTime) * s.radiusX;
+            const ny = s.centerY + Math.sin(s._seaTime) * s.radiusY;
+            const dx = nx - s.x, dy = ny - s.y;
+            if (Math.abs(dx) > 0.00001 || Math.abs(dy) > 0.00001) s.angle = Math.atan2(dx, -dy);
+            s.x = nx;
+            s.y = ny;
+        }
+    });
 }
 
 export function initBoatsFromMission() {
@@ -291,14 +384,21 @@ export function initPayloadsFromMission() {
         let px = p.x,
             py = p.y;
         if (p.attachTo) {
+            const lx = p.attachTo.localX ?? 0, ly = p.attachTo.localY ?? 0;
             if (p.attachTo.objectType === 'carrier' && G.CARRIER && G.CARRIER.x !== undefined) {
-                px = G.CARRIER.x;
-                py = G.CARRIER.y;
+                const wp = _applyVesselOffset(G.CARRIER, lx, ly);
+                px = wp.x; py = wp.y;
             } else if (p.attachTo.objectType === 'boat') {
                 const attachedBoat = G.BOATS.find((b: any) => b._objIdx === p.attachTo!.objectIdx);
                 if (attachedBoat) {
-                    px = attachedBoat.x;
-                    py = attachedBoat.y;
+                    const wp = _applyVesselOffset(attachedBoat, lx, ly);
+                    px = wp.x; py = wp.y;
+                }
+            } else if (p.attachTo.objectType === 'submarine') {
+                const attachedSub = G.SUBMARINES.find((s: any) => s._objIdx === p.attachTo!.objectIdx);
+                if (attachedSub) {
+                    const wp = _applyVesselOffset(attachedSub, lx, ly);
+                    px = wp.x; py = wp.y;
                 }
             }
         }
@@ -824,6 +924,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     updateWind(G.wind, dt, ctx);
 
     updateBoats(G.BOATS, dt);
+    updateSubmarines(G.SUBMARINES, dt);
     if (ctx.hasPad && G.fuelTruck.state !== 'PARKED') updateFuelTruck(dt, ctx);
     if (ctx.hasCarrier && !crashed) {
         let oldX = G.CARRIER.x,
@@ -961,16 +1062,21 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
         G.payloads.forEach((p: any) => {
             if (p.rescued || p.hanging) return;
             if (p.attachTo) {
+                const lx = p.attachTo.localX ?? 0, ly = p.attachTo.localY ?? 0;
                 if (p.attachTo.objectType === 'carrier' && ctx.hasCarrier) {
-                    p.x = G.CARRIER.x;
-                    p.y = G.CARRIER.y;
-                    p.z = G.CARRIER.zDeck;
+                    const wp = _applyVesselOffset(G.CARRIER, lx, ly);
+                    p.x = wp.x; p.y = wp.y; p.z = G.CARRIER.zDeck;
                 } else if (p.attachTo.objectType === 'boat') {
                     const b = G.BOATS.find((b: any) => b._objIdx === p.attachTo.objectIdx);
                     if (b) {
-                        p.x = b.x;
-                        p.y = b.y;
-                        p.z = b.zDeck;
+                        const wp = _applyVesselOffset(b, lx, ly);
+                        p.x = wp.x; p.y = wp.y; p.z = b.zDeck;
+                    }
+                } else if (p.attachTo.objectType === 'submarine') {
+                    const sub = G.SUBMARINES.find((s: any) => s._objIdx === p.attachTo.objectIdx);
+                    if (sub) {
+                        const wp = _applyVesselOffset(sub, lx, ly);
+                        p.x = wp.x; p.y = wp.y; p.z = sub.zDeck;
                     }
                 }
             } else if (getGround(p.x, p.y, G.points, G.CARRIER) < 0) {
@@ -1191,6 +1297,14 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
             let dist = Math.hypot(G.heli.x - p.x, G.heli.y - p.y);
             let hZ = G.heli.z - G.heli.winch;
             if (dist < 1.8 && Math.abs(hZ - getGround(p.x, p.y)) < 1.0) {
+                // check pickup zone if the payload's vessel defines one
+                if (p.attachTo) {
+                    let vessel: any = null;
+                    if (p.attachTo.objectType === 'carrier') vessel = G.CARRIER;
+                    else if (p.attachTo.objectType === 'boat') vessel = G.BOATS.find((b: any) => b._objIdx === p.attachTo.objectIdx);
+                    else if (p.attachTo.objectType === 'submarine') vessel = G.SUBMARINES.find((s: any) => s._objIdx === p.attachTo.objectIdx);
+                    if (vessel && !_vesselPickupAllowed(G.heli.x, G.heli.y, vessel)) continue;
+                }
                 p.hanging = true;
                 G.activePayload = p;
                 G.rescuerSwing.x = p.x;

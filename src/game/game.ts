@@ -22,6 +22,7 @@ import HANGAR_DEF from './models/hangar.zdef';
 import LIGHTHOUSE_DEF from './models/lighthouse.zdef';
 import SAILBOAT_DEF from './models/sailboat.zdef';
 import CARRIER_DEF from './models/carrier.zdef';
+import SUBMARINE_DEF from './models/submarine.zdef';
 import { applyParts } from './def-utils';
 import { createSceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
@@ -32,6 +33,7 @@ import {
     generateTerrain,
     initCarrierFromMission,
     initBoatsFromMission,
+    initSubmarinesFromMission,
     initPayloadsFromMission,
     initFuelTruck,
     initBirds,
@@ -548,19 +550,21 @@ function startGame(type: string) {
     G.heli.fuelRate = _heliType.fuelRate;
     G.heli.liftPower = _heliType.liftPower;
     G.heli.cargoResist = _heliType.cargoResist;
-    generateTerrain(G.points, G.PAD);
+    const _sgObjs = (campaignHandler.getCurrentMissionData().objects || []) as any[];
+    generateTerrain(G.points, _sgObjs.find((o: any) => o.type === 'pad') ? G.PAD : null);
     initCarrierFromMission();
     initBoatsFromMission();
+    initSubmarinesFromMission();
     document.getElementById('heli-select')!.style.display = 'none';
     showBriefing();
 }
 
 function launchMission() {
-    generateTerrain(G.points, G.PAD);
     // Populate per-mission cache — never call getCurrentMissionData() in the render loop
     const _lmd = campaignHandler.getCurrentMissionData();
     const _lmdObjs = _lmd.objects || [];
     _missionHasPad = !!_lmdObjs.find((o: any) => o.type === 'pad');
+    generateTerrain(G.points, _missionHasPad ? G.PAD : null);
     _missionHasCarrier = !!_lmdObjs.find((o: any) => o.type === 'carrier');
     _missionHasLighthouse = !!_lmdObjs.find((o: any) => o.type === 'lighthouse');
     _missionRain = !!_lmd.rain;
@@ -577,6 +581,7 @@ function launchMission() {
     initCarrierFromMission();
     if (G.CARRIER && G.CARRIER.x !== undefined) G.CARRIER.rescueZones = CARRIER_DEF.rescueZones || [];
     initBoatsFromMission();
+    initSubmarinesFromMission();
     initFoliageFromMission();
     initBirds();
     G.deliverMode = false;
@@ -729,6 +734,9 @@ function drawScene() {
     drawParkedHelis(camX, camY);
     G.BOATS.forEach(b => {
         if (isVisible(b.x, b.y, 15)) drawSailboat(b.x, b.y, b.angle, camX, camY);
+    });
+    G.SUBMARINES.forEach(s => {
+        if (isVisible(s.x, s.y, 15)) drawSubmarine(s.x, s.y, s.angle, camX, camY);
     });
     if (hasPad() && isVisible(G.PAD.xMin + 3, G.PAD.yMin + 3)) drawHangar();
     if (hasPad() && G.fuelTruck && isVisible(G.fuelTruck.x, G.fuelTruck.y))
@@ -1437,6 +1445,12 @@ function drawSailboat(sX: number, sY: number, angle: number, cx: number, cy: num
     SceneRenderer.flush(cx, cy);
 }
 
+function drawSubmarine(sX: number, sY: number, angle: number, cx: number, cy: number) {
+    // SUBMARINE_DEF bow faces +x; same convention offset as sailboat
+    SceneRenderer.add(SUBMARINE_DEF, { x: sX, y: sY, z: 0, angle: angle - Math.PI / 2 });
+    SceneRenderer.flush(cx, cy);
+}
+
 // Beflockung aus Missionsdaten laden
 // G.TREES_MAP initialized in G object
 const FOLIAGE_DECODE: Record<string, string> = { p: 'pine', o: 'oak', b: 'bush', d: 'dead' };
@@ -1903,6 +1917,25 @@ function handleCollisionBoxes() {
                 checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, b.x, b.y, b.angle, -0.4, -0.2, -0.1, 0.1, 0.35, 3.2)
             ) {
                 _physicsCtx.triggerCrash(I18N.CRASH_BOAT);
+            }
+        }
+    });
+
+    // ── Submarines ────────────────────────────────────────────────────────────
+    G.SUBMARINES.forEach(s => {
+        // Hull box: from submarine.zdef collision box coords
+        if (showCollisionBoxes)
+            drawCollisionBox(s.x, s.y, s.angle, -0.7, 0.7, -5.6, 5.2, 0, 0.3, 'rgba(0,180,255,0.8)');
+        // Tower box
+        if (showCollisionBoxes)
+            drawCollisionBox(s.x, s.y, s.angle, -0.32, 0.32, -2.3, -0.8, 0.3, 2.4, 'rgba(255,80,0,0.9)');
+
+        if (!zstate.introActive && !zstate.crashed) {
+            if (
+                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, s.x, s.y, s.angle, -0.7, 0.7, -5.6, 5.2, 0, 0.3) ||
+                checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, s.x, s.y, s.angle, -0.32, 0.32, -2.3, -0.8, 0.3, 2.4)
+            ) {
+                _physicsCtx.triggerCrash(I18N.CRASH_SUBMARINE);
             }
         }
     });

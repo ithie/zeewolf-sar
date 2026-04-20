@@ -38,7 +38,7 @@ export type MissionPayload = {
     type: 'person' | 'crate';
     x: number;
     y: number;
-    attachTo?: { objectType: 'carrier' | 'boat' | 'submarine'; objectIdx: number };
+    attachTo?: { objectType: 'carrier' | 'boat' | 'submarine'; objectIdx: number; localX?: number; localY?: number };
     npcTarget?: boolean;
 };
 
