@@ -6,11 +6,7 @@ import { tileW, tileH, stepH } from '../../render-config';
 let _G: any;
 let _drawHeli: (...args: any[]) => void;
 
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+import { ensureEl as _ensureEl } from '../dom-helpers';
 
 let _onBack: (() => void) | null = null;
 

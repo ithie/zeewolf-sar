@@ -12,11 +12,7 @@ export type MpLobbyCallbacks = {
 
 // ─── DOM helpers ──────────────────────────────────────────────────────────────
 
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+import { ensureEl as _ensureEl } from '../dom-helpers';
 
 const screen = () => document.getElementById('mp-lobby-screen')!;
 const el = (id: string) => document.getElementById(id)!;
@@ -104,7 +100,7 @@ const _showHeliAndReadyPhase = (
     show('mp-heli-flow');
 
     el('mp-ready-peer-label').textContent =
-        (peerCallsign ? peerCallsign : 'PILOT') + ' ' + I18N.MP_CONNECTED;
+        (peerCallsign || 'WOLF') + ' ' + I18N.MP_CONNECTED;
 
     let selectedHeli = '';
     let localReady = false;

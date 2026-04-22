@@ -1,12 +1,7 @@
 import './briefing.css';
 import { I18N } from '../../i18n';
 import { COMMANDER_SVG } from '../../main';
-
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+import { ensureEl as _ensureEl } from '../dom-helpers';
 
 export const mountBriefing = () => {
     const el = _ensureEl('mission-briefing');

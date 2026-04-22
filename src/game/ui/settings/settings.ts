@@ -20,11 +20,7 @@ export const initSettings = (deps: Deps) => {
     _deps = deps;
 };
 
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+import { ensureEl as _ensureEl } from '../dom-helpers';
 
 export const mountSettingsRankup = () => {
     _ensureEl('settings-screen').classList.add('ui-screen');

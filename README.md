@@ -1,6 +1,6 @@
-# ZEEWOLF: SAR
+# SAR: Callsign WOLF
 
-![zeewolf sar](./splash.png)
+![sar callsign wolf](./splash.png)
 
 An isometric helicopter search-and-rescue simulator built with TypeScript and HTML5 Canvas. Inspired by Zeewolf (Binary Asylum, 1994).
 
@@ -75,6 +75,25 @@ npm run build
 
 Produces a self-contained `dist/index.html` with all JS and CSS inlined.
 
+### App Build (iOS App Store)
+
+```sh
+VITE_TARGET=app npm run build
+```
+
+Produces a single-file bundle without WebRTC/multiplayer and the What's New overlay — suitable for wrapping in a WKWebView (Capacitor / Cordova). Network-sensitive modules are replaced by no-op stubs at build time via Vite aliases; no runtime `if`-guards exist in the source.
+
+| Stubbed module | Replaced by |
+| --- | --- |
+| `src/game/multiplayer/mp-state` | `mp-stub.ts` |
+| `src/game/multiplayer/sync` | `mp-stub.ts` |
+| `src/game/multiplayer/mp-mission` | `mp-stub.ts` |
+| `src/game/ui/mp-lobby/mp-lobby` | `mp-stub.ts` |
+| `src/game/mp-game` | `mp-game-stub.ts` |
+| `src/game/ui/whats-new/whats-new` | `whats-new-stub.ts` |
+
+A `Content-Security-Policy` header (`default-src 'self' 'unsafe-inline' data:; media-src *;`) is injected into `index.html` automatically for the app build.
+
 ### Tests
 
 ```sh
@@ -136,13 +155,14 @@ src/
     campaigns/     Mission JSON files
     models/        Isometric geometry definitions (one file per object)
     music/         Song JSON files
-    ui/            Menu screens (credits, heli select, heli info, particles)
-  editor/          Mission editor source
-  tracker/         ZSynth tracker source
-  shared/          Types and utilities shared across modules
-workbench/
-  main/            Electron main process + IPC handlers
-  renderer/        Workbench UI (HTML / CSS / JS)
+    ui/            Menu screens + shared CSS (base, screens)
+  shared/          Types and utilities shared across modules (incl. ZSynth library)
+  tests/           Unit and snapshot tests
+  workbench/
+    main/          Electron main process + IPC handlers
+    renderer/
+      editor/      Mission editor source
+      tracker/     ZSynth tracker UI
 ```
 
 ---

@@ -5,6 +5,9 @@
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
     padding: clamp(14px, 3vh, 28px) 0;
+    padding-top: max(clamp(14px, 3vh, 28px), env(safe-area-inset-top));
+    padding-bottom: max(clamp(14px, 3vh, 28px), env(safe-area-inset-bottom));
+    touch-action: pan-y;
 }
 @media (max-height: 600px) {
     .ui-screen { justify-content: flex-start; }
@@ -20,7 +23,7 @@
     background: rgb(0, 30, 60);
     display: none;
     flex-direction: column;
-    justify-content: center;
+    justify-content: safe center;
     align-items: center;
     z-index: 200;
     cursor: pointer;
@@ -34,7 +37,7 @@
     background: rgb(60, 0, 0);
     display: none;
     flex-direction: column;
-    justify-content: center;
+    justify-content: safe center;
     align-items: center;
     z-index: 210;
     cursor: pointer;
@@ -53,7 +56,7 @@
     background: rgb(5, 5, 5);
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: safe center;
     align-items: center;
     z-index: 200;
     cursor: default;

@@ -31,10 +31,40 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
 
+const isApp = process.env.VITE_TARGET === 'app';
+
+const mpStub = resolve(__dirname, 'src/game/multiplayer/mp-stub.ts');
+const mpGameStub = resolve(__dirname, 'src/game/mp-game-stub.ts');
+const whatsNewStub = resolve(__dirname, 'src/game/ui/whats-new/whats-new-stub.ts');
+
+const injectAppCsp = (): Plugin => ({
+    name: 'inject-app-csp',
+    transformIndexHtml: html => html.replace(
+        '<meta charset="UTF-8" />',
+        `<meta charset="UTF-8" />\n        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:; media-src *;" />`,
+    ),
+});
+
 export default defineConfig(() => {
     return {
         define: { __APP_VERSION__: JSON.stringify(version) },
-        plugins: [zsongPlugin(), zdefPlugin(), injectCookieBanner(), makeSingleFile(), bundleSizeGuard()],
+        resolve: {
+            alias: {
+                '@': resolve(__dirname, 'src'),
+                ...(isApp ? {
+                    [resolve(__dirname, 'src/game/multiplayer/mp-state')]: mpStub,
+                    [resolve(__dirname, 'src/game/multiplayer/sync')]: mpStub,
+                    [resolve(__dirname, 'src/game/multiplayer/mp-mission')]: mpStub,
+                    [resolve(__dirname, 'src/game/ui/mp-lobby/mp-lobby')]: mpStub,
+                    [resolve(__dirname, 'src/game/mp-game')]: mpGameStub,
+                    [resolve(__dirname, 'src/game/ui/whats-new/whats-new')]: whatsNewStub,
+                } : {}),
+            },
+        },
+        plugins: [
+            zsongPlugin(), zdefPlugin(), injectCookieBanner(), makeSingleFile(), bundleSizeGuard(),
+            ...(isApp ? [injectAppCsp()] : []),
+        ],
         build: {
             outDir: 'dist/',
 

@@ -8,7 +8,7 @@ import Julian from './campaigns/julian.json';
 import TransferDemo from './campaigns/transferdemo.json';
 import { MP_DEMO_CAMPAIGN } from './multiplayer/mp-mission';
 import { decompressTerrain } from '../shared/utils';
-import ZsynthPlayer from '../tracker/ZsynthPlayer';
+import ZsynthPlayer from '../shared/ZsynthPlayer';
 import SoundAnothermenu from './music/anothermenu.zsong';
 import SoundAnothersound from './music/anothersound.zsong';
 import SoundBriefing from './music/briefing.zsong';
@@ -19,7 +19,7 @@ import SoundMaintheme from './music/maintheme.zsong';
 import SoundMenusound from './music/menusound.zsong';
 import SoundSpocktribute from './music/spocktribute.zsong';
 import SoundPartytime from './music/partytime.zsong';
-import { SongData } from '@/tracker/types';
+import { SongData } from '@/shared/tracker-types';
 import MusicConfigJson from './music-config.json';
 
 export const musicConfig: { mainMenu: string; credits: string; success: string; defeat: string } = MusicConfigJson;

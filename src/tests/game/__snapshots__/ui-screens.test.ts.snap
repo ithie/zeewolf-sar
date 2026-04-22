@@ -1,0 +1,264 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`UI screen snapshots > briefing 1`] = `
+"
+        <div id="briefing-content">
+            <img id="briefing-map" src="" alt="Mission Map">
+            <div id="briefing-text">
+                <div id="briefing-address"></div>
+                <div id="briefing-headline"></div>
+                <div id="briefing-sublines"></div>
+                <div id="briefing-body"></div>
+                <div id="briefing-hint">KLICKEN ZUM EINSATZ</div>
+            </div>
+        </div>
+        <div id="briefing-commander-wrap">
+            <div id="briefing-commander-img"><svg id="commander-mock"></svg></div>
+        </div>"
+`;
+
+exports[`UI screen snapshots > cookie-banner 1`] = `
+"<div id="cookie-inner">
+    <div style="color: #cc9900; font-size: 15px; letter-spacing: 5px; font-weight: bold">DATENSCHUTZ</div>
+    <p>
+        SAR: Callsign WOLF kann auf Wunsch folgende Daten <strong style="color: #aaa">ausschließlich lokal</strong>
+        in deinem Browser speichern (localStorage):
+    </p>
+    <p style="color: #555; font-size: 13px; line-height: 1.6">
+        ▸ Rufzeichen &nbsp;▸ Dienstgrad &nbsp;▸ Kampagnenfortschritt &nbsp;▸ Einwilligungsstatus
+    </p>
+    <p>
+        Unabhängig davon wird die Steuerungseinstellung <strong style="color: #aaa">immer lokal</strong>
+        gespeichert, da es sich um eine rein technische Geräteeinstellung handelt (kein Personenbezug).
+    </p>
+    <p>
+        Alle oben genannten Daten verbleiben <strong style="color: #aaa">ausschließlich lokal</strong>
+        in deinem Browser. Es werden keine Analyse-, Tracking- oder Werbedaten übertragen. Rechtsgrundlage: Art.&nbsp;6
+        Abs.&nbsp;1 lit.&nbsp;a DSGVO.
+    </p>
+    <p style="border-top: 1px solid #1a2a1a; padding-top: 10px; margin-top: 4px">
+        <strong style="color: #cc9900">MULTIPLAYER-MODUS:</strong>
+        Wenn du eine Multiplayer-Verbindung aufbaust, werden zur Vermittlung der direkten Peer-to-Peer-Verbindung
+        <strong style="color: #aaa">Google STUN-Server</strong>
+        (stun.l.google.com) kontaktiert. Dabei wird deine
+        <strong style="color: #aaa">IP-Adresse</strong> an Google übermittelt. Dies geschieht ausschließlich auf deine
+        aktive Veranlassung hin und nur für die Dauer des Verbindungsaufbaus. Google setzt dabei
+        <strong style="color: #aaa">keine Cookies</strong>. Rechtsgrundlage: Art.&nbsp;6 Abs.&nbsp;1 lit.&nbsp;b DSGVO.
+    </p>
+    <p style="color: #444; font-size: 12px">
+        Eine erteilte Einwilligung kann jederzeit durch Klicken auf
+        <strong style="color: #555">„WIDERRUFEN &amp; LÖSCHEN"</strong> (unten) oder über
+        <strong style="color: #555">Hauptmenü → Einstellungen → Spielstand löschen</strong> widerrufen werden. Alle
+        gespeicherten Daten werden dabei unwiderruflich gelöscht. Das Spiel ist auch ohne Spielstand vollständig
+        nutzbar.
+    </p>
+    <div id="cookie-buttons">
+        <button class="approve" onclick="approveCookies()">AKZEPTIEREN</button>
+        <button class="decline" onclick="declineCookies()">ABLEHNEN</button>
+        <button class="decline" style="background: #1a0000; border-color: #500; color: #c44" onclick="confirmDeleteSession()">
+            WIDERRUFEN &amp; LÖSCHEN
+        </button>
+    </div>
+</div>
+"
+`;
+
+exports[`UI screen snapshots > credits-screen 1`] = `"<canvas id="credits-canvas"></canvas><div id="credits-inner"></div><div class="back-btn">◀ ZURÜCK</div>"`;
+
+exports[`UI screen snapshots > heli-info-screen 1`] = `
+"
+        <div class="title">HANGAR</div>
+        <div class="subtitle">TYPENÜBERSICHT</div>
+        <div id="heli-info-stage">
+            <div id="heli-cards-area"></div>
+            <div id="heli-detail-panel"></div>
+        </div>
+        <div class="back-btn" id="heli-info-back">◀ ZURÜCK</div>"
+`;
+
+exports[`UI screen snapshots > main-menu 1`] = `
+"
+        <canvas id="main-menu-bg-canvas"></canvas>
+        <div class="title">ZEEWOLF: SAR</div>
+        <div class="subtitle" style="margin-bottom: 44px">MAIN SYSTEM</div>
+        <nav class="menu-nav">
+            <div class="menu-item" id="menu-item-start">SPIEL STARTEN</div>
+            <div class="menu-item" id="menu-item-multiplayer">MULTIPLAYER</div>
+            <div class="menu-item" id="menu-item-heli">HELIKOPTER</div>
+            <div class="menu-item" id="menu-item-settings">EINSTELLUNGEN</div>
+            <div class="menu-item" id="menu-item-credits">CREDITS</div>
+        </nav>"
+`;
+
+exports[`UI screen snapshots > mp-lobby-screen 1`] = `
+"
+        <div class="title">MULTIPLAYER</div>
+        <div class="subtitle" style="margin-bottom:8px">KOOP-EINSATZ</div>
+
+        <div id="mp-lobby-initial">
+            <button class="mp-btn" id="mp-create-btn">SPIEL ERSTELLEN</button>
+            <button class="mp-btn" id="mp-join-btn">BEITRETEN</button>
+            <div class="back-btn" id="mp-back-btn">◀ ZURÜCK</div>
+        </div>
+
+        <!-- Host flow -->
+        <div id="mp-host-flow" class="mp-flow" style="display:none">
+            <div class="mp-status" id="mp-host-status">GENERIERE...</div>
+            <div class="mp-label">Schritt 1: Diesen Code an deinen Mitspieler senden:</div>
+            <textarea id="mp-offer-txt" class="mp-textarea" readonly=""></textarea>
+            <div class="mp-row">
+                <button class="mp-btn mp-btn-small" id="mp-copy-offer-btn">KOPIEREN</button>
+            </div>
+            <div class="mp-label">Schritt 2: Antwort des Mitspielers einfügen:</div>
+            <textarea id="mp-answer-input" class="mp-textarea" placeholder="Code hier einfügen…"></textarea>
+            <button class="mp-btn" id="mp-connect-btn" disabled="">VERBINDEN</button>
+            <div class="back-btn" id="mp-host-back-btn">◀ ZURÜCK</div>
+        </div>
+
+        <!-- Guest flow -->
+        <div id="mp-guest-flow" class="mp-flow" style="display:none">
+            <div class="mp-label">Code des Gastgebers einfügen:</div>
+            <textarea id="mp-offer-input" class="mp-textarea" placeholder="Code hier einfügen…"></textarea>
+            <button class="mp-btn" id="mp-gen-answer-btn">ANTWORT GENERIEREN</button>
+            <div class="mp-status" id="mp-guest-status"></div>
+            <div class="mp-label" id="mp-guest-step2-label" style="display:none">Diesen Code an den Gastgeber senden:</div>
+            <textarea id="mp-answer-txt" class="mp-textarea" readonly="" style="display:none"></textarea>
+            <div class="mp-row" id="mp-guest-copy-row" style="display:none">
+                <button class="mp-btn mp-btn-small" id="mp-copy-answer-btn">KOPIEREN</button>
+            </div>
+            <div class="back-btn" id="mp-guest-back-btn">◀ ZURÜCK</div>
+        </div>
+
+        <!-- Heli select + ready phase (shared by host and guest) -->
+        <div id="mp-heli-flow" class="mp-flow" style="display:none">
+            <div class="mp-status ok" id="mp-ready-peer-label"></div>
+            <div class="mp-label">LUFTFAHRZEUG WÄHLEN</div>
+            <div class="mp-heli-cards" id="mp-heli-cards">
+            <div class="mp-heli-card" data-id="dolphin">
+                <div class="mp-heli-card-label">MH-65 DOLPHIN</div>
+                <div class="mp-heli-card-sub">Wendig / Schnell</div>
+            </div>
+            <div class="mp-heli-card" data-id="jayhawk">
+                <div class="mp-heli-card-label">MH-60T JAYHAWK</div>
+                <div class="mp-heli-card-sub">Schwer / Stabil</div>
+            </div>
+            <div class="mp-heli-card" data-id="chinook">
+                <div class="mp-heli-card-label">CH-47 CHINOOK</div>
+                <div class="mp-heli-card-sub">Tandem / Extraschwer</div>
+            </div></div>
+            <div class="mp-status" id="mp-ready-status">BEREIT ZUM EINSATZ?</div>
+            <button class="mp-btn" id="mp-ready-btn" disabled="">BEREIT</button>
+            <div id="mp-countdown-display" class="mp-countdown" style="display:none"></div>
+        </div>"
+`;
+
+exports[`UI screen snapshots > mute-button 1`] = `
+"
+<svg xmlns="http://www.w3.org/2000/svg" id="audio-mute-inactive" viewBox="0 0 32 32" width="32" height="32">
+  <defs><filter id="glow"><feGaussianBlur stdDeviation="1.5" result="blur"></feGaussianBlur>
+    <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+  </filter></defs>
+  <g filter="url(#glow)">
+    <polygon points="4,11 4,21 9,21 16,27 16,5 9,11" fill="#ff6600" stroke="#ff8800" stroke-width="0.5"></polygon>
+    <path d="M19,11 Q23,16 19,21" fill="none" stroke="#ff6600" stroke-width="2" stroke-linecap="round"></path>
+    <path d="M22,8 Q28,16 22,24" fill="none" stroke="#ff6600" stroke-width="2" stroke-linecap="round" opacity="0.7"></path>
+  </g>
+</svg>
+<svg xmlns="http://www.w3.org/2000/svg" id="audio-mute-active" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <filter id="glow-red"><feGaussianBlur stdDeviation="1.5" result="blur"></feGaussianBlur>
+      <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+    <filter id="glow-grey"><feGaussianBlur stdDeviation="0.8" result="blur"></feGaussianBlur>
+      <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+  <polygon points="4,11 4,21 9,21 16,27 16,5 9,11" fill="#444" stroke="#555" stroke-width="0.5" filter="url(#glow-grey)"></polygon>
+  <g filter="url(#glow-red)">
+    <line x1="20" y1="11" x2="28" y2="21" stroke="#ff2200" stroke-width="2.5" stroke-linecap="round"></line>
+    <line x1="28" y1="11" x2="20" y2="21" stroke="#ff2200" stroke-width="2.5" stroke-linecap="round"></line>
+  </g>
+</svg>"
+`;
+
+exports[`UI screen snapshots > rankup-overlay 1`] = `
+"
+        <div id="rankup-label">BEFÖRDERUNG</div>
+        <div id="rankup-badge"></div>
+        <div id="rankup-title"></div>
+        <div id="rankup-address"></div>
+        <p class="start-hint" style="color: #cc9900; margin-top: 10px">Weiter</p>"
+`;
+
+exports[`UI screen snapshots > settings-screen 1`] = `
+"
+        <div class="title" style="font-size: 48px">EINSTELLUNGEN</div>
+        <div class="subtitle">PROFIL</div>
+        <div id="settings-badge"></div>
+        <div class="settings-field">
+            <label>RUFZEICHEN (MAX. 8 ZEICHEN, A–Z)</label>
+            <input id="player-name-input" type="text" maxlength="8" placeholder="—">
+        </div>
+        <div id="settings-stats"></div>
+        <div class="settings-field" style="margin-top: 8px">
+            <label>SAVE CODE</label>
+            <div id="settings-code-display">—</div>
+        </div>
+        <div class="settings-field">
+            <label>CODE IMPORTIEREN (ÜBERSCHREIBT SPIELSTAND)</label>
+            <div style="display:flex; gap: 10px; align-items: center">
+                <input id="import-code-input" class="settings-field input" type="text" maxlength="10" placeholder="XXXXX-XXXX">
+                <button class="settings-btn" id="apply-save-code-btn">LADEN</button>
+            </div>
+            <div id="import-code-msg" style="font-size: 12px; letter-spacing: 2px; min-height: 18px; margin-top: 4px"></div>
+        </div>
+        <div id="settings-ctrl-row" style="display:none; flex-direction:column; align-items:center; margin-top:16px; width:100%">
+            <div class="settings-field" style="width:100%">
+                <label>STEUERUNG</label>
+                <div style="display:flex; gap:10px; margin-top:6px">
+                    <button class="settings-btn" id="ctrl-btn-profi">VEREINFACHT</button>
+                    <button class="settings-btn" id="ctrl-btn-vereinfacht">PROFI</button>
+                </div>
+                <div id="ctrl-mode-hint" style="font-size:11px; letter-spacing:1px; color:#8af; margin-top:4px; min-height:16px"></div>
+            </div>
+        </div>
+        <div style="margin-top: 20px; border-top: 1px solid #1a1a2e; padding-top: 16px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px">
+            <div class="settings-field" style="width:100%">
+                <label>MUSIK</label>
+                <div style="display:flex; gap:10px; margin-top:6px">
+                    <button class="settings-btn" id="music-on-btn">AN</button>
+                    <button class="settings-btn" id="music-off-btn">AUS</button>
+                </div>
+            </div>
+            <div class="settings-field" style="width:100%">
+                <label>SOUND-EFFEKTE</label>
+                <div style="display:flex; gap:10px; margin-top:6px">
+                    <button class="settings-btn" id="sfx-on-btn">AN</button>
+                    <button class="settings-btn" id="sfx-off-btn">AUS</button>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 20px; border-top: 1px solid #1a1a2e; padding-top: 16px; width: 100%; display: flex; flex-direction: column; align-items: center">
+            <button id="delete-session-btn" class="settings-btn" style="background: #1a0000; border-color: #500; color: #c44">SPIELSTAND LÖSCHEN</button>
+            <div id="delete-session-msg" style="font-size: 12px; letter-spacing: 2px; color: #c44; min-height: 18px; margin-top: 6px"></div>
+        </div>
+        <div class="back-btn" id="from-settings-btn">◀ ZURÜCK</div>"
+`;
+
+exports[`UI screen snapshots > splash (main-menu) 1`] = `
+"
+        <div class="title">ZEEWOLF: SAR</div>
+        <div class="subtitle" id="splash-version"></div>
+        <canvas id="menu-heli-big"></canvas>
+        <p class="start-hint">KLICKEN ZUM SYSTEMSTART</p>"
+`;
+
+exports[`UI screen snapshots > whats-new 1`] = `
+"
+        <div id="whats-new-version">NEUIGKEITEN · v25.2</div>
+        <div id="whats-new-title">SOUND &amp; UI</div>
+        <ul id="whats-new-items">
+            <li>Prozedurale Rotor-Sounds — jeder Heli klingt anders</li><li>Wind reagiert auf den echten Spielwind inkl. Böen</li><li>Musik und Sound-Effekte separat ein-/ausschaltbar (Einstellungen)</li><li>Sound Lab in der Workbench: Rotor, Wind und Möwen zum Experimentieren</li><li>Alle UI-Elemente als eigenständige Module — sauberere Architektur</li>
+        </ul>
+        <div id="whats-new-hint">KLICKEN ZUM FORTFAHREN</div>"
+`;

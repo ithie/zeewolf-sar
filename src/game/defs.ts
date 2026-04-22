@@ -53,6 +53,13 @@ export interface DEF {
     parts?: DEFPart[];
 }
 
+// ─── Static model exports ─────────────────────────────────────────────────────
+
+import HANGAR_RAW from './models/hangar.zdef';
+import LIGHTHOUSE_RAW from './models/lighthouse.zdef';
+export const HANGAR_DEF: DEF = HANGAR_RAW as unknown as DEF;
+export const LIGHTHOUSE_DEF: DEF = LIGHTHOUSE_RAW as unknown as DEF;
+
 // ─── Cylinder helpers ─────────────────────────────────────────────────────────
 
 /** n evenly-spaced points on a circle of radius r at height z */

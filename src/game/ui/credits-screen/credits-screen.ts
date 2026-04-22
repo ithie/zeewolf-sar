@@ -2,11 +2,7 @@ import './credits-screen.css';
 import { soundHandler, musicConfig } from '../../main';
 import { I18N } from '../../i18n';
 
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+import { ensureEl as _ensureEl } from '../dom-helpers';
 
 export const mountCreditsScreen = (onBack: () => void): void => {
     const root = _ensureEl('credits-screen');

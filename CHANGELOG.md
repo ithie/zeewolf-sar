@@ -1,4 +1,41 @@
-# Changelog
+# SAR: Callsign WOLF — Changelog
+
+## v25.3.1 — App-Build-Trennung
+
+### Technical
+
+- **`VITE_TARGET=app` build target**: single-file HTML bundle without WebRTC/multiplayer and What's New overlay — suitable for iOS App Store distribution via WKWebView
+- **`src/game/mp-game.ts`**: all multiplayer game logic (`toMpLobby`, `_mpReturnToLobby`, `_setupMpChannels`, `startMpGame`, `_mpTriggerCrash`, `_mpMissionComplete`, `_mpTimeOut`) extracted from `game.ts` into a dedicated module; wired via `initMpGame(deps)` factory
+- **`src/game/mp-game-stub.ts`**: no-op replacement for `mp-game.ts` in app builds — all exports are `undefined` or `() => {}`
+- **`src/game/ui/whats-new/whats-new-stub.ts`**: no-op replacement for `whats-new.ts` in app builds
+- **No runtime `if`-guards**: build-specific exclusions are handled entirely by Vite module aliases — `game.ts` contains no `IS_APP` checks; the multiplayer button is absent because `toMpLobby` is `undefined` from the stub, not because of a conditional
+- **`injectAppCsp` plugin**: `Content-Security-Policy` header injected into `index.html` automatically for app builds
+
+---
+
+## v25.3 — SAR: Callsign WOLF
+
+### New
+
+- **Neuer Name**: Das Spiel heißt jetzt **SAR: Callsign WOLF**
+- **Standard-Rufzeichen WOLF**: Briefing und Ranganzeige zeigen `WOLF` als Callsign bis ein eigenes gesetzt wird
+- **Ladescreen**: Neuer Ladescreen vor jedem Missionstart mit Fortschrittsbalken (Gelände → Objekte → Umgebung)
+
+### Technical
+
+- **Full `src/` consolidation**: all source now lives under a single `src/` root — `workbench/` moved to `src/workbench/`, `tests/` to `src/tests/`, `src/styles/` to `src/game/styles/`, mission editor to `src/workbench/renderer/editor/`, ZSynth tracker UI to `src/workbench/renderer/tracker/`
+- **ZSynth library decoupled from tracker UI**: `ZsynthPlayer` and tracker types moved to `src/shared/` — importable by game and workbench without pulling in the tracker UI
+- **`.ui-screen` shared CSS base class**: all full-screen overlays now share a common base (scrollable, mobile `webkit-overflow-scrolling`, `box-sizing`, responsive padding) — applied via `classList.add('ui-screen')` at mount time
+- **`ensureEl` extracted to `src/game/ui/dom-helpers.ts`**: removed 10 duplicate private copies across UI modules
+- **`@/` import alias wired up**: `resolve.alias: { '@': 'src/' }` added to `vite.config.ts` — works across all tools under `src/workbench/`
+- **`zdefPlugin` added to `vitest.config.ts`**: `.zdef` imports now resolve correctly in tests
+- **`HANGAR_DEF` / `LIGHTHOUSE_DEF` exported from `defs.ts`**: required by tests and editor
+- **New: `def-utils.test.ts`**: unit tests for Rodrigues rotation math (`applyParts` / `applyRotateNodes`) — covers 90°/180° rotation, pivot offsets, identity, filtering, and alias equivalence
+- **New: `ui-screens.test.ts`**: DOM snapshot tests for all 11 UI screens (jsdom, `vi.mock` for heavy deps)
+- **Workbench Tests tab fixed**: `suite.testFilePath` → `suite.name` (Vitest JSON reporter field rename)
+- **Electron 41.2.2**: confirmed compatible; no code changes required
+
+---
 
 ## v24.1 — SPA Pages, Mobile Fixes, Loop Correctness
 

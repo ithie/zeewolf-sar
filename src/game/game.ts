@@ -1,5 +1,7 @@
-import '../styles/base.css';
+import './ui/base.css';
 import './ui/screens.css';
+import { showLoadingScreen } from './ui/loading-screen/loading-screen';
+import { ensureEl } from './ui/dom-helpers';
 import { mountTouchControls, setDeliverToggle, initPitchWheel } from './ui/touch-controls/touch-controls';
 import { iso } from './render';
 import { campaignHandler, soundHandler, zinit, musicConfig } from './main';
@@ -46,11 +48,9 @@ import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
 import { mountCreditsScreen, toCredits } from './ui/credits-screen/credits-screen';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
-import { mpState, resetMpState } from './multiplayer/mp-state';
-import { packHeli, applyHeliSnap, packWorld, applyWorldSnap } from './multiplayer/sync';
-import { MP_CAMPAIGN_INDEX, MP_COUNTDOWN_SEC, MP_PAD } from './multiplayer/mp-mission';
-import type { MpChannels } from './multiplayer/rtc';
-import { mountMpLobby, showMpLobby, hideMpLobby, setLobbyCallsign } from './ui/mp-lobby/mp-lobby';
+import { mpState } from './multiplayer/mp-state';
+import { packHeli, packWorld } from './multiplayer/sync';
+import { toMpLobby, initMpGame, mpReturnToLobby, mpMissionComplete, mpTriggerCrash, mpTimeOut } from './mp-game';
 import { mountHeliInfoScreen, initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
 import {
     initHeliSelect,
@@ -216,9 +216,9 @@ const showBriefing = () => {
     if (briefingSong) soundHandler.play(briefingSong, true);
 };
 
-const dismissBriefing = () => {
+const dismissBriefing = async () => {
     hideBriefing();
-    launchMission();
+    await launchMission();
 };
 
 function missionComplete() {
@@ -299,8 +299,8 @@ function returnToBase() {
     if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     _partyMode = false;
     zstate.gameStarted = false;
-    if (mpState.active) {
-        _mpReturnToLobby();
+    if (mpState.active && mpReturnToLobby) {
+        mpReturnToLobby();
         return;
     }
     setTouchVisible(false);
@@ -327,180 +327,6 @@ function returnToBase() {
     document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
 }
-
-// ─── Multiplayer ──────────────────────────────────────────────────────────────
-
-const _mpReturnToLobby = () => {
-    cancelAnimationFrame(_rafId);
-    _rafId = 0;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    G.remoteHeli = null;
-    resetMpState();
-    zstate.crashed = false;
-    zstate.gameStarted = false;
-    zstate.introActive = false;
-    G.particles = [];
-    G.debris = [];
-    setTouchVisible(false);
-    ['mission-success-screen', 'campaign-failed-screen', 'campaign-complete-screen', 'crash-screen'].forEach(id => {
-        const e = document.getElementById(id);
-        if (e) e.style.display = 'none';
-    });
-    toMpLobby();
-};
-
-const toMpLobby = () => {
-    document.getElementById('main-menu')!.style.display = 'none';
-    setLobbyCallsign(_session.playerName || 'PILOT');
-    showMpLobby({
-        onConnected: (isHost: boolean, peerCallsign: string, channels: MpChannels, heliType: string) => {
-            _setupMpChannels(channels, isHost);
-            startMpGame(isHost, peerCallsign, heliType);
-        },
-        onBack: () => {
-            hideMpLobby();
-            document.getElementById('main-menu')!.style.display = 'flex';
-        },
-    });
-};
-
-const _setupMpChannels = (channels: MpChannels, isHost: boolean) => {
-    mpState.channels = channels;
-    channels.onPos(snap => {
-        if (G.remoteHeli) applyHeliSnap(snap, G.remoteHeli);
-    });
-    channels.onEvent(evt => {
-        if (evt.t === 'world' && !isHost) {
-            applyWorldSnap(evt.s, G, n => { mpState.countdown = n; });
-        } else if (evt.t === 'rescue') {
-            G.totalRescued = evt.total;
-        } else if (evt.t === 'done') {
-            _mpMissionComplete();
-        } else if (evt.t === 'heli') {
-            if (G.remoteHeli) G.remoteHeli.type = evt.heliType;
-        }
-        // 'hello', 'ready', 'start', 'crash' handled in lobby or respawn
-    });
-};
-
-const startMpGame = (isHost: boolean, peerCallsign: string, heliType: string) => {
-    stopMenuParticles();
-    soundHandler.play(musicConfig.mainMenu || 'maintheme', false);
-
-    mpState.active = true;
-    mpState.isHost = isHost;
-    mpState.peerCallsign = peerCallsign;
-    mpState.countdown = MP_COUNTDOWN_SEC;
-    mpState.countdownMax = MP_COUNTDOWN_SEC;
-    mpState.respawnTimer = 0;
-
-    _selectedCampaignIndex = MP_CAMPAIGN_INDEX;
-    campaignHandler.campaign.setActiveCampaign(MP_CAMPAIGN_INDEX);
-
-    const { gridSize, objects: mpObjs } = campaignHandler.getCurrentMissionData();
-    const padObj = (mpObjs || []).find((o: any) => o.type === 'pad') || MP_PAD;
-    G.PAD = { xMin: padObj.x, xMax: padObj.x + 7, yMin: padObj.y, yMax: padObj.y + 7, z: 0.5 };
-    G.START_POS = { x: padObj.x + 3.5, y: padObj.y + 3.5 };
-    initGrid(gridSize, G.points);
-
-    // Apply selected heli type
-    G.heli.type = heliType;
-    const _heliType = getHeliType(heliType);
-    G.heli.maxLoad = _heliType.maxLoad;
-    G.heli.accel = _heliType.accel;
-    G.heli.friction = _heliType.friction;
-    G.heli.tiltSpeed = _heliType.tiltSpeed;
-    G.heli.fuelRate = _heliType.fuelRate;
-    G.heli.liftPower = _heliType.liftPower;
-    G.heli.cargoResist = _heliType.cargoResist;
-
-    G.remoteHeli = {
-        type: heliType,  // placeholder until peer sends {t:'heli'}
-        x: 0, y: 0, z: 0,
-        vx: 0, vy: 0, vz: 0,
-        angle: 0, tilt: 0, roll: 0,
-        rotorRPM: 0, rotationPos: 0,
-        inAir: false,
-    };
-
-    // Hide all other screens
-    ['splash', 'main-menu', 'campaign-select', 'heli-select'].forEach(id => {
-        const e = document.getElementById(id);
-        if (e) e.style.display = 'none';
-    });
-
-    // Directly launch without briefing
-    launchMission();
-
-    // Store host spawn (carrier start position, set by launchMission)
-    mpState.spawnX = G.heli.x;
-    mpState.spawnY = G.heli.y;
-    mpState.spawnZ = G.heli.z;
-    mpState.spawnAngle = G.heli.angle;
-
-    // Guest override: spawn on PAD instead of carrier
-    if (!isHost) {
-        G.heli.x = G.PAD.xMin + 3.5;
-        G.heli.y = G.PAD.yMin + 3.5;
-        G.heli.z = G.PAD.z + 0.1;
-        G.heli.vx = 0; G.heli.vy = 0; G.heli.vz = 0;
-        G.heli.angle = 0;
-        G.heli.engineOn = false;
-        G.heli.rotorRPM = 0;
-        zstate.introActive = false;
-        zstate.cam.x = (G.heli.x - G.heli.y) * (tileW / 2);
-        zstate.cam.y = (G.heli.x + G.heli.y) * (tileH / 2);
-        // Update guest spawn to PAD position
-        mpState.spawnX = G.heli.x;
-        mpState.spawnY = G.heli.y;
-        mpState.spawnZ = G.heli.z;
-        mpState.spawnAngle = 0;
-    }
-
-    // Tell peer which heli we chose
-    mpState.channels?.sendEvent({ t: 'heli', heliType });
-
-    soundHandler.play(campaignHandler.getActiveCampaignMusic().ingame || 'clike', false);
-};
-
-const _mpTriggerCrash = (reason: string) => {
-    if (mpState.respawnTimer > 0) return;  // already respawning
-    mpState.respawnTimer = 1;  // mark as active (exact value doesn't matter)
-    mpState.channels?.sendEvent({ t: 'crash', role: mpState.isHost ? 'host' : 'guest' });
-    spawnExplosion(G.heli, G.particles, G.debris, G.points, G.CARRIER);
-    showMsg(reason);
-    G.heli.vx = 0; G.heli.vy = 0; G.heli.vz = 0;
-    G.heli.engineOn = false;
-    G.heli.rotorRPM = 0;
-    G.heli.inAir = false;
-    setTimeout(() => {
-        G.heli.x = mpState.spawnX;
-        G.heli.y = mpState.spawnY;
-        G.heli.z = mpState.spawnZ;
-        G.heli.angle = mpState.spawnAngle;
-        G.heli.vx = 0; G.heli.vy = 0; G.heli.vz = 0;
-        G.heli.engineOn = false;
-        G.heli.rotorRPM = 0;
-        G.heli.fuel = 1.0;
-        G.heli.onboard = 0;
-        G.heli.inAir = false;
-        zstate.cam.x = (G.heli.x - G.heli.y) * (tileW / 2);
-        zstate.cam.y = (G.heli.x + G.heli.y) * (tileH / 2);
-        mpState.respawnTimer = 0;
-    }, 2500);
-};
-
-const _mpMissionComplete = () => {
-    mpState.channels?.sendEvent({ t: 'done' });
-    // returnToBase listener on mission-success-screen handles the click → _mpReturnToLobby
-    document.getElementById('mission-success-screen')!.style.display = 'flex';
-};
-
-const _mpTimeOut = () => {
-    document.getElementById('campaign-failed-reason')!.innerHTML = 'ZEIT ABGELAUFEN';
-    // returnToBase listener on campaign-failed-screen handles the click → _mpReturnToLobby
-    document.getElementById('campaign-failed-screen')!.style.display = 'flex';
-};
 
 // ─── campaign / G.heli select ──────────────────────────────────────────────────
 function toCampaignSelect() {
@@ -559,12 +385,13 @@ function startGame(type: string) {
     showBriefing();
 }
 
-function launchMission() {
+const _tick = (): Promise<void> => new Promise(r => setTimeout(r, 0));
+
+const launchMission = async (showLoader = true): Promise<void> => {
     // Populate per-mission cache — never call getCurrentMissionData() in the render loop
     const _lmd = campaignHandler.getCurrentMissionData();
     const _lmdObjs = _lmd.objects || [];
     _missionHasPad = !!_lmdObjs.find((o: any) => o.type === 'pad');
-    generateTerrain(G.points, _missionHasPad ? G.PAD : null);
     _missionHasCarrier = !!_lmdObjs.find((o: any) => o.type === 'carrier');
     _missionHasLighthouse = !!_lmdObjs.find((o: any) => o.type === 'lighthouse');
     _missionRain = !!_lmd.rain;
@@ -577,16 +404,34 @@ function launchMission() {
     _lighthouseY = _lhObj ? _lhObj.y : -1;
     _missionGridSize = campaignHandler.getTerrain().gridSize;
 
+    const handle = showLoader ? showLoadingScreen(_lmd.headline ?? 'MISSION') : null;
+
+    // Step 1 — terrain
+    generateTerrain(G.points, _missionHasPad ? G.PAD : null);
     _precomputeDayColors(_missionRain);
+    handle?.step('Gelände…', 0.25);
+    if (handle) await _tick();
+
+    // Step 2 — objects
     initCarrierFromMission();
     if (G.CARRIER && G.CARRIER.x !== undefined) G.CARRIER.rescueZones = CARRIER_DEF.rescueZones || [];
     initBoatsFromMission();
     initSubmarinesFromMission();
+    handle?.step('Objekte…', 0.5);
+    if (handle) await _tick();
+
+    // Step 3 — environment
     initFoliageFromMission();
     initBirds();
     G.deliverMode = false;
     initPayloadsFromMission();
     if (hasPad()) initFuelTruck();
+    handle?.step('Umgebung…', 0.75);
+    if (handle) await _tick();
+
+    // Step 4 — ready; wait for minimum display time then fade out
+    handle?.step('Bereit.', 1.0);
+    if (handle) await handle.done();
 
     G.heli.winch = 0;
     zstate.crashed = false;
@@ -1037,7 +882,7 @@ function drawScene() {
                 mpState.countdown = Math.max(0, mpState.countdown - dt / 60);
             }
             if (mpState.countdown <= 0 && mpState.respawnTimer === 0) {
-                _mpTimeOut();
+                mpTimeOut?.();
             }
             // Send world snap ~10 Hz
             if (now - mpState.lastWorldSent > 100) {
@@ -2084,10 +1929,10 @@ const _physicsCtx = {
     partyPalette: _PARTY_PALETTE as readonly string[],
     showMsg,
     get missionComplete() {
-        return mpState.active ? _mpMissionComplete : missionComplete;
+        return mpState.active ? mpMissionComplete ?? missionComplete : missionComplete;
     },
     get triggerCrash() {
-        return mpState.active ? _mpTriggerCrash : triggerCrash;
+        return mpState.active ? mpTriggerCrash ?? triggerCrash : triggerCrash;
     },
 };
 
@@ -2320,7 +2165,7 @@ const _resizeCanvas = () => {
         canvas.style.height = '';
     }
 };
-window.onresize = _resizeCanvas;
+window.addEventListener('resize', _resizeCanvas);
 _resizeCanvas();
 
 const _isTouchDevice = () =>
@@ -2497,11 +2342,7 @@ const setupTouchControls = () => {
     }
 };
 
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+const _ensureEl = ensureEl;
 
 const mountGameOverlays = () => {
     _ensureEl('flash-overlay');
@@ -2611,8 +2452,7 @@ const _previewLaunch = !import.meta.env.DEV ? undefined : (missionData: any, hel
     G.heli.liftPower = _ht.liftPower;
     G.heli.cargoResist = _ht.cargoResist;
 
-    launchMission();
-    setTouchVisible(true);
+    void launchMission(false);
 };
 
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('preview') && _previewLaunch) {
@@ -2623,7 +2463,17 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('preview') &
 }
 
 window.onload = () => {
+    requestAnimationFrame(() => {
     assertDom();
+    initMpGame({
+        cancelRaf: () => { cancelAnimationFrame(_rafId); _rafId = 0; },
+        ctx,
+        getPlayerName: () => _session.playerName || 'WOLF',
+        setTouchVisible,
+        setSelectedCampaignIndex: (i: number) => { _selectedCampaignIndex = i; },
+        launchMission,
+        showMsg,
+    });
     mountGameOverlays();
     mountHeliInfoScreen(toMainMenu);
     mountCreditsScreen(toMainMenu);
@@ -2635,7 +2485,6 @@ window.onload = () => {
         onSettings: toSettings,
         onCredits: toCredits,
     });
-    mountMpLobby();
     (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
     zinit();
     mountBriefing();
@@ -2727,6 +2576,7 @@ window.onload = () => {
         once: true,
     });
     drawMenuHeli();
+    }); // requestAnimationFrame
 };
 
 window.launchEasterEgg = launchEasterEgg;

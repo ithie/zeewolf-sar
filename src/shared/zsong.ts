@@ -1,4 +1,4 @@
-import type { SongData } from '../tracker/types';
+import type { SongData } from './tracker-types';
 
 const DRUM_IDS = new Set(['kick', 'snare', 'hat']);
 const DRUM_LABEL: Record<string, string> = { kick: 'KICK', snare: 'SNARE', hat: 'HI-HAT' };

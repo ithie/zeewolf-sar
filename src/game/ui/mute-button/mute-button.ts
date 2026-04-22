@@ -32,11 +32,7 @@ type MuteButtonDeps = {
     onToggle: () => void;
 };
 
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+import { ensureEl as _ensureEl } from '../dom-helpers';
 
 export const mountMuteButton = (deps: MuteButtonDeps) => {
     const el = _ensureEl('audio-mute');

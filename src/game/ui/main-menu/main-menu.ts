@@ -3,18 +3,14 @@ import { I18N } from '../../i18n';
 
 type MainMenuCallbacks = {
     onStart: () => void;
-    onMultiplayer: () => void;
+    onMultiplayer?: () => void;
     onHeli: () => void;
     onSettings: () => void;
     onCredits: () => void;
     onSplashClick: () => void;
 };
 
-const _ensureEl = (id: string): HTMLElement => {
-    let el = document.getElementById(id);
-    if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
-    return el;
-};
+import { ensureEl as _ensureEl } from '../dom-helpers';
 
 export const mountMainMenu = (cb: MainMenuCallbacks) => {
     const splash = _ensureEl('splash');
@@ -34,13 +30,13 @@ export const mountMainMenu = (cb: MainMenuCallbacks) => {
         <div class="subtitle" style="margin-bottom: 44px">${I18N.MENU_SUBTITLE}</div>
         <nav class="menu-nav">
             <div class="menu-item" id="menu-item-start">${I18N.MENU_START}</div>
-            <div class="menu-item" id="menu-item-multiplayer">${I18N.MENU_MULTIPLAYER}</div>
+            ${cb.onMultiplayer ? `<div class="menu-item" id="menu-item-multiplayer">${I18N.MENU_MULTIPLAYER}</div>` : ''}
             <div class="menu-item" id="menu-item-heli">${I18N.MENU_HELI}</div>
             <div class="menu-item" id="menu-item-settings">${I18N.MENU_SETTINGS}</div>
             <div class="menu-item" id="menu-item-credits">${I18N.MENU_CREDITS}</div>
         </nav>`;
     document.getElementById('menu-item-start')!.addEventListener('click', cb.onStart);
-    document.getElementById('menu-item-multiplayer')!.addEventListener('click', cb.onMultiplayer);
+    document.getElementById('menu-item-multiplayer')?.addEventListener('click', cb.onMultiplayer!);
     document.getElementById('menu-item-heli')!.addEventListener('click', cb.onHeli);
     document.getElementById('menu-item-settings')!.addEventListener('click', cb.onSettings);
     document.getElementById('menu-item-credits')!.addEventListener('click', cb.onCredits);

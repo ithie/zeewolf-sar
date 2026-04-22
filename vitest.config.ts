@@ -1,9 +1,11 @@
 import { defineConfig } from 'vitest/config';
+import { zdefPlugin } from './plugins/zdef';
 
 export default defineConfig({
+    plugins: [zdefPlugin()],
     test: {
         environment: 'node',
-        include: ['tests/**/*.test.ts'],
+        include: ['src/tests/**/*.test.ts'],
         coverage: {
             provider: 'v8',
             include: ['src/**/*.ts'],

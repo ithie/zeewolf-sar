@@ -23,11 +23,11 @@ export const I18N = {
     UNLOCK_ALL: '🔓 ALL CAMPAIGNS UNLOCKED',
 
     // Splash
-    SPLASH_TITLE: 'ZEEWOLF: SAR',
+    SPLASH_TITLE: 'SAR: CALLSIGN WOLF',
     SPLASH_HINT: 'KLICKEN ZUM SYSTEMSTART',
 
     // Main menu
-    MENU_TITLE: 'ZEEWOLF: SAR',
+    MENU_TITLE: 'SAR: CALLSIGN WOLF',
     MENU_SUBTITLE: 'MAIN SYSTEM',
     MENU_START: 'SPIEL STARTEN',
     MENU_MULTIPLAYER: 'MULTIPLAYER',
@@ -84,9 +84,8 @@ export const I18N = {
 
     CLICK_TO_DEPLOY: 'KLICKEN ZUM EINSATZ',
 
-    PILOT_ADDRESS: (rank: string, callsign: string) => (callsign ? `${rank} ${callsign}` : rank),
-    BRIEFING_ADDRESS: (rank: string, callsign: string) =>
-        callsign ? `Ihre Mission, ${rank} ${callsign}` : `Ihre Mission`,
+    PILOT_ADDRESS: (rank: string, callsign: string) => `${rank} ${callsign || 'WOLF'}`,
+    BRIEFING_ADDRESS: (rank: string, callsign: string) => `Ihre Mission, ${rank} ${callsign || 'WOLF'}`,
 
     SAVE_CODE_INVALID: 'UNGÜLTIGER CODE',
     SAVE_CODE_LOADED: 'SPIELSTAND GELADEN',
@@ -117,15 +116,14 @@ export const I18N = {
     CRASH_SUBMARINE: 'KOLLISION MIT U-BOOT',
     CRASH_TREE: 'BAUMKONTAKT',
 
-    WHATS_NEW_VERSION: 'v25.2',
-    WHATS_NEW_TITLE: 'Sound & UI',
+    WHATS_NEW_HEADLINE: 'NEUIGKEITEN',
+    WHATS_NEW_VERSION: 'v25.3',
+    WHATS_NEW_TITLE: 'Neuer Name & Ladescreen',
     WHATS_NEW_HINT: 'KLICKEN ZUM FORTFAHREN',
     WHATS_NEW_ITEMS: [
-        'Prozedurale Rotor-Sounds — jeder Heli klingt anders',
-        'Wind reagiert auf den echten Spielwind inkl. Böen',
-        'Musik und Sound-Effekte separat ein-/ausschaltbar (Einstellungen)',
-        'Sound Lab in der Workbench: Rotor, Wind und Möwen zum Experimentieren',
-        'Alle UI-Elemente als eigenständige Module — sauberere Architektur',
+        'Das Spiel heißt jetzt SAR: Callsign WOLF',
+        'Dein Rufzeichen ist WOLF — bis du es in den Einstellungen änderst',
+        'Neuer Ladescreen vor jedem Einsatz',
     ],
 
     PILOT_HEADING: 'PROFIL',

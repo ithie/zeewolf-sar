@@ -1,6 +1,6 @@
 # Session System
 
-ZEEWOLF: SAR optionally saves player progress locally in the browser (localStorage). This document describes the architecture, data model, save code format, and privacy aspects.
+SAR: Callsign WOLF optionally saves player progress locally in the browser (localStorage). This document describes the architecture, data model, save code format, and privacy aspects.
 
 ---
 
