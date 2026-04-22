@@ -1,3 +1,6 @@
+// Compiles the Electron main process (TypeScript → CommonJS) into src/workbench/dist/.
+// Electron cannot run TypeScript directly — this build step is required before launch.
+// tsc handles type-checking only (noEmit); esbuild produces the actual output.
 import { build } from 'esbuild';
 import { mkdir } from 'fs/promises';
 

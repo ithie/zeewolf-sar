@@ -1,5 +1,27 @@
 # SAR: Callsign WOLF — Changelog
 
+## v25.3.2 — iOS-Vorbereitungen & TypeScript 6
+
+### Technical
+
+- **TypeScript 6.0.3**: upgraded from 5.9.3 — zero breaking changes in this codebase
+- **`tsconfig.json`**: removed deprecated `baseUrl`; `paths` entry changed to `"./src/*"` (TS6 requires explicit relative paths without `baseUrl`)
+- **`src/workbench/tsconfig.json`**: switched to `module: ES2022` + `moduleResolution: bundler` + `noEmit: true`; removed `outDir` — reflects that esbuild handles compilation, tsc handles type-checking only
+- **`build.mjs`**: added comment explaining the esbuild/tsc split and why the Electron dist build step is required
+- **`deploy.yml`**: release is no longer triggered on every push to `main`; deploy now runs on version tag push (`v*`) or manual `workflow_dispatch` — enables safe pushes without accidental releases
+- **`package.json`**: added `"build:app"` script (`VITE_TARGET=app vite build`)
+- **iOS: rubber-band prevention**: `html` and `body` set to `position: fixed; overflow: hidden; touch-action: none; width/height: 100%`
+- **iOS: first-paint timing**: `window.onload` body wrapped in `requestAnimationFrame` — JS init defers until after first paint
+- **iOS: resize handling**: `window.onresize` replaced with `window.addEventListener('resize', …)` — more robust for orientation changes
+- **iOS: safe area**: `viewport-fit=cover` added; `env(safe-area-inset-*)` applied to touch controls, mute button, easter egg, and `.ui-screen` padding
+- **iOS: AudioContext**: `ZsynthPlayer.play()` now calls `ctx.resume()` when context is suspended — required on iOS where AudioContext starts suspended before first user gesture
+- **iOS: canvas**: `#gameCanvas { background: #050505; display: block }` — prevents white flash on WKWebView load
+- **iOS: touch callout**: `-webkit-touch-callout: none` added — suppresses iOS long-press context menu
+- **Scroll bug fix**: `justify-content: safe center` on all full-screen overlay containers — previously content above the flex center point was unreachable after scrolling down
+- **`.ui-screen`**: `touch-action: pan-y` added — restores touch scroll on overlay screens despite `touch-action: none` on `body`
+
+---
+
 ## v25.3.1 — App-Build-Trennung
 
 ### Technical

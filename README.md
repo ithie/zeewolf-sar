@@ -169,6 +169,7 @@ src/
 
 ## Documentation
 
+- [docs/RELEASE.md](./docs/RELEASE.md) — release process, branching, tagging, app build
 - [docs/DEF_SPEC.md](./DEF_SPEC.md) — isometric geometry system (DEF format, SceneRenderer API)
 - [docs/SESSION_SYSTEM.md](./docs/SESSION_SYSTEM.md) — session system, rank progression, save code format, GDPR
 - [docs/WORKBENCH.md](./docs/WORKBENCH.md) — Workbench architecture and `window.workbench` API
