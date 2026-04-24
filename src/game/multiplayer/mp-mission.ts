@@ -25,7 +25,7 @@ const TERRAIN =
     '2x3,1x2,0x2710';
 
 /** Index of the MP campaign in the campaigns array (must match main.ts) */
-export const MP_CAMPAIGN_INDEX = 5;
+export const MP_CAMPAIGN_INDEX = import.meta.env.VITE_TARGET === 'app' ? 4 : 5;
 
 /** Countdown duration in seconds */
 export const MP_COUNTDOWN_SEC = 300;

@@ -1,10 +1,12 @@
 import './settings.css';
-import { I18N } from '../../i18n';
-import { getRank, encodeSession, decodeSession, STORAGE_KEY, type PlayerSession, type Rank } from '../../session';
+import { I18N, LANG, setLanguage } from '../../i18n';
+import { getRank, encodeSession, decodeSession, getCampaignsDone, getMissionsDone, STORAGE_KEY, type PlayerSession } from '../../session';
+import { rankBadgeHtml } from '../rankup/rankup';
 
 type Deps = {
     getSession: () => PlayerSession;
     saveSession: (s: PlayerSession) => void;
+    getRankMissions: () => number;
     getControlMode: () => 'heading' | 'screen';
     setControlMode: (m: 'heading' | 'screen') => void;
     isTouchDevice: () => boolean;
@@ -21,17 +23,17 @@ export const initSettings = (deps: Deps) => {
 };
 
 import { ensureEl as _ensureEl } from '../dom-helpers';
+import { showScreen } from '../nav';
 
-export const mountSettingsRankup = () => {
+export const mountSettings = () => {
     _ensureEl('settings-screen').classList.add('ui-screen');
-    _ensureEl('rankup-overlay');
     document.getElementById('settings-screen')!.innerHTML = `
         <div class="title" style="font-size: 48px">${I18N.MENU_SETTINGS}</div>
         <div class="subtitle">${I18N.PILOT_HEADING}</div>
         <div id="settings-badge"></div>
         <div class="settings-field">
             <label>${I18N.PILOT_CALLSIGN}</label>
-            <input id="player-name-input" type="text" maxlength="8" placeholder="—" />
+            <input id="player-name-input" type="text" maxlength="5" placeholder="—" />
         </div>
         <div id="settings-stats"></div>
         <div class="settings-field" style="margin-top: 8px">
@@ -58,17 +60,24 @@ export const mountSettingsRankup = () => {
         </div>
         <div style="margin-top: 20px; border-top: 1px solid #1a1a2e; padding-top: 16px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px">
             <div class="settings-field" style="width:100%">
-                <label>MUSIK</label>
+                <label>${I18N.MUSIC_HEADING}</label>
                 <div style="display:flex; gap:10px; margin-top:6px">
-                    <button class="settings-btn" id="music-on-btn">AN</button>
-                    <button class="settings-btn" id="music-off-btn">AUS</button>
+                    <button class="settings-btn" id="music-on-btn">${I18N.AUDIO_ON}</button>
+                    <button class="settings-btn" id="music-off-btn">${I18N.AUDIO_OFF}</button>
                 </div>
             </div>
             <div class="settings-field" style="width:100%">
-                <label>SOUND-EFFEKTE</label>
+                <label>${I18N.SFX_HEADING}</label>
                 <div style="display:flex; gap:10px; margin-top:6px">
-                    <button class="settings-btn" id="sfx-on-btn">AN</button>
-                    <button class="settings-btn" id="sfx-off-btn">AUS</button>
+                    <button class="settings-btn" id="sfx-on-btn">${I18N.AUDIO_ON}</button>
+                    <button class="settings-btn" id="sfx-off-btn">${I18N.AUDIO_OFF}</button>
+                </div>
+            </div>
+            <div class="settings-field" style="width:100%">
+                <label>${I18N.LANGUAGE_HEADING}</label>
+                <div style="display:flex; gap:10px; margin-top:6px">
+                    <button class="settings-btn" id="lang-de-btn">DEUTSCH</button>
+                    <button class="settings-btn" id="lang-en-btn">ENGLISH</button>
                 </div>
             </div>
         </div>
@@ -85,6 +94,8 @@ export const mountSettingsRankup = () => {
     document.getElementById('music-off-btn')!.addEventListener('click', () => { _deps.setMusicEnabled(false); _refreshAudioButtons(); });
     document.getElementById('sfx-on-btn')!.addEventListener('click', () => { _deps.setSfxEnabled(true);  _refreshAudioButtons(); });
     document.getElementById('sfx-off-btn')!.addEventListener('click', () => { _deps.setSfxEnabled(false); _refreshAudioButtons(); });
+    document.getElementById('lang-de-btn')!.addEventListener('click', () => { setLanguage('de'); toSettings(); });
+    document.getElementById('lang-en-btn')!.addEventListener('click', () => { setLanguage('en'); toSettings(); });
     document.getElementById('ctrl-btn-profi')!.addEventListener('click', () => {
         _deps.setControlMode('heading');
         _refreshCtrlButtons();
@@ -94,21 +105,7 @@ export const mountSettingsRankup = () => {
         _refreshCtrlButtons();
     });
 
-    document.getElementById('rankup-overlay')!.innerHTML = `
-        <div id="rankup-label">BEFÖRDERUNG</div>
-        <div id="rankup-badge"></div>
-        <div id="rankup-title"></div>
-        <div id="rankup-address"></div>
-        <p class="start-hint" style="color: #cc9900; margin-top: 10px">${I18N.NEXT}</p>`;
-
-    document.getElementById('rankup-overlay')!.addEventListener('click', dismissRankUp);
 };
-
-export const rankBadgeHtml = (rank: Rank) =>
-    `<div class="rank-board${rank.name === 'Major' ? ' major' : ''}">` +
-    `<span class="rank-pips">${rank.pips}</span>` +
-    `<span class="rank-label">${rank.name.toUpperCase()}</span>` +
-    `</div>`;
 
 const HL = 'var(--accent, #4af)';
 
@@ -125,6 +122,16 @@ const _refreshAudioButtons = () => {
     sfxOff.style.borderColor   = sfx   ? '' : HL;  sfxOff.style.color   = sfx   ? '' : HL;
 };
 
+const _refreshLangButtons = () => {
+    const de = document.getElementById('lang-de-btn') as HTMLButtonElement | null;
+    const en = document.getElementById('lang-en-btn') as HTMLButtonElement | null;
+    if (!de || !en) return;
+    de.style.borderColor = LANG === 'de' ? HL : '';
+    de.style.color       = LANG === 'de' ? HL : '';
+    en.style.borderColor = LANG === 'en' ? HL : '';
+    en.style.color       = LANG === 'en' ? HL : '';
+};
+
 const _refreshCtrlButtons = () => {
     const mode = _deps.getControlMode();
     const profi = document.getElementById('ctrl-btn-profi') as HTMLButtonElement;
@@ -139,12 +146,12 @@ const _refreshCtrlButtons = () => {
 
 const _refreshSettingsScreen = () => {
     const session = _deps.getSession();
-    const rank = getRank(session);
+    const rank = getRank(session, _deps.getRankMissions());
     (document.getElementById('settings-badge') as HTMLElement).innerHTML = rankBadgeHtml(rank);
-    (document.getElementById('settings-code-display') as HTMLElement).textContent = encodeSession(session);
+    (document.getElementById('settings-code-display') as HTMLElement).textContent = encodeSession(session, _deps.getRankMissions());
     const statsEl = document.getElementById('settings-stats') as HTMLElement;
     const noSave = !session.cookieConsent ? I18N.NO_SAVE_STATE : '';
-    statsEl.textContent = I18N.STATS(session.campaignsDone, session.missionsDone) + noSave;
+    statsEl.textContent = I18N.STATS(getCampaignsDone(session), getMissionsDone(session)) + noSave;
 };
 
 export const toSettings = () => {
@@ -156,7 +163,7 @@ export const toSettings = () => {
         session.playerName = input.value
             .toUpperCase()
             .replace(/[^A-Z]/g, '')
-            .slice(0, 8);
+            .slice(0, 5);
         input.value = session.playerName;
         _deps.saveSession(session);
         _refreshSettingsScreen();
@@ -171,13 +178,12 @@ export const toSettings = () => {
         ctrlRow.style.display = 'none';
     }
     _refreshAudioButtons();
-    (document.getElementById('main-menu') as HTMLElement).style.display = 'none';
-    (document.getElementById('settings-screen') as HTMLElement).style.display = 'flex';
+    _refreshLangButtons();
+    showScreen('settings-screen');
 };
 
 export const fromSettings = () => {
-    (document.getElementById('settings-screen') as HTMLElement).style.display = 'none';
-    (document.getElementById('main-menu') as HTMLElement).style.display = 'flex';
+    showScreen('main-menu');
 };
 
 const applySaveCode = () => {
@@ -214,16 +220,3 @@ const _confirmDeleteSession = () => {
     setTimeout(() => window.location.reload(), 1200);
 };
 
-export const showRankUp = (rank: Rank, playerName: string) => {
-    (document.getElementById('rankup-badge') as HTMLElement).innerHTML = rankBadgeHtml(rank);
-    (document.getElementById('rankup-title') as HTMLElement).textContent = rank.name.toUpperCase();
-    (document.getElementById('rankup-address') as HTMLElement).textContent = I18N.PILOT_ADDRESS(
-        rank.name,
-        playerName
-    ).toUpperCase();
-    (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'flex';
-};
-
-export const dismissRankUp = () => {
-    (document.getElementById('rankup-overlay') as HTMLElement).style.display = 'none';
-};

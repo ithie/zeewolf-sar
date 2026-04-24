@@ -7,6 +7,8 @@ import Glider from './campaigns/glider.json';
 import Julian from './campaigns/julian.json';
 import TransferDemo from './campaigns/transferdemo.json';
 import { MP_DEMO_CAMPAIGN } from './multiplayer/mp-mission';
+
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 import { decompressTerrain } from '../shared/utils';
 import ZsynthPlayer from '../shared/ZsynthPlayer';
 import SoundAnothermenu from './music/anothermenu.zsong';
@@ -35,7 +37,7 @@ const soundHandler = (() => {
         maintheme:    SoundMaintheme,
         menusound:    SoundMenusound,
         spocktribute: SoundSpocktribute,
-        partytime:    SoundPartytime,
+        ...(!_IS_APP ? { partytime: SoundPartytime } : {}),
     };
 
     const state: { activeTheme: string; isMuted: boolean } = {
@@ -77,10 +79,10 @@ const createCampaignHandler = () => {
         Tutorial as unknown as CampaignExport,
         ArchipelDemo as unknown as CampaignExport,
         AddCamp as unknown as CampaignExport,
-        Glider as unknown as CampaignExport,
+        ...(!_IS_APP ? [Glider as unknown as CampaignExport] : []),
         Julian as unknown as CampaignExport,
-        MP_DEMO_CAMPAIGN,  // index 5 – must match MP_CAMPAIGN_INDEX in mp-mission.ts
-        TransferDemo as unknown as CampaignExport,  // index 6
+        ...(!_IS_APP ? [MP_DEMO_CAMPAIGN] : []),  // index 5 (web) / 4 (app) – matches MP_CAMPAIGN_INDEX in mp-mission.ts
+        TransferDemo as unknown as CampaignExport,
     ];
 
     const campaignState = {

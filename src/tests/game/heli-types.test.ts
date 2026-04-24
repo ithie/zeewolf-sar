@@ -15,8 +15,8 @@ describe('HELI_TYPES', () => {
     it('contains expected vehicle ids', () => {
         const ids = HELI_TYPES.map(h => h.id);
         expect(ids).toContain('dolphin');
-        expect(ids).toContain('jayhawk');
-        expect(ids).toContain('chinook');
+        expect(ids).toContain('coasthawk');
+        expect(ids).toContain('atlas');
         expect(ids).toContain('glider');
     });
 
@@ -68,14 +68,14 @@ describe('HELI_TYPES', () => {
 
     it('heavier helis have higher maxLoad', () => {
         const dolphin = getHeliType('dolphin');
-        const chinook = getHeliType('chinook');
-        expect(chinook.maxLoad).toBeGreaterThan(dolphin.maxLoad);
+        const atlas = getHeliType('atlas');
+        expect(atlas.maxLoad).toBeGreaterThan(dolphin.maxLoad);
     });
 
     it('heavier helis have lower accel', () => {
         const dolphin = getHeliType('dolphin');
-        const chinook = getHeliType('chinook');
-        expect(chinook.accel).toBeLessThan(dolphin.accel);
+        const atlas = getHeliType('atlas');
+        expect(atlas.accel).toBeLessThan(dolphin.accel);
     });
 
     it('glider has no fuel consumption', () => {
@@ -86,16 +86,16 @@ describe('HELI_TYPES', () => {
     });
 
     it('tandem helis have multiple rotorOffsets', () => {
-        const chinook = getHeliType('chinook');
-        expect(chinook.rotorOffsets.length).toBeGreaterThan(1);
+        const atlas = getHeliType('atlas');
+        expect(atlas.rotorOffsets.length).toBeGreaterThan(1);
     });
 });
 
 describe('getHeliType', () => {
     it('returns the correct entry by id', () => {
-        const h = getHeliType('jayhawk');
-        expect(h.id).toBe('jayhawk');
-        expect(h.label).toBe('MH-60T Jayhawk');
+        const h = getHeliType('coasthawk');
+        expect(h.id).toBe('coasthawk');
+        expect(h.label).toBe('Coast-Hawk');
     });
 
     it('throws for unknown id', () => {

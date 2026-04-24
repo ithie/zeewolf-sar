@@ -9,6 +9,7 @@ import {
     loadSession,
     saveSession,
     getRank,
+    RANKS,
     isCampaignUnlocked,
     isConsentExpired,
     isConsentOutdated,
@@ -27,7 +28,7 @@ import CARRIER_DEF from './models/carrier.zdef';
 import SUBMARINE_DEF from './models/submarine.zdef';
 import { applyParts } from './def-utils';
 import { createSceneRenderer } from './scene-renderer';
-import { getHeliType } from './heli-types';
+import { getHeliType, HELI_TYPES } from './heli-types';
 import { G } from './state';
 import {
     getGround,
@@ -48,9 +49,7 @@ import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
 import { mountCreditsScreen, toCredits } from './ui/credits-screen/credits-screen';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
-import { mpState } from './multiplayer/mp-state';
-import { packHeli, packWorld } from './multiplayer/sync';
-import { toMpLobby, initMpGame, mpReturnToLobby, mpMissionComplete, mpTriggerCrash, mpTimeOut } from './mp-game';
+import { toMpLobby, initMpGame, mpHandleReturnToBase, mpRenderRemoteHeli, mpRenderMinimapDot, mpTickAndHUD, mpGetMissionComplete, mpGetTriggerCrash } from './mp-game';
 import { mountHeliInfoScreen, initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
 import {
     initHeliSelect,
@@ -59,13 +58,18 @@ import {
     drawMenuHeli,
     animMainMenuBg,
 } from './ui/heli-select/heli-select';
-import { I18N } from './i18n';
+import { I18N, localize, onLanguageChange } from './i18n';
 import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-banner';
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
-import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings/settings';
+import { mountSettings, initSettings, toSettings } from './ui/settings/settings';
+import { mountRankup, showRankUp } from './ui/rankup/rankup';
 import { mountMuteButton, refreshMuteButton } from './ui/mute-button/mute-button';
 import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
+import { mountMissionSelect, showMissionSelect } from './ui/mission-select/mission-select';
+import { showScreen } from './ui/nav';
+
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 
 const assertDom = () => {
     if (!document.getElementById('gameCanvas')) {
@@ -209,7 +213,7 @@ function triggerCrash(reason: string) {
 
 const showBriefing = () => {
     const { headline, sublines, briefing, previewBase64 } = campaignHandler.getCurrentMissionData();
-    const rank = getRank(_session);
+    const rank = getRank(_session, _getRankMissions());
     const address = I18N.BRIEFING_ADDRESS(rank.name, _session.playerName).toUpperCase();
     _showBriefing(headline, sublines, briefing, previewBase64, address);
     const briefingSong = campaignHandler.getActiveCampaignMusic().briefing;
@@ -217,63 +221,80 @@ const showBriefing = () => {
 };
 
 const dismissBriefing = async () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     hideBriefing();
     await launchMission();
 };
 
 function missionComplete() {
     const { campaignType } = campaignHandler.getCurrentMissionData();
-    const next = campaignHandler.campaign.getNextMission();
     const isTutorial = campaignType === 'tutorial';
 
-    // ── session tracking ────────────────────────────────────────────────────
-    let rankUpRank: Rank | null = null;
+    const prevRank = getRank(_session, _getRankMissions());
 
-    // Unlock next campaign on completion — always, including tutorial
-    if (next === 'DONE') {
-        const allCampaigns = campaignHandler.getCampaigns();
-        for (let i = _selectedCampaignIndex + 1; i < allCampaigns.length; i++) {
-            if ((allCampaigns[i] as any).type !== 'glider') {
-                if (!_session.unlockedCampaignIndices.includes(i)) _session.unlockedCampaignIndices.push(i);
-                break;
+    // Record mission progress + best time
+    const elapsed = Date.now() - _missionStartTime;
+    const campaignKey = String(_selectedCampaignIndex);
+    if (!_session.campaignProgress[campaignKey]) {
+        _session.campaignProgress[campaignKey] = { completed: false, missions: [] };
+    }
+    const cp = _session.campaignProgress[campaignKey];
+    if (!cp.missions[_selectedMissionIndex]) {
+        cp.missions[_selectedMissionIndex] = { completed: false, bestTimeMs: null };
+    }
+    const mp = cp.missions[_selectedMissionIndex];
+    mp.completed = true;
+    if (_missionStartTime > 0 && (mp.bestTimeMs === null || elapsed < mp.bestTimeMs)) {
+        mp.bestTimeMs = elapsed;
+    }
+
+    // Check if the entire campaign is now done
+    const campaigns = campaignHandler.getCampaigns();
+    const totalMissions = campaigns[_selectedCampaignIndex].levels.length;
+    const allDone =
+        cp.missions.filter((m, i) => i < totalMissions && m?.completed).length >= totalMissions;
+    if (allDone) {
+        cp.completed = true;
+        // Unlock next regular campaign for cross-device import
+        if (campaignType !== 'tutorial' && campaignType !== 'free-flight') {
+            const regular = campaigns
+                .map((c, i) => ({ type: c.type, i }))
+                .filter(c => (!_IS_APP ? c.type !== 'multiplayer' : true) && c.type !== 'tutorial' && c.type !== 'free-flight');
+            const pos = regular.findIndex(c => c.i === _selectedCampaignIndex);
+            if (pos >= 0 && pos + 1 < regular.length) {
+                _session.highestUnlockedCampaignIndex = Math.max(
+                    _session.highestUnlockedCampaignIndex ?? 0,
+                    regular[pos + 1].i
+                );
             }
         }
     }
 
-    // Rank progression — tutorial does not count
+    // Rank check — only tutorial missions don't count
+    let rankUpRank: Rank | null = null;
     if (!isTutorial) {
-        const prevRank = getRank(_session);
-        _session.missionsDone++;
-        if (next === 'DONE') _session.campaignsDone++;
-        const newRank = getRank(_session);
+        const newRank = getRank(_session, _getRankMissions());
         if (newRank.name !== prevRank.name) rankUpRank = newRank;
     }
 
     saveSession(_session);
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
 
-    if (next === 'DONE') {
-        cancelAnimationFrame(_rafId);
-        _rafId = 0;
+    if (allDone) {
         document.getElementById('campaign-complete-name')!.textContent = '';
         document.getElementById('campaign-complete-screen')!.style.display = 'flex';
         soundHandler.play(musicConfig.success || 'final', false);
-        if (rankUpRank) showRankUp(rankUpRank, _session.playerName);
+        if (rankUpRank) showRankUp(rankUpRank, _session.playerName, HELI_TYPES.find(h => h.minRankIndex === RANKS.indexOf(rankUpRank))?.selectLabel);
         return;
     }
-    const { gridSize, objects: nextObjects } = next;
-    const nextPad = (nextObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
-    G.PAD = { xMin: nextPad.x, xMax: nextPad.x + 7, yMin: nextPad.y, yMax: nextPad.y + 7, z: 0.5 };
-    G.START_POS = { x: nextPad.x + 4, y: nextPad.y + 4 };
-    initGrid(gridSize, G.points);
 
-    cancelAnimationFrame(_rafId);
-    _rafId = 0;
     const successEl = document.getElementById('mission-success-screen')!;
     successEl.style.display = 'flex';
     successEl.onclick = () => {
         successEl.style.display = 'none';
-        if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
-        _partyMode = false;
+        if (!_IS_APP && _partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+        if (!_IS_APP) _partyMode = false;
         zstate.gameStarted = false;
         setTouchVisible(false);
         zstate.crashed = false;
@@ -286,24 +307,12 @@ function missionComplete() {
         G.heli.vz = 0;
         G.particles = [];
         G.debris = [];
-        showBriefing();
-        if (rankUpRank) showRankUp(rankUpRank, _session.playerName);
+        _openMissionSelect();
+        if (rankUpRank) showRankUp(rankUpRank, _session.playerName, HELI_TYPES.find(h => h.minRankIndex === RANKS.indexOf(rankUpRank))?.selectLabel);
     };
 }
 
-function returnToBase() {
-    cancelAnimationFrame(_rafId);
-    _rafId = 0;
-    stopHeliSound();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
-    _partyMode = false;
-    zstate.gameStarted = false;
-    if (mpState.active && mpReturnToLobby) {
-        mpReturnToLobby();
-        return;
-    }
-    setTouchVisible(false);
+const _resetHeliState = () => {
     zstate.crashed = false;
     zstate.introActive = false;
     zstate.introProgress = 0;
@@ -317,31 +326,63 @@ function returnToBase() {
     G.particles = [];
     G.debris = [];
     G.totalRescued = 0;
+};
+
+function returnToBase() {
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
+    stopHeliSound();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!_IS_APP && _partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    if (!_IS_APP) _partyMode = false;
+    zstate.gameStarted = false;
+    if (!_IS_APP && mpHandleReturnToBase()) return;
+    setTouchVisible(false);
+    _resetHeliState();
 
     document.getElementById('campaign-complete-screen')!.style.display = 'none';
     document.getElementById('campaign-failed-screen')!.style.display = 'none';
     document.getElementById('mission-success-screen')!.style.display = 'none';
     document.getElementById('crash-screen')!.style.display = 'none';
     hideBriefing();
-    document.getElementById('campaign-select')!.style.display = 'flex';
-    document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
+    _openMissionSelect(); // calls showScreen('mission-select')
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
 }
+
+const returnToCampaignSelect = () => {
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
+    stopHeliSound();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!_IS_APP && _partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    if (!_IS_APP) _partyMode = false;
+    zstate.gameStarted = false;
+    setTouchVisible(false);
+    _resetHeliState();
+    document.getElementById('campaign-complete-screen')!.style.display = 'none';
+    hideBriefing();
+    _openCampaignSelect(); // calls showScreen('campaign-select')
+    soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+};
+
+const _openCampaignSelect = () => {
+    _buildCampaignGrid(document.getElementById('campaign-grid')!);
+    showScreen('campaign-select');
+};
 
 // ─── campaign / G.heli select ──────────────────────────────────────────────────
 function toCampaignSelect() {
     soundHandler.play(musicConfig.mainMenu || 'maintheme', false);
-    document.getElementById('splash')!.style.display = 'none';
-    document.getElementById('main-menu')!.style.display = 'none';
-    document.getElementById('campaign-select')!.style.display = 'flex';
-    document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
+    _openCampaignSelect();
 }
 
-function launchEasterEgg() {
-    const index = campaignHandler.getCampaigns().findIndex(c => c.type === 'glider');
-    if (index < 0) return;
-    toCampaignSelect();
-    selectCampaign(String(index));
+if (!_IS_APP) {
+    (window as any).launchEasterEgg = () => {
+        const index = campaignHandler.getCampaigns().findIndex(c => c.type === 'glider');
+        if (index < 0) return;
+        toCampaignSelect();
+        _doSelectCampaign(index);
+    };
 }
 
 function setHover(type: string, state: boolean) {
@@ -349,19 +390,70 @@ function setHover(type: string, state: boolean) {
 }
 
 function selectCampaign(index: string) {
-    _selectedCampaignIndex = Number(index);
-    campaignHandler.campaign.setActiveCampaign(Number(index));
+    const idx = Number(index);
+    const campaigns = campaignHandler.getCampaigns();
+    const type = campaigns[idx]?.type;
+    const isAlwaysAvailable = type === 'tutorial' || type === 'free-flight';
+
+    if (!isAlwaysAvailable && _session.activeCampaignIndex !== idx) {
+        const activeKey = String(_session.activeCampaignIndex);
+        const activeCp = _session.campaignProgress[activeKey];
+        const activeType = campaigns[_session.activeCampaignIndex]?.type;
+        const activeIsRegular = activeType !== 'tutorial' && activeType !== 'free-flight';
+        const hasProgress = activeCp && activeCp.missions.some(m => m?.completed) && !activeCp.completed;
+
+        if (activeIsRegular && hasProgress) {
+            _pendingSwitchIndex = idx;
+            document.getElementById('campaign-switch-warning')!.style.display = 'flex';
+            return;
+        }
+    }
+
+    _doSelectCampaign(idx);
+}
+
+const _doSelectCampaign = (idx: number) => {
+    const campaigns = campaignHandler.getCampaigns();
+    const type = campaigns[idx]?.type;
+    const isAlwaysAvailable = type === 'tutorial' || type === 'free-flight';
+
+    if (!isAlwaysAvailable) {
+        _session.activeCampaignIndex = idx;
+        saveSession(_session);
+    }
+
+    _selectedCampaignIndex = idx;
+    _selectedMissionIndex = 0;
+    campaignHandler.campaign.setActiveCampaign(idx);
+
+    _openMissionSelect(); // calls showScreen('mission-select')
+};
+
+const _openMissionSelect = () => {
+    const campaigns = campaignHandler.getCampaigns();
+    showMissionSelect({
+        campaign: campaigns[_selectedCampaignIndex],
+        campaignIndex: _selectedCampaignIndex,
+        session: _session,
+        onSelect: selectMission,
+        onBack: toCampaignSelect,
+    });
+};
+
+const selectMission = (missionIndex: number) => {
+    _selectedMissionIndex = missionIndex;
+    campaignHandler.campaign.setActiveMission(missionIndex);
+
     const { gridSize, objects: selObjects, campaignType } = campaignHandler.getCurrentMissionData();
-    const selPad = (selObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
+    const selPad = (selObjects || []).find((o: any) => o.type === 'pad') || { x: 10, y: 10 };
     G.PAD = { xMin: selPad.x, xMax: selPad.x + 7, yMin: selPad.y, yMax: selPad.y + 7, z: 0.5 };
     G.START_POS = { x: selPad.x + 4, y: selPad.y + 4 };
     initGrid(gridSize, G.points);
-    document.getElementById('campaign-grid')!.innerHTML = '';
-    document.getElementById('campaign-select')!.style.display = 'none';
-    buildHeliSelect(campaignType);
-    document.getElementById('heli-select')!.style.display = 'flex';
+
+    buildHeliSelect(campaignType, RANKS.indexOf(getRank(_session, _getRankMissions())));
+    showScreen('heli-select');
     animateHeliPreviews();
-}
+};
 
 function startGame(type: string) {
     if (zstate.gameStarted) return;
@@ -381,7 +473,7 @@ function startGame(type: string) {
     initCarrierFromMission();
     initBoatsFromMission();
     initSubmarinesFromMission();
-    document.getElementById('heli-select')!.style.display = 'none';
+    showScreen(null);
     showBriefing();
 }
 
@@ -404,7 +496,7 @@ const launchMission = async (showLoader = true): Promise<void> => {
     _lighthouseY = _lhObj ? _lhObj.y : -1;
     _missionGridSize = campaignHandler.getTerrain().gridSize;
 
-    const handle = showLoader ? showLoadingScreen(_lmd.headline ?? 'MISSION') : null;
+    const handle = showLoader ? showLoadingScreen(localize(_lmd.headline) || 'MISSION') : null;
 
     // Step 1 — terrain
     generateTerrain(G.points, _missionHasPad ? G.PAD : null);
@@ -436,9 +528,10 @@ const launchMission = async (showLoader = true): Promise<void> => {
     G.heli.winch = 0;
     zstate.crashed = false;
     zstate.gameStarted = true;
+    _missionStartTime = Date.now();
     setTouchVisible(true);
 
-    if (G.heli.type === 'glider') {
+    if (!_IS_APP && G.heli.type === 'glider') {
         zstate.introActive = false;
         G.heli.x = G.START_POS.x;
         G.heli.y = G.START_POS.y;
@@ -598,7 +691,7 @@ function drawScene() {
     // Test-Bäume
     G.TREES_MAP.forEach((t: any) => {
         if (isVisible(t.x, t.y))
-            drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, _partyMode && t.type !== 'dead');
+            drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, !_IS_APP && _partyMode && t.type !== 'dead');
     });
 
     // Vögel
@@ -673,8 +766,8 @@ function drawScene() {
         // ropes drawn BEFORE heli so heli body renders over rope top
         drawPayloadObjects(true, true);
 
-        // winch line (only when nothing hanging, not for glider)
-        if (!G.activePayload && G.heli.type !== 'glider') {
+        // winch line (only when nothing hanging)
+        if (!G.activePayload) {
             const rs = G.rescuerSwing;
             const winchTipZ = Math.max(getGround(rs.x, rs.y), G.heli.z - G.heli.winch);
             let hP = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas });
@@ -687,7 +780,7 @@ function drawScene() {
             ctx.stroke();
         }
         // rescuer always at winch tip when winch is extended
-        if (G.heli.type !== 'glider' && G.heli.winch > 0.3) {
+        if (G.heli.winch > 0.3) {
             const rs = G.rescuerSwing;
             const winchTipZ = G.activePayload
                 ? G.activePayload.z + (G.activePayload.type === 'person' ? 0.35 : 0)
@@ -701,11 +794,11 @@ function drawScene() {
                 camX,
                 camY,
                 'rescuer',
-                _partyMode ? { shirt: '#ffffff', pants: '#ffffff' } : undefined
+                (!_IS_APP && _partyMode) ? { shirt: '#ffffff', pants: '#ffffff' } : undefined
             );
         }
 
-        if (_partyMode && Math.floor(Date.now() / 80) % 2 === 0) _refreshPartyColors();
+        if (!_IS_APP && _partyMode && Math.floor(Date.now() / 80) % 2 === 0) _refreshPartyColors();
         drawHeli(
             G.heli.type,
             G.heli.x,
@@ -719,22 +812,11 @@ function drawScene() {
             camY,
             {
                 shadowGetGround: (x, y) => getGround(x, y),
-                ...(_partyMode ? { fillColor: _partyColors[0], strokeColor: _partyColors[1] } : {}),
+                ...(!_IS_APP && _partyMode ? { fillColor: _partyColors[0], strokeColor: _partyColors[1] } : {}),
             }
         );
 
-        // Remote heli (Multiplayer)
-        if (G.remoteHeli) {
-            drawHeli(G.remoteHeli.type, G.remoteHeli.x, G.remoteHeli.y, G.remoteHeli.z,
-                G.remoteHeli.angle, G.remoteHeli.tilt, G.remoteHeli.roll, G.remoteHeli.rotationPos,
-                camX, camY, { fillColor: '#4488ff', strokeColor: '#2255cc' });
-            const rPos = iso(G.remoteHeli.x, G.remoteHeli.y, G.remoteHeli.z, camX, camY, { stepH, tileW, tileH, canvas });
-            ctx.font = 'bold 11px monospace';
-            ctx.fillStyle = '#7cf';
-            ctx.textAlign = 'center';
-            ctx.fillText(mpState.peerCallsign || 'P2', rPos.x, rPos.y - 32);
-            ctx.textAlign = 'left';
-        }
+        if (!_IS_APP) mpRenderRemoteHeli(ctx, camX, camY, drawHeli, isoFn);
 
         renderRain();
 
@@ -747,7 +829,7 @@ function drawScene() {
     } // end if (!zstate.crashed)
 
     // Glider HUD
-    if (!zstate.introActive && G.heli.type === 'glider') {
+    if (!_IS_APP && !zstate.introActive && G.heli.type === 'glider') {
         const agl = Math.max(0, G.heli.z - getGround(G.heli.x, G.heli.y, G.points, null));
         ctx.font = 'bold 13px monospace';
         ctx.fillStyle = agl < 3 ? '#f44' : '#8ef';
@@ -757,7 +839,7 @@ function drawScene() {
     }
 
     // HUD
-    if (!zstate.introActive && G.heli.type !== 'glider') {
+    if (!zstate.introActive) {
         ctx.font = 'bold 13px monospace';
         ctx.fillStyle = '#5f5';
         let hX = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas }).x + 45;
@@ -846,54 +928,12 @@ function drawScene() {
             ctx.fill();
         });
 
-        // Remote heli dot (MP)
-        if (mpState.active && G.remoteHeli && inMM(G.remoteHeli.x, G.remoteHeli.y)) {
-            ctx.fillStyle = '#7cf';
-            ctx.fillRect(bx + G.remoteHeli.x * sc - 1.5, by + G.remoteHeli.y * sc - 1.5, 3, 3);
-        }
+        if (!_IS_APP) mpRenderMinimapDot(ctx, bx, by, sc, inMM);
 
         ctx.restore();
     }
 
-    // ── MP: countdown HUD ─────────────────────────────────────────────────────
-    if (mpState.active && !zstate.introActive) {
-        const cd = Math.max(0, Math.ceil(mpState.countdown));
-        const mins = Math.floor(cd / 60);
-        const secs = cd % 60;
-        const cdStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-        ctx.font = 'bold 20px monospace';
-        ctx.fillStyle = cd < 60 ? '#f44' : '#ff0';
-        ctx.textAlign = 'center';
-        ctx.fillText(cdStr, canvas.width / 2, 28);
-        ctx.textAlign = 'left';
-    }
-
-    // ── MP: state sync ────────────────────────────────────────────────────────
-    if (mpState.active) {
-        const now = performance.now();
-        // Send heli position ~20 Hz
-        if (now - mpState.lastPosSent > 50) {
-            mpState.channels?.sendPos(packHeli(G.heli));
-            mpState.lastPosSent = now;
-        }
-        if (mpState.isHost) {
-            // Tick countdown (only when not respawning)
-            if (mpState.respawnTimer === 0) {
-                mpState.countdown = Math.max(0, mpState.countdown - dt / 60);
-            }
-            if (mpState.countdown <= 0 && mpState.respawnTimer === 0) {
-                mpTimeOut?.();
-            }
-            // Send world snap ~10 Hz
-            if (now - mpState.lastWorldSent > 100) {
-                mpState.channels?.sendEvent({
-                    t: 'world',
-                    s: packWorld(G.seaTime, G.payloads, G.totalRescued, mpState.countdown),
-                });
-                mpState.lastWorldSent = now;
-            }
-        }
-    }
+    if (!_IS_APP) mpTickAndHUD(ctx, canvas, dt);
 
     if (showCollisionBoxes) {
         const fps = Math.round(_fpsSmooth);
@@ -905,7 +945,7 @@ function drawScene() {
         ctx.textAlign = 'left';
     }
 
-    if (_partyMode) drawDiscoBall();
+    if (!_IS_APP && _partyMode) drawDiscoBall();
 
     updateHeliSound(G.heli.rotorRPM, G.heli.engineOn, G.heli.type, Math.hypot(G.wind.x, G.wind.y));
     _rafId = requestAnimationFrame(drawScene);
@@ -1865,23 +1905,18 @@ function toMainMenu() {
     _rafId = 0;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     zstate.gameStarted = false;
-    _partyMode = false;
-    ['splash', 'campaign-select', 'heli-select', 'heli-info', 'credits-screen'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-    document.getElementById('main-menu')!.style.display = 'flex';
+    if (!_IS_APP) _partyMode = false;
+    showScreen('main-menu');
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     animMainMenuBg();
     startMenuParticles();
 }
 
 function backFromHeliSelect() {
-    document.getElementById('heli-select')!.style.display = 'none';
-    toCampaignSelect();
+    _openMissionSelect();
 }
 
-buildHeliSelect('normal'); // initial build for splash screen background
+buildHeliSelect('normal', 0); // initial build before session is loaded
 
 let _rafId = 0;
 
@@ -1923,18 +1958,19 @@ const _physicsCtx = {
     get hasCarrier() {
         return _missionHasCarrier;
     },
-    get partyMode() {
-        return _partyMode;
-    },
-    partyPalette: _PARTY_PALETTE as readonly string[],
     showMsg,
     get missionComplete() {
-        return mpState.active ? mpMissionComplete ?? missionComplete : missionComplete;
+        return !_IS_APP ? mpGetMissionComplete(missionComplete) : missionComplete;
     },
     get triggerCrash() {
-        return mpState.active ? mpTriggerCrash ?? triggerCrash : triggerCrash;
+        return !_IS_APP ? mpGetTriggerCrash(triggerCrash) : triggerCrash;
     },
-};
+} as import('./physics').PhysicsCtx;
+
+if (!_IS_APP) {
+    Object.defineProperty(_physicsCtx, 'partyMode', { get: () => _partyMode, enumerable: true, configurable: true });
+    (_physicsCtx as any).partyPalette = _PARTY_PALETTE;
+}
 
 let _tileColors: string[][] = []; // precomputed day/rain colors, indexed [x][y]
 // Reusable batch map — cleared each render, no per-frame Map allocation
@@ -2055,7 +2091,7 @@ const _drawTerrain = (camX: number, camY: number, _rx: number, _ry: number, isNi
         return;
     }
 
-    if (_partyMode) {
+    if (!_IS_APP && _partyMode) {
         // Party: tile colors change ~3.5×/sec → path-batch on main canvas
         _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY, xFrom, xTo, yFrom, yTo, (x, y, _h0) => {
             const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax && y >= G.PAD.yMin && y <= G.PAD.yMax;
@@ -2074,7 +2110,22 @@ const _drawTerrain = (camX: number, camY: number, _rx: number, _ry: number, isNi
 
 // ─── session ──────────────────────────────────────────────────────────────────
 let _session: PlayerSession = loadSession();
+
+const _getRankMissions = (): number => {
+    const tutorialKeys = new Set(
+        campaignHandler.getCampaigns()
+            .map((c, i) => c.type === 'tutorial' ? String(i) : null)
+            .filter((k): k is string => k !== null)
+    );
+    return Object.entries(_session.campaignProgress)
+        .filter(([key]) => !tutorialKeys.has(key))
+        .reduce((sum, [, cp]) => sum + cp.missions.filter(m => m.completed).length, 0);
+};
+
 let _selectedCampaignIndex = 0;
+let _selectedMissionIndex = 0;
+let _missionStartTime = 0;
+let _pendingSwitchIndex = -1;
 let _unlockSeq = '';
 
 const approveCookies = () => {
@@ -2086,61 +2137,66 @@ const approveCookies = () => {
     notifyConsent();
 };
 
-const declineCookies = () => {
-    _session.cookieConsent = false;
-    _session.consentTimestamp = Date.now();
-    _session.consentVersion = CONSENT_VERSION;
-    try {
-        localStorage.removeItem(STORAGE_KEY);
-    } catch {}
-    (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
-    notifyConsent();
-};
 
-const _buildCampaignGrid = (): string[] => {
-    const campaigns: string[] = [];
-    campaignHandler.getCampaigns().forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
-        if (type === 'glider' || type === 'multiplayer') return;
-        const locked = type !== 'tutorial' && !isCampaignUnlocked(_session, index);
-        let sublines = '';
-        campaignSublines.forEach(s => {
-            sublines += `<div class="box-sub">${s}</div>`;
-        });
-        sublines += `<div class="box-sub">Missionen: ${levels.length}</div>`;
+
+const _buildCampaignGrid = (gridEl: HTMLElement) => {
+    const campaigns = campaignHandler.getCampaigns();
+    gridEl.innerHTML = '';
+    const typePriority = (t: string) => t === 'tutorial' ? 0 : t === 'free-flight' ? 1 : 2;
+    const displayOrder = campaigns
+        .map((c, i) => ({ ...c, index: i }))
+        .filter(c => !_IS_APP ? c.type !== 'multiplayer' : true)
+        .sort((a, b) => typePriority(a.type) - typePriority(b.type));
+    displayOrder.forEach(({ campaignTitle, campaignSublines, levels, type, index }) => {
+        const locked = !isCampaignUnlocked(_session, campaigns, index);
         const isTutorial = type === 'tutorial';
-        campaigns.push(
-            `<div class="grid-box${locked ? ' locked' : ''}" onclick="${locked ? '' : `selectCampaign('${index}')`}"` +
-                `${isTutorial ? ` style="border-color: #ff9900"` : ''}>` +
-                `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>` +
-                (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines) +
-                `</div>`
-        );
+        const isActive = !isTutorial && type !== 'free-flight' && _session.activeCampaignIndex === index;
+        const cp = _session.campaignProgress[String(index)];
+        const completedCount = cp?.missions.filter(m => m?.completed).length ?? 0;
+
+        const tile = document.createElement('div');
+        tile.className = `grid-box${locked ? ' locked' : ''}`;
+        if (isTutorial) tile.style.borderColor = '#ff9900';
+
+        let sublines = campaignSublines.map(s => `<div class="box-sub">${localize(s)}</div>`).join('');
+        sublines += `<div class="box-sub">Missionen: ${levels.length}</div>`;
+        if (isActive && completedCount > 0) {
+            sublines += `<div class="box-sub" style="color:#8af">${completedCount}/${levels.length} abgeschlossen</div>`;
+        }
+
+        tile.innerHTML =
+            `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>` +
+            `${localize(campaignTitle)}</div>` +
+            (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines);
+
+        if (!locked) tile.addEventListener('click', () => selectCampaign(String(index)));
+        gridEl.appendChild(tile);
     });
-    return campaigns;
 };
 
 window.onkeydown = e => {
     G.keys[e.code] = true;
     if ((document.activeElement as HTMLElement)?.tagName === 'INPUT') return;
-    // UNLOCK easter egg — works everywhere
-    _unlockSeq = (_unlockSeq + e.key.toUpperCase()).slice(-6);
-    if (_unlockSeq === 'UNLOCK') {
-        _session.allUnlocked = true;
-        saveSession(_session);
-        _unlockSeq = '';
-        showMsg(I18N.UNLOCK_ALL);
-    }
-    if (zstate.gameStarted && !zstate.introActive) {
-        _partySeq = (_partySeq + e.key.toUpperCase()).slice(-5);
-        if (_partySeq === 'PARTY') {
-            _partyMode = !_partyMode;
-            _partySeq = '';
-            if (_partyMode) {
-                _refreshPartyColors();
-                showMsg(I18N.PARTY_ON);
-                soundHandler.play('partytime', true);
-            } else {
-                soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    if (!_IS_APP) {
+        _unlockSeq = (_unlockSeq + e.key.toUpperCase()).slice(-6);
+        if (_unlockSeq === 'UNLOCK') {
+            _session.allUnlocked = true;
+            saveSession(_session);
+            _unlockSeq = '';
+            showMsg(I18N.UNLOCK_ALL!);
+        }
+        if (zstate.gameStarted && !zstate.introActive) {
+            _partySeq = (_partySeq + e.key.toUpperCase()).slice(-5);
+            if (_partySeq === 'PARTY') {
+                _partyMode = !_partyMode;
+                _partySeq = '';
+                if (_partyMode) {
+                    _refreshPartyColors();
+                    showMsg(I18N.PARTY_ON!);
+                    soundHandler.play('partytime', true);
+                } else {
+                    soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+                }
             }
         }
     }
@@ -2348,14 +2404,17 @@ const mountGameOverlays = () => {
     _ensureEl('flash-overlay');
     _ensureEl('msg');
     _ensureEl('debug-toggle');
-    const egg = _ensureEl('easter-egg');
-    egg.onclick = () => (window as any).launchEasterEgg?.();
+    if (!_IS_APP) {
+        const egg = _ensureEl('easter-egg');
+        egg.onclick = () => (window as any).launchEasterEgg?.();
+    }
 };
 
 const mountGameScreens = () => {
-    ['campaign-select','heli-select','crash-screen','mission-success-screen',
+    ['campaign-select','mission-select','heli-select','crash-screen','mission-success-screen',
      'win-screen','mission-briefing','campaign-complete-screen','campaign-failed-screen']
         .forEach(id => { _ensureEl(id).classList.add('ui-screen'); });
+    mountMissionSelect();
 
     document.getElementById('campaign-select')!.innerHTML = `
         <div class="title">${I18N.CAMPAIGN_SELECT_TITLE}</div>
@@ -2391,7 +2450,7 @@ const mountGameScreens = () => {
         <div id="campaign-complete-name" style="color: #5f5; font-size: 24px; margin: 10px 0"></div>
         <p style="color: #aaa; font-size: 16px; letter-spacing: 2px">${I18N.ALL_MISSIONS_CLEARED}</p>
         <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
-    document.getElementById('campaign-complete-screen')!.addEventListener('click', returnToBase);
+    document.getElementById('campaign-complete-screen')!.addEventListener('click', returnToCampaignSelect);
 
     document.getElementById('campaign-failed-screen')!.innerHTML = `
         <div class="title" style="color: #fff">${I18N.CAMPAIGN_FAILED}</div>
@@ -2399,6 +2458,36 @@ const mountGameScreens = () => {
         <p style="color: #aaa; font-size: 16px; letter-spacing: 2px">${I18N.MISSION_ABORTED}</p>
         <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
     document.getElementById('campaign-failed-screen')!.addEventListener('click', returnToBase);
+
+    // Campaign-switch warning overlay
+    const warningEl = _ensureEl('campaign-switch-warning');
+    warningEl.innerHTML = `
+        <div class="title" style="font-size: 26px; color: #f90">${I18N.CAMPAIGN_SWITCH_WARNING}</div>
+        <p style="color:#aaa; font-size:15px; letter-spacing:1px; margin: 10px 0 24px">
+            ${I18N.CAMPAIGN_SWITCH_PROGRESS_WARN}
+        </p>
+        <div style="display:flex; gap: 20px">
+            <div class="back-btn" id="campaign-switch-cancel">${I18N.BACK}</div>
+            <div class="back-btn" style="color:#f90; border-color:#f90" id="campaign-switch-confirm">
+                ${I18N.CAMPAIGN_SWITCH_CONFIRM}
+            </div>
+        </div>`;
+    document.getElementById('campaign-switch-cancel')!.addEventListener('click', () => {
+        warningEl.style.display = 'none';
+        _pendingSwitchIndex = -1;
+    });
+    document.getElementById('campaign-switch-confirm')!.addEventListener('click', () => {
+        warningEl.style.display = 'none';
+        const switchTo = _pendingSwitchIndex;
+        _pendingSwitchIndex = -1;
+        if (switchTo >= 0) {
+            // Clear progress of old active campaign
+            const oldKey = String(_session.activeCampaignIndex);
+            delete _session.campaignProgress[oldKey];
+            saveSession(_session);
+            _doSelectCampaign(switchTo);
+        }
+    });
 };
 
 declare const __APP_VERSION__: string;
@@ -2410,13 +2499,7 @@ const _previewLaunch = !import.meta.env.DEV ? undefined : (missionData: any, hel
     _rafId = 0;
     stopHeliSound();
 
-    // Reset all screens
-    ['campaign-select','heli-select','crash-screen','mission-success-screen',
-     'win-screen','mission-briefing','campaign-complete-screen','campaign-failed-screen',
-     'splash','main-menu'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
+    showScreen(null);
     hideBriefing();
 
     // Reset heli + state
@@ -2465,31 +2548,39 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('preview') &
 window.onload = () => {
     requestAnimationFrame(() => {
     assertDom();
-    initMpGame({
-        cancelRaf: () => { cancelAnimationFrame(_rafId); _rafId = 0; },
-        ctx,
-        getPlayerName: () => _session.playerName || 'WOLF',
-        setTouchVisible,
-        setSelectedCampaignIndex: (i: number) => { _selectedCampaignIndex = i; },
-        launchMission,
-        showMsg,
-    });
+    if (!_IS_APP) {
+        initMpGame({
+            cancelRaf: () => { cancelAnimationFrame(_rafId); _rafId = 0; },
+            ctx,
+            getPlayerName: () => _session.playerName || 'WOLF',
+            setTouchVisible,
+            setSelectedCampaignIndex: (i: number) => { _selectedCampaignIndex = i; },
+            launchMission,
+            showMsg,
+        });
+    }
+    const _mountScreens = () => {
+        mountHeliInfoScreen(toMainMenu);
+        mountCreditsScreen(toMainMenu);
+        mountMainMenu({
+            onSplashClick: toMainMenu,
+            onStart: toCampaignSelect,
+            ...(!_IS_APP ? { onMultiplayer: toMpLobby } : {}),
+            onHeli: toHeliInfo,
+            onSettings: toSettings,
+            onCredits: toCredits,
+        });
+        (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
+        mountBriefing();
+        initBriefing(dismissBriefing);
+        mountSettings();
+        mountRankup();
+        mountGameScreens();
+    };
+
     mountGameOverlays();
-    mountHeliInfoScreen(toMainMenu);
-    mountCreditsScreen(toMainMenu);
-    mountMainMenu({
-        onSplashClick: toMainMenu,
-        onStart: toCampaignSelect,
-        onMultiplayer: toMpLobby,
-        onHeli: toHeliInfo,
-        onSettings: toSettings,
-        onCredits: toCredits,
-    });
-    (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
+    _mountScreens();
     zinit();
-    mountBriefing();
-    initBriefing(dismissBriefing);
-    mountSettingsRankup();
     const _getPref = (key: string, def: boolean) => {
         try { const v = localStorage.getItem(key); return v === null ? def : v === '1'; } catch { return def; }
     };
@@ -2523,6 +2614,7 @@ window.onload = () => {
     initSettings({
         getSession: () => _session,
         saveSession,
+        getRankMissions: _getRankMissions,
         getControlMode,
         setControlMode,
         isTouchDevice: _isTouchDevice,
@@ -2540,12 +2632,12 @@ window.onload = () => {
         },
     });
     mountWhatsNew();
-    mountGameScreens();
+    onLanguageChange(_mountScreens);
     setupTouchControls();
     startMenuParticles();
 
     const _showSplash = () => {
-        (document.getElementById('splash') as HTMLElement).style.display = 'flex';
+        showScreen('splash');
     };
 
     const _afterConsent = () => {
@@ -2579,7 +2671,6 @@ window.onload = () => {
     }); // requestAnimationFrame
 };
 
-window.launchEasterEgg = launchEasterEgg;
 window.toCampaignSelect = toCampaignSelect;
 window.toMainMenu = toMainMenu;
 window.toHeliInfo = toHeliInfo;
@@ -2587,8 +2678,12 @@ window.toCredits = toCredits;
 window.backFromHeliSelect = backFromHeliSelect;
 window.returnToBase = returnToBase;
 window.selectCampaign = selectCampaign;
+window.selectMission = selectMission;
 window.startGame = startGame;
 window.setHover = setHover;
 window.toSettings = toSettings;
 window.approveCookies = approveCookies;
-window.declineCookies = declineCookies;
+window.confirmDeleteSession = () => {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    setTimeout(() => window.location.reload(), 1200);
+};

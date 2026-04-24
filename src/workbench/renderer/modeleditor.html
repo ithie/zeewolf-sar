@@ -1,596 +1,1022 @@
 <!doctype html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <title>ZEEWOLF – Modell-Editor</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:     #1e1e1e;
-      --bg2:    #252526;
-      --bg3:    #2d2d2d;
-      --bg4:    #3c3c3c;
-      --accent: #0e639c;
-      --accent2:#1177bb;
-      --text:   #cccccc;
-      --dim:    #858585;
-      --border: #3c3c3c;
-    }
-    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; overflow: hidden; }
+    <head>
+        <meta charset="UTF-8" />
+        <title>ZEEWOLF – Modell-Editor</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            :root {
+                --bg: #1e1e1e;
+                --bg2: #252526;
+                --bg3: #2d2d2d;
+                --bg4: #3c3c3c;
+                --accent: #0e639c;
+                --accent2: #1177bb;
+                --text: #cccccc;
+                --dim: #858585;
+                --border: #3c3c3c;
+            }
+            html,
+            body {
+                width: 100%;
+                height: 100%;
+                background: var(--bg);
+                color: var(--text);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 12px;
+                overflow: hidden;
+            }
 
-    #main { display: flex; height: 100%; overflow: hidden; }
+            #main {
+                display: flex;
+                height: 100%;
+                overflow: hidden;
+            }
 
-    #sidebar { width: 264px; min-width: 180px; flex-shrink: 0; background: var(--bg2);
-      border-right: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; }
-    #sidebar::-webkit-scrollbar { width: 6px; }
-    #sidebar::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+            #sidebar {
+                width: 264px;
+                min-width: 180px;
+                flex-shrink: 0;
+                background: var(--bg2);
+                border-right: 1px solid var(--border);
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            #sidebar::-webkit-scrollbar {
+                width: 6px;
+            }
+            #sidebar::-webkit-scrollbar-thumb {
+                background: var(--bg4);
+                border-radius: 3px;
+            }
 
-    .sec { border-bottom: 1px solid var(--border); padding: 8px 10px; }
-    .sec-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--dim); margin-bottom: 6px; }
-    .sec label { display: block; margin: 3px 0; cursor: pointer; }
-    .sec input[type=text], .sec input[type=number], .sec select {
-      background: var(--bg3); color: var(--text); border: 1px solid var(--border);
-      border-radius: 2px; padding: 2px 5px; font-size: 11px; width: 100%; }
-    .sec input[type=number] { width: 60px; }
-    .sec input:focus, .sec select:focus { outline: none; border-color: var(--accent2); }
-    .sec input[type=color] { background: none; border: 1px solid var(--border); border-radius: 2px;
-      width: 32px; height: 20px; padding: 1px; cursor: pointer; }
-    .sec input[type=range] { width: 100%; cursor: pointer; }
+            .sec {
+                border-bottom: 1px solid var(--border);
+                padding: 8px 10px;
+            }
+            .sec-title {
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: var(--dim);
+                margin-bottom: 6px;
+            }
+            .sec label {
+                display: block;
+                margin: 3px 0;
+                cursor: pointer;
+            }
+            .sec input[type='text'],
+            .sec input[type='number'],
+            .sec select {
+                background: var(--bg3);
+                color: var(--text);
+                border: 1px solid var(--border);
+                border-radius: 2px;
+                padding: 2px 5px;
+                font-size: 11px;
+                width: 100%;
+            }
+            .sec input[type='number'] {
+                width: 60px;
+            }
+            .sec input:focus,
+            .sec select:focus {
+                outline: none;
+                border-color: var(--accent2);
+            }
+            .sec input[type='color'] {
+                background: none;
+                border: 1px solid var(--border);
+                border-radius: 2px;
+                width: 32px;
+                height: 20px;
+                padding: 1px;
+                cursor: pointer;
+            }
+            .sec input[type='range'] {
+                width: 100%;
+                cursor: pointer;
+            }
 
-    .row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin: 3px 0; }
-    .row label { margin: 0; white-space: nowrap; }
-    .row input[type=number] { width: 54px; }
-    .row input[type=text]   { flex: 1; width: auto; }
-    .row select             { flex: 1; width: auto; }
+            .row {
+                display: flex;
+                gap: 4px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin: 3px 0;
+            }
+            .row label {
+                margin: 0;
+                white-space: nowrap;
+            }
+            .row input[type='number'] {
+                width: 54px;
+            }
+            .row input[type='text'] {
+                flex: 1;
+                width: auto;
+            }
+            .row select {
+                flex: 1;
+                width: auto;
+            }
 
-    .btn { background: var(--bg4); color: var(--text); border: 1px solid var(--border);
-      border-radius: 2px; padding: 3px 8px; font-size: 11px; cursor: pointer; white-space: nowrap; }
-    .btn:hover { background: var(--accent); border-color: var(--accent2); color: #fff; }
-    .btn-sm { padding: 1px 5px; font-size: 10px; }
-    .btn-danger:hover { background: #7a2020 !important; border-color: #a33 !important; }
-    .flex-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+            .btn {
+                background: var(--bg4);
+                color: var(--text);
+                border: 1px solid var(--border);
+                border-radius: 2px;
+                padding: 3px 8px;
+                font-size: 11px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+            .btn:hover {
+                background: var(--accent);
+                border-color: var(--accent2);
+                color: #fff;
+            }
+            .btn-sm {
+                padding: 1px 5px;
+                font-size: 10px;
+            }
+            .btn-danger:hover {
+                background: #7a2020 !important;
+                border-color: #a33 !important;
+            }
+            .flex-row {
+                display: flex;
+                gap: 4px;
+                flex-wrap: wrap;
+                margin-top: 4px;
+            }
 
-    .face-item { display: flex; align-items: center; gap: 5px; padding: 2px 4px;
-      border-radius: 2px; cursor: pointer; margin: 1px 0; }
-    .face-item:hover { background: var(--bg4); }
-    .face-item.active { background: var(--accent); color: #fff; }
-    .face-swatch { width: 12px; height: 12px; border-radius: 2px;
-      border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0; }
-    .face-id { flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .face-item {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                padding: 2px 4px;
+                border-radius: 2px;
+                cursor: pointer;
+                margin: 1px 0;
+            }
+            .face-item:hover {
+                background: var(--bg4);
+            }
+            .face-item.active {
+                background: var(--accent);
+                color: #fff;
+            }
+            .face-swatch {
+                width: 12px;
+                height: 12px;
+                border-radius: 2px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                flex-shrink: 0;
+            }
+            .face-id {
+                flex: 1;
+                font-size: 10px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
 
-    .part-item { border-radius: 2px; cursor: pointer; margin: 2px 0;
-      border: 1px solid transparent; overflow: hidden; }
-    .part-item:hover { background: var(--bg4); }
-    .part-item.active { border-color: var(--accent2); background: rgba(14,99,156,0.2); }
-    .part-header { display: flex; align-items: center; gap: 5px; padding: 3px 5px; }
-    .part-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .part-name { flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .part-info { font-size: 9px; color: var(--dim); flex-shrink: 0; }
-    .part-rotate-badge { font-size: 9px; padding: 0 3px; border-radius: 2px;
-      background: rgba(255,160,60,0.25); color: #ffaa44; flex-shrink: 0; }
-    .part-slider-row { padding: 2px 5px 4px; display: flex; align-items: center; gap: 5px; }
-    .part-slider-row input[type=range] { flex: 1; }
-    .part-slider-val { font-size: 9px; color: var(--dim); width: 32px; text-align: right; flex-shrink: 0; }
+            .part-item {
+                border-radius: 2px;
+                cursor: pointer;
+                margin: 2px 0;
+                border: 1px solid transparent;
+                overflow: hidden;
+            }
+            .part-item:hover {
+                background: var(--bg4);
+            }
+            .part-item.active {
+                border-color: var(--accent2);
+                background: rgba(14, 99, 156, 0.2);
+            }
+            .part-header {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                padding: 3px 5px;
+            }
+            .part-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+            .part-name {
+                flex: 1;
+                font-size: 10px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .part-info {
+                font-size: 9px;
+                color: var(--dim);
+                flex-shrink: 0;
+            }
+            .part-rotate-badge {
+                font-size: 9px;
+                padding: 0 3px;
+                border-radius: 2px;
+                background: rgba(255, 160, 60, 0.25);
+                color: #ffaa44;
+                flex-shrink: 0;
+            }
+            .part-slider-row {
+                padding: 2px 5px 4px;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .part-slider-row input[type='range'] {
+                flex: 1;
+            }
+            .part-slider-val {
+                font-size: 9px;
+                color: var(--dim);
+                width: 32px;
+                text-align: right;
+                flex-shrink: 0;
+            }
 
-    .vert-row { display: flex; align-items: center; gap: 3px; margin: 2px 0; border-radius: 2px; }
-    .vert-row .vi { width: 18px; font-size: 10px; color: var(--dim); text-align: right; flex-shrink: 0; }
-    .vert-row input[type=number] { width: 52px; }
-    .vert-row.selected { background: rgba(17,119,187,0.2); }
+            .vert-row {
+                display: flex;
+                align-items: center;
+                gap: 3px;
+                margin: 2px 0;
+                border-radius: 2px;
+            }
+            .vert-row .vi {
+                width: 18px;
+                font-size: 10px;
+                color: var(--dim);
+                text-align: right;
+                flex-shrink: 0;
+            }
+            .vert-row input[type='number'] {
+                width: 52px;
+            }
+            .vert-row.selected {
+                background: rgba(17, 119, 187, 0.2);
+            }
 
-    .cbox-block { border: 1px solid var(--border); border-radius: 2px; padding: 4px 6px; margin: 3px 0; font-size: 10px; }
-    .cbox-grid { display: grid; grid-template-columns: 32px 52px 52px; gap: 2px 4px; align-items: center; margin-top: 3px; }
-    .cbox-grid label { color: var(--dim); text-align: right; }
-    .cbox-grid input { width: 52px; }
+            .cbox-block {
+                border: 1px solid var(--border);
+                border-radius: 2px;
+                padding: 4px 6px;
+                margin: 3px 0;
+                font-size: 10px;
+            }
+            .cbox-grid {
+                display: grid;
+                grid-template-columns: 32px 52px 52px;
+                gap: 2px 4px;
+                align-items: center;
+                margin-top: 3px;
+            }
+            .cbox-grid label {
+                color: var(--dim);
+                text-align: right;
+            }
+            .cbox-grid input {
+                width: 52px;
+            }
 
-    .empty { color: var(--dim); font-style: italic; font-size: 11px; }
-    .grid-q-tag { font-weight: 400; font-size: 9px; color: var(--dim); }
+            .empty {
+                color: var(--dim);
+                font-style: italic;
+                font-size: 11px;
+            }
+            .grid-q-tag {
+                font-weight: 400;
+                font-size: 9px;
+                color: var(--dim);
+            }
 
-    #canvas-area { flex: 1; position: relative; overflow: hidden; cursor: grab; background: #050505; }
-    #canvas-area:active { cursor: grabbing; }
-    #canvas { display: block; position: absolute; top: 0; left: 0; }
-    #hint { position: absolute; bottom: 8px; right: 8px; font-size: 10px;
-      color: rgba(255,255,255,0.25); pointer-events: none; }
-    #quad-overlays { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-    .quad-reset { position: absolute; width: 20px; height: 20px; padding: 0; font-size: 13px;
-      line-height: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(30,30,30,0.75); color: rgba(255,255,255,0.35); border-radius: 2px;
-      cursor: pointer; pointer-events: all; }
-    .quad-reset:hover { background: rgba(100,180,255,0.25); color: #fff; border-color: rgba(100,180,255,0.5); }
-    .quad-grid-toggle { position: absolute; width: 20px; height: 20px; padding: 0; font-size: 11px;
-      line-height: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(30,30,30,0.75); color: rgba(255,255,255,0.35); border-radius: 2px;
-      cursor: pointer; pointer-events: all; }
-    .quad-grid-toggle:hover { background: rgba(100,180,255,0.25); color: #fff; border-color: rgba(100,180,255,0.5); }
-    .quad-grid-toggle.hidden { color: rgba(255,100,100,0.5); border-color: rgba(255,100,100,0.3); }
-  </style>
-</head>
-<body>
-<div id="main">
-  <div id="sidebar">
+            #canvas-area {
+                flex: 1;
+                position: relative;
+                overflow: hidden;
+                cursor: grab;
+                background: #050505;
+            }
+            #canvas-area:active {
+                cursor: grabbing;
+            }
+            #canvas {
+                display: block;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+            #hint {
+                position: absolute;
+                bottom: 8px;
+                right: 8px;
+                font-size: 10px;
+                color: rgba(255, 255, 255, 0.25);
+                pointer-events: none;
+            }
+            #quad-overlays {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+            }
+            .quad-reset {
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                padding: 0;
+                font-size: 13px;
+                line-height: 20px;
+                text-align: center;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                background: rgba(30, 30, 30, 0.75);
+                color: rgba(255, 255, 255, 0.35);
+                border-radius: 2px;
+                cursor: pointer;
+                pointer-events: all;
+            }
+            .quad-reset:hover {
+                background: rgba(100, 180, 255, 0.25);
+                color: #fff;
+                border-color: rgba(100, 180, 255, 0.5);
+            }
+            .quad-grid-toggle {
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                padding: 0;
+                font-size: 11px;
+                line-height: 20px;
+                text-align: center;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                background: rgba(30, 30, 30, 0.75);
+                color: rgba(255, 255, 255, 0.35);
+                border-radius: 2px;
+                cursor: pointer;
+                pointer-events: all;
+            }
+            .quad-grid-toggle:hover {
+                background: rgba(100, 180, 255, 0.25);
+                color: #fff;
+                border-color: rgba(100, 180, 255, 0.5);
+            }
+            .quad-grid-toggle.hidden {
+                color: rgba(255, 100, 100, 0.5);
+                border-color: rgba(255, 100, 100, 0.3);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="main">
+            <div id="sidebar">
+                <div class="sec">
+                    <div class="sec-title">Modell</div>
+                    <select id="preset-select">
+                        <option value="">— Preset laden —</option>
+                        <option value="hangar">Hangar</option>
+                        <option value="lighthouse">Lighthouse</option>
+                        <option value="sailboat">Sailboat</option>
+                        <option value="coasthawk">Coast-Hawk</option>
+                        <option value="dolphin">Dolphin</option>
+                        <option value="atlas">Atlas</option>
+                        <option value="glider">Glider (ASK-21)</option>
+                        <option value="submarine">Submarine</option>
+                        <option value="carrier">Carrier (komplett)</option>
+                        <option value="carrier_hull">Carrier Hull</option>
+                        <option value="carrier_tower">Carrier Tower</option>
+                        <option value="fuel_truck_chassis">Fuel Truck (Chassis)</option>
+                        <option value="fuel_truck_tank">Fuel Truck (Tank)</option>
+                        <option value="fuel_truck_cab">Fuel Truck (Cab)</option>
+                    </select>
+                    <div class="row" style="margin-top: 5px"><label>ID:</label><input type="text" id="meta-id" /></div>
+                    <div class="row"><label>Label:</label><input type="text" id="meta-label" /></div>
+                </div>
 
-    <div class="sec">
-      <div class="sec-title">Modell</div>
-      <select id="preset-select">
-        <option value="">— Preset laden —</option>
-        <option value="hangar">Hangar</option>
-        <option value="lighthouse">Lighthouse</option>
-        <option value="sailboat">Sailboat</option>
-        <option value="jayhawk">Jayhawk (MH-60T)</option>
-        <option value="dolphin">Dolphin (MH-65)</option>
-        <option value="chinook">Chinook (CH-47)</option>
-        <option value="glider">Glider (ASK-21)</option>
-        <option value="bo105">Bo-105</option>
-        <option value="submarine">Submarine</option>
-        <option value="carrier">Carrier (komplett)</option>
-        <option value="carrier_hull">Carrier Hull</option>
-        <option value="carrier_tower">Carrier Tower</option>
-        <option value="fuel_truck_chassis">Fuel Truck (Chassis)</option>
-        <option value="fuel_truck_tank">Fuel Truck (Tank)</option>
-        <option value="fuel_truck_cab">Fuel Truck (Cab)</option>
-      </select>
-      <div class="row" style="margin-top:5px">
-        <label>ID:</label><input type="text" id="meta-id">
-      </div>
-      <div class="row">
-        <label>Label:</label><input type="text" id="meta-label">
-      </div>
-    </div>
+                <div class="sec">
+                    <div class="sec-title">Eigenschaften</div>
+                    <div class="row">
+                        <label><input type="radio" name="mobil" id="r-static" value="static" checked /> Statisch</label>
+                        <label><input type="radio" name="mobil" id="r-moving" value="moving" /> Beweglich</label>
+                    </div>
+                    <div class="row" id="move-type-row">
+                        <label>Typ:</label>
+                        <select id="move-type">
+                            <option value="none">–</option>
+                            <option value="auto">Auto</option>
+                            <option value="ship">Schiff</option>
+                            <option value="plane">Flugzeug</option>
+                            <option value="heli">Hubschrauber</option>
+                        </select>
+                    </div>
+                </div>
 
-    <div class="sec">
-      <div class="sec-title">Eigenschaften</div>
-      <div class="row">
-        <label><input type="radio" name="mobil" id="r-static" value="static" checked> Statisch</label>
-        <label><input type="radio" name="mobil" id="r-moving" value="moving"> Beweglich</label>
-      </div>
-      <div class="row" id="move-type-row">
-        <label>Typ:</label>
-        <select id="move-type">
-          <option value="none">–</option>
-          <option value="auto">Auto</option>
-          <option value="ship">Schiff</option>
-          <option value="plane">Flugzeug</option>
-          <option value="heli">Hubschrauber</option>
-        </select>
-      </div>
-    </div>
+                <div class="sec">
+                    <div class="sec-title">Ansicht</div>
+                    <label><input type="checkbox" id="show-cboxes" checked /> Kollisionsboxen</label>
+                </div>
 
-    <div class="sec">
-      <div class="sec-title">Ansicht</div>
-      <label><input type="checkbox" id="show-cboxes" checked> Kollisionsboxen</label>
-    </div>
+                <div class="sec" id="parts-sec" style="display: none">
+                    <div class="sec-title">Parts</div>
+                    <div id="parts-list"></div>
+                </div>
 
-    <div class="sec" id="parts-sec" style="display:none">
-      <div class="sec-title">Parts</div>
-      <div id="parts-list"></div>
-    </div>
+                <div class="sec">
+                    <div class="sec-title">Flächen <span id="face-count" style="font-weight: 400"></span></div>
+                    <div id="face-list"><div class="empty">Kein Modell geladen</div></div>
+                    <div class="flex-row" style="margin-top: 6px">
+                        <button class="btn btn-sm" id="btn-add-face">+ Fläche</button>
+                    </div>
+                </div>
 
-    <div class="sec">
-      <div class="sec-title">Flächen <span id="face-count" style="font-weight:400"></span></div>
-      <div id="face-list"><div class="empty">Kein Modell geladen</div></div>
-      <div class="flex-row" style="margin-top:6px">
-        <button class="btn btn-sm" id="btn-add-face">+ Fläche</button>
-      </div>
-    </div>
+                <div class="sec" id="face-editor" style="display: none">
+                    <div class="sec-title">Fläche</div>
+                    <div class="row"><label>ID:</label><input type="text" id="face-id-input" /></div>
+                    <div class="row">
+                        <label>Farbe:</label>
+                        <input type="color" id="face-color" />
+                        <input
+                            type="text"
+                            id="face-color-hex"
+                            style="flex: 1; font-family: monospace; font-size: 10px"
+                        />
+                    </div>
+                    <div class="row">
+                        <label><input type="checkbox" id="face-has-stroke" /> Kontur</label>
+                        <input type="color" id="face-stroke" />
+                        <input
+                            type="text"
+                            id="face-stroke-hex"
+                            style="flex: 1; font-family: monospace; font-size: 10px"
+                        />
+                        <label>W:</label>
+                        <input
+                            type="number"
+                            id="face-stroke-w"
+                            value="1"
+                            min="0.5"
+                            max="5"
+                            step="0.5"
+                            style="width: 40px"
+                        />
+                    </div>
+                    <div class="row">
+                        <label><input type="checkbox" id="face-has-normal" /> Normal:</label>
+                        <label>nx</label><input type="number" id="face-nx" step="0.1" style="width: 44px" />
+                        <label>ny</label><input type="number" id="face-ny" step="0.1" style="width: 44px" />
+                    </div>
+                    <div class="sec-title" style="margin-top: 8px">Vertices</div>
+                    <div id="vert-list"></div>
+                    <div class="flex-row">
+                        <button class="btn btn-sm" id="btn-add-vert">+ Vertex</button>
+                        <button class="btn btn-sm btn-danger" id="btn-del-vert">– Letzter</button>
+                        <button class="btn btn-sm btn-danger" id="btn-del-face">Fläche ✕</button>
+                    </div>
+                </div>
 
-    <div class="sec" id="face-editor" style="display:none">
-      <div class="sec-title">Fläche</div>
-      <div class="row"><label>ID:</label><input type="text" id="face-id-input"></div>
-      <div class="row">
-        <label>Farbe:</label>
-        <input type="color" id="face-color">
-        <input type="text" id="face-color-hex" style="flex:1;font-family:monospace;font-size:10px">
-      </div>
-      <div class="row">
-        <label><input type="checkbox" id="face-has-stroke"> Kontur</label>
-        <input type="color" id="face-stroke">
-        <input type="text" id="face-stroke-hex" style="flex:1;font-family:monospace;font-size:10px">
-        <label>W:</label>
-        <input type="number" id="face-stroke-w" value="1" min="0.5" max="5" step="0.5" style="width:40px">
-      </div>
-      <div class="row">
-        <label><input type="checkbox" id="face-has-normal"> Normal:</label>
-        <label>nx</label><input type="number" id="face-nx" step="0.1" style="width:44px">
-        <label>ny</label><input type="number" id="face-ny" step="0.1" style="width:44px">
-      </div>
-      <div class="sec-title" style="margin-top:8px">Vertices</div>
-      <div id="vert-list"></div>
-      <div class="flex-row">
-        <button class="btn btn-sm" id="btn-add-vert">+ Vertex</button>
-        <button class="btn btn-sm btn-danger" id="btn-del-vert">– Letzter</button>
-        <button class="btn btn-sm btn-danger" id="btn-del-face">Fläche ✕</button>
-      </div>
-    </div>
+                <div class="sec">
+                    <div class="sec-title">Kollisionsboxen</div>
+                    <div id="cbox-list"><div class="empty">–</div></div>
+                    <div class="flex-row" style="margin-top: 6px">
+                        <button class="btn btn-sm" id="btn-add-cbox">+ Box</button>
+                    </div>
+                </div>
 
-    <div class="sec">
-      <div class="sec-title">Kollisionsboxen</div>
-      <div id="cbox-list"><div class="empty">–</div></div>
-      <div class="flex-row" style="margin-top:6px">
-        <button class="btn btn-sm" id="btn-add-cbox">+ Box</button>
-      </div>
-    </div>
+                <div class="sec">
+                    <div class="sec-title">Rettungszonen</div>
+                    <div id="zone-list"><div class="empty">–</div></div>
+                    <div class="flex-row" style="margin-top: 6px">
+                        <button class="btn btn-sm" id="btn-add-zone">+ Zone</button>
+                    </div>
+                </div>
 
-    <div class="sec">
-      <div class="sec-title">Rettungszonen</div>
-      <div id="zone-list"><div class="empty">–</div></div>
-      <div class="flex-row" style="margin-top:6px">
-        <button class="btn btn-sm" id="btn-add-zone">+ Zone</button>
-      </div>
-    </div>
+                <div class="sec">
+                    <div class="sec-title">Boden-Gitter <span class="grid-q-tag" id="grid-q-label"></span></div>
+                    <label><input type="checkbox" id="grid-visible" checked /> Sichtbar</label>
+                    <div class="row" style="margin-top: 5px">
+                        <label>X:</label><input type="number" id="grid-x" step="0.5" value="0" style="width: 52px" />
+                        <label>Y:</label><input type="number" id="grid-y" step="0.5" value="0" style="width: 52px" />
+                        <label>Z:</label><input type="number" id="grid-z" step="0.5" value="0" style="width: 52px" />
+                    </div>
+                    <div style="margin-top: 5px; font-size: 10px; color: var(--dim)">
+                        Klick = wählen · Shift+Ziehen = verschieben · ESC = abwählen
+                    </div>
+                </div>
 
-    <div class="sec">
-      <div class="sec-title">Boden-Gitter <span class="grid-q-tag" id="grid-q-label"></span></div>
-      <label><input type="checkbox" id="grid-visible" checked> Sichtbar</label>
-      <div class="row" style="margin-top:5px">
-        <label>X:</label><input type="number" id="grid-x" step="0.5" value="0" style="width:52px">
-        <label>Y:</label><input type="number" id="grid-y" step="0.5" value="0" style="width:52px">
-        <label>Z:</label><input type="number" id="grid-z" step="0.5" value="0" style="width:52px">
-      </div>
-      <div style="margin-top:5px;font-size:10px;color:var(--dim)">Klick = wählen · Shift+Ziehen = verschieben · ESC = abwählen</div>
-    </div>
+                <div class="sec">
+                    <div class="sec-title">Wand-Gitter <span class="grid-q-tag" id="gridv-q-label"></span></div>
+                    <label><input type="checkbox" id="gridv-visible" checked /> Sichtbar</label>
+                    <div class="row" style="margin-top: 5px">
+                        <label>X:</label><input type="number" id="gridv-x" step="0.5" value="0" style="width: 52px" />
+                        <label>Y:</label><input type="number" id="gridv-y" step="0.5" value="0" style="width: 52px" />
+                        <label>Z:</label><input type="number" id="gridv-z" step="0.5" value="0" style="width: 52px" />
+                    </div>
+                    <div style="margin-top: 5px; font-size: 10px; color: var(--dim)">
+                        Klick = wählen · Shift+Ziehen = verschieben · ESC = abwählen
+                    </div>
+                </div>
+            </div>
 
-    <div class="sec">
-      <div class="sec-title">Wand-Gitter <span class="grid-q-tag" id="gridv-q-label"></span></div>
-      <label><input type="checkbox" id="gridv-visible" checked> Sichtbar</label>
-      <div class="row" style="margin-top:5px">
-        <label>X:</label><input type="number" id="gridv-x" step="0.5" value="0" style="width:52px">
-        <label>Y:</label><input type="number" id="gridv-y" step="0.5" value="0" style="width:52px">
-        <label>Z:</label><input type="number" id="gridv-z" step="0.5" value="0" style="width:52px">
-      </div>
-      <div style="margin-top:5px;font-size:10px;color:var(--dim)">Klick = wählen · Shift+Ziehen = verschieben · ESC = abwählen</div>
-    </div>
+            <div id="canvas-area">
+                <canvas id="canvas"></canvas>
+                <div id="quad-overlays">
+                    <button class="quad-reset" data-q="0">⟳</button>
+                    <button class="quad-reset" data-q="1">⟳</button>
+                    <button class="quad-reset" data-q="2">⟳</button>
+                    <button class="quad-reset" data-q="3">⟳</button>
+                    <button class="quad-grid-toggle" data-q="0" title="Gitter ein/aus">#</button>
+                    <button class="quad-grid-toggle" data-q="1" title="Gitter ein/aus">#</button>
+                    <button class="quad-grid-toggle" data-q="2" title="Gitter ein/aus">#</button>
+                    <button class="quad-grid-toggle" data-q="3" title="Gitter ein/aus">#</button>
+                </div>
+                <div id="hint">
+                    Scrollen = Zoom · Ziehen = Kamera · Shift+Ziehen = Rotation · Vertex ziehen = XY · Shift+Vertex = Z
+                    · Klick = Fläche/Vertex
+                </div>
+            </div>
+        </div>
 
-  </div>
+        <script type="module">
+            import HANGAR_DEF from '/src/game/models/hangar.zdef';
+            import LIGHTHOUSE_DEF from '/src/game/models/lighthouse.zdef';
+            import SAILBOAT_DEF from '/src/game/models/sailboat.zdef';
+            import COASTHAWK_DEF from '/src/game/models/coasthawk.zdef';
+            import DOLPHIN_DEF from '/src/game/models/dolphin.zdef';
+            import ATLAS_DEF from '/src/game/models/atlas.zdef';
+            import GLIDER_DEF from '/src/game/models/glider.zdef';
+            import SUBMARINE_DEF from '/src/game/models/submarine.zdef';
+            import CARRIER_DEF from '/src/game/models/carrier.zdef';
+            import ORNITHOPTER_DEF from '/src/game/models/ornithopter.zdef';
+            import CARRIER_HULL_DEF from '/src/game/models/carrier_hull.zdef';
+            import CARRIER_TOWER_DEF from '/src/game/models/carrier_tower.zdef';
+            import FUEL_TRUCK_CHASSIS_DEF from '/src/game/models/fuel_truck_chassis.zdef';
+            import FUEL_TRUCK_TANK_DEF from '/src/game/models/fuel_truck_tank.zdef';
+            import FUEL_TRUCK_CAB_DEF from '/src/game/models/fuel_truck_cab.zdef';
+            import { createSceneRenderer } from '/src/game/scene-renderer.ts';
+            import { applyParts } from '/src/game/def-utils.ts';
 
-  <div id="canvas-area">
-    <canvas id="canvas"></canvas>
-    <div id="quad-overlays">
-      <button class="quad-reset" data-q="0">⟳</button>
-      <button class="quad-reset" data-q="1">⟳</button>
-      <button class="quad-reset" data-q="2">⟳</button>
-      <button class="quad-reset" data-q="3">⟳</button>
-      <button class="quad-grid-toggle" data-q="0" title="Gitter ein/aus">#</button>
-      <button class="quad-grid-toggle" data-q="1" title="Gitter ein/aus">#</button>
-      <button class="quad-grid-toggle" data-q="2" title="Gitter ein/aus">#</button>
-      <button class="quad-grid-toggle" data-q="3" title="Gitter ein/aus">#</button>
-    </div>
-    <div id="hint">Scrollen = Zoom · Ziehen = Kamera · Shift+Ziehen = Rotation · Vertex ziehen = XY · Shift+Vertex = Z · Klick = Fläche/Vertex</div>
-  </div>
-</div>
+            const TW = 64,
+                TH = 32,
+                SH = 25;
 
-<script type="module">
-import HANGAR_DEF from '/src/game/models/hangar.zdef';
-import LIGHTHOUSE_DEF from '/src/game/models/lighthouse.zdef';
-import SAILBOAT_DEF from '/src/game/models/sailboat.zdef';
-import JAYHAWK_DEF from '/src/game/models/jayhawk.zdef';
-import DOLPHIN_DEF from '/src/game/models/dolphin.zdef';
-import CHINOOK_DEF from '/src/game/models/chinook.zdef';
-import GLIDER_DEF from '/src/game/models/glider.zdef';
-import SUBMARINE_DEF from '/src/game/models/submarine.zdef';
-import CARRIER_DEF from '/src/game/models/carrier.zdef';
-import CARRIER_HULL_DEF from '/src/game/models/carrier_hull.zdef';
-import CARRIER_TOWER_DEF from '/src/game/models/carrier_tower.zdef';
-import BO105_DEF from '/src/game/models/bo105.zdef';
-import FUEL_TRUCK_CHASSIS_DEF from '/src/game/models/fuel_truck_chassis.zdef';
-import FUEL_TRUCK_TANK_DEF from '/src/game/models/fuel_truck_tank.zdef';
-import FUEL_TRUCK_CAB_DEF from '/src/game/models/fuel_truck_cab.zdef';
-import { createSceneRenderer } from '/src/game/scene-renderer.ts';
-import { applyParts } from '/src/game/def-utils.ts';
+            const PRESETS = {
+                hangar: { def: HANGAR_DEF, label: 'Hangar', isStatic: true, movementType: 'none' },
+                lighthouse: { def: LIGHTHOUSE_DEF, label: 'Lighthouse', isStatic: true, movementType: 'none' },
+                sailboat: { def: SAILBOAT_DEF, label: 'Sailboat', isStatic: false, movementType: 'ship' },
+                coasthawk: { def: COASTHAWK_DEF, label: 'Coast-Hawk', isStatic: false, movementType: 'heli' },
+                dolphin: { def: DOLPHIN_DEF, label: 'Dolphin', isStatic: false, movementType: 'heli' },
+                atlas: { def: ATLAS_DEF, label: 'Atlas', isStatic: false, movementType: 'heli' },
+                ornithopter: { def: ORNITHOPTER_DEF, label: 'Ornithopter', isStatic: false, movementType: 'heli' },
+                glider: { def: GLIDER_DEF, label: 'Glider (ASK-21)', isStatic: false, movementType: 'plane' },
+                submarine: { def: SUBMARINE_DEF, label: 'Submarine', isStatic: false, movementType: 'ship' },
+                carrier: { def: CARRIER_DEF, label: 'Carrier (komplett)', isStatic: false, movementType: 'ship' },
+                carrier_hull: { def: CARRIER_HULL_DEF, label: 'Carrier Hull', isStatic: false, movementType: 'ship' },
+                carrier_tower: {
+                    def: CARRIER_TOWER_DEF,
+                    label: 'Carrier Tower',
+                    isStatic: false,
+                    movementType: 'ship',
+                },
+                fuel_truck_chassis: {
+                    def: FUEL_TRUCK_CHASSIS_DEF,
+                    label: 'Fuel Truck (Chassis)',
+                    isStatic: true,
+                    movementType: 'none',
+                },
+                fuel_truck_tank: {
+                    def: FUEL_TRUCK_TANK_DEF,
+                    label: 'Fuel Truck (Tank)',
+                    isStatic: true,
+                    movementType: 'none',
+                },
+                fuel_truck_cab: {
+                    def: FUEL_TRUCK_CAB_DEF,
+                    label: 'Fuel Truck (Cab)',
+                    isStatic: true,
+                    movementType: 'none',
+                },
+            };
 
-const TW = 64, TH = 32, SH = 25;
+            // ── State ──────────────────────────────────────────────────────────────────────
+            const state = {
+                def: null,
+                meta: { label: '', isStatic: true, movementType: 'none' },
+                selectedFaceIdx: -1,
+                selectedVertIdx: -1,
+                activePart: null,
+                partTestAngles: {},
+                dirty: false,
+                filename: null,
+            };
 
-const PRESETS = {
-  hangar:             { def: HANGAR_DEF,            label: 'Hangar',              isStatic: true,  movementType: 'none' },
-  lighthouse:         { def: LIGHTHOUSE_DEF,        label: 'Lighthouse',          isStatic: true,  movementType: 'none' },
-  sailboat:           { def: SAILBOAT_DEF,          label: 'Sailboat',            isStatic: false, movementType: 'ship' },
-  jayhawk:            { def: JAYHAWK_DEF,           label: 'Jayhawk (MH-60T)',    isStatic: false, movementType: 'heli' },
-  dolphin:            { def: DOLPHIN_DEF,           label: 'Dolphin (MH-65)',     isStatic: false, movementType: 'heli' },
-  chinook:            { def: CHINOOK_DEF,           label: 'Chinook (CH-47)',     isStatic: false, movementType: 'heli' },
-  glider:             { def: GLIDER_DEF,            label: 'Glider (ASK-21)',     isStatic: false, movementType: 'plane' },
-  submarine:          { def: SUBMARINE_DEF,         label: 'Submarine',           isStatic: false, movementType: 'ship' },
-  carrier:            { def: CARRIER_DEF,           label: 'Carrier (komplett)',  isStatic: false, movementType: 'ship' },
-  carrier_hull:       { def: CARRIER_HULL_DEF,      label: 'Carrier Hull',        isStatic: false, movementType: 'ship' },
-  carrier_tower:      { def: CARRIER_TOWER_DEF,     label: 'Carrier Tower',       isStatic: false, movementType: 'ship' },
-  bo105:              { def: BO105_DEF,             label: 'Bo-105',              isStatic: false, movementType: 'heli' },
-  fuel_truck_chassis: { def: FUEL_TRUCK_CHASSIS_DEF,label: 'Fuel Truck (Chassis)',isStatic: true,  movementType: 'none' },
-  fuel_truck_tank:    { def: FUEL_TRUCK_TANK_DEF,   label: 'Fuel Truck (Tank)',   isStatic: true,  movementType: 'none' },
-  fuel_truck_cab:     { def: FUEL_TRUCK_CAB_DEF,    label: 'Fuel Truck (Cab)',    isStatic: true,  movementType: 'none' },
-};
+            // Per-quadrant independent grids
+            const mkGrid = () => ({ visible: true, x: 0, y: 0, z: 0, selected: false });
+            const grids = [mkGrid(), mkGrid(), mkGrid(), mkGrid()];
+            const gridVs = [mkGrid(), mkGrid(), mkGrid(), mkGrid()];
 
-// ── State ──────────────────────────────────────────────────────────────────────
-const state = {
-  def: null,
-  meta: { label: '', isStatic: true, movementType: 'none' },
-  selectedFaceIdx: -1,
-  selectedVertIdx: -1,
-  activePart: null,
-  partTestAngles: {},
-  dirty: false,
-  filename: null,
-};
+            // ── Active-face helpers ────────────────────────────────────────────────────────
+            const getActiveFaces = () => {
+                if (!state.def) return [];
+                if (state.activePart) {
+                    const part = state.def.parts?.find(p => p.id === state.activePart);
+                    return part?.faces ?? [];
+                }
+                return state.def.faces;
+            };
 
-// Per-quadrant independent grids
-const mkGrid  = () => ({ visible: true, x: 0, y: 0, z: 0, selected: false });
-const grids   = [mkGrid(), mkGrid(), mkGrid(), mkGrid()];
-const gridVs  = [mkGrid(), mkGrid(), mkGrid(), mkGrid()];
+            const PIVOT_COLORS = ['#ff6644', '#44bbff', '#44ff88', '#ffaa44', '#cc44ff'];
 
-// ── Active-face helpers ────────────────────────────────────────────────────────
-const getActiveFaces = () => {
-  if (!state.def) return [];
-  if (state.activePart) {
-    const part = state.def.parts?.find(p => p.id === state.activePart);
-    return part?.faces ?? [];
-  }
-  return state.def.faces;
-};
+            const DEG = Math.PI / 180;
+            const QUAD_DEFAULT_ANGLES = [225, 315, 135, 45];
+            const quads = QUAD_DEFAULT_ANGLES.map(a => ({
+                angle: a * DEG,
+                defaultAngle: a * DEG,
+                cam: { x: 0, y: 0 },
+                zoom: 3.0,
+            }));
+            let activeQ = 0,
+                lockedQ = 0;
+            let renderCx = 0,
+                renderCy = 0,
+                renderZoom = 3.0,
+                renderViewAngle = 225 * DEG;
+            let renderCam = quads[0].cam;
 
-const PIVOT_COLORS = ['#ff6644', '#44bbff', '#44ff88', '#ffaa44', '#cc44ff'];
+            const area = document.getElementById('canvas-area');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
 
-const DEG = Math.PI / 180;
-const QUAD_DEFAULT_ANGLES = [225, 315, 135, 45];
-const quads = QUAD_DEFAULT_ANGLES.map(a => ({ angle: a * DEG, defaultAngle: a * DEG, cam: { x: 0, y: 0 }, zoom: 3.0 }));
-let activeQ = 0, lockedQ = 0;
-let renderCx = 0, renderCy = 0, renderZoom = 3.0, renderViewAngle = 225 * DEG;
-let renderCam = quads[0].cam;
+            const positionResetButtons = () => {
+                const qw = area.clientWidth / 2,
+                    qh = area.clientHeight / 2;
+                document.querySelectorAll('.quad-reset').forEach((btn, q) => {
+                    btn.style.top = Math.floor(q / 2) * qh + 4 + 'px';
+                    btn.style.left = (q % 2) * qw + qw - 24 + 'px';
+                });
+                document.querySelectorAll('.quad-grid-toggle').forEach((btn, q) => {
+                    btn.style.top = Math.floor(q / 2) * qh + 4 + 'px';
+                    btn.style.left = (q % 2) * qw + qw - 48 + 'px';
+                });
+            };
+            const resize = () => {
+                canvas.width = area.clientWidth;
+                canvas.height = area.clientHeight;
+                positionResetButtons();
+                draw();
+            };
+            new ResizeObserver(resize).observe(area);
 
-const area   = document.getElementById('canvas-area');
-const canvas = document.getElementById('canvas');
-const ctx    = canvas.getContext('2d');
+            function iso(wx, wy, wz, camX, camY) {
+                return {
+                    x: renderCx + (wx - wy) * ((TW * renderZoom) / 2) - camX,
+                    y: renderCy + (wx + wy) * ((TH * renderZoom) / 2) - wz * SH * renderZoom - camY,
+                };
+            }
 
-const positionResetButtons = () => {
-  const qw = area.clientWidth / 2, qh = area.clientHeight / 2;
-  document.querySelectorAll('.quad-reset').forEach((btn, q) => {
-    btn.style.top  = (Math.floor(q / 2) * qh + 4) + 'px';
-    btn.style.left = ((q % 2) * qw + qw - 24) + 'px';
-  });
-  document.querySelectorAll('.quad-grid-toggle').forEach((btn, q) => {
-    btn.style.top  = (Math.floor(q / 2) * qh + 4) + 'px';
-    btn.style.left = ((q % 2) * qw + qw - 48) + 'px';
-  });
-};
-const resize = () => { canvas.width = area.clientWidth; canvas.height = area.clientHeight; positionResetButtons(); draw(); };
-new ResizeObserver(resize).observe(area);
+            const SceneRenderer = createSceneRenderer(ctx, iso);
 
-function iso(wx, wy, wz, camX, camY) {
-  return {
-    x: renderCx + (wx - wy) * (TW * renderZoom / 2) - camX,
-    y: renderCy + (wx + wy) * (TH * renderZoom / 2) - wz * SH * renderZoom - camY,
-  };
-}
+            const localToScreen = (lx, ly, lz) => {
+                const cosA = Math.cos(renderViewAngle),
+                    sinA = Math.sin(renderViewAngle);
+                return iso(lx * cosA - ly * sinA, lx * sinA + ly * cosA, lz, renderCam.x, renderCam.y);
+            };
 
-const SceneRenderer = createSceneRenderer(ctx, iso);
+            // ── Grid drawing (canvas strokes, called with destination-over) ────────────────
+            const drawGrid = g => {
+                if (!g.visible) return;
+                const H = 8,
+                    STEP = 1;
+                ctx.save();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = g.selected ? 'rgba(100,180,255,0.45)' : 'rgba(100,140,180,0.22)';
+                for (let yi = -H; yi <= H; yi += STEP) {
+                    const p0 = localToScreen(g.x - H, g.y + yi, g.z),
+                        p1 = localToScreen(g.x + H, g.y + yi, g.z);
+                    ctx.beginPath();
+                    ctx.moveTo(p0.x, p0.y);
+                    ctx.lineTo(p1.x, p1.y);
+                    ctx.stroke();
+                }
+                for (let xi = -H; xi <= H; xi += STEP) {
+                    const p0 = localToScreen(g.x + xi, g.y - H, g.z),
+                        p1 = localToScreen(g.x + xi, g.y + H, g.z);
+                    ctx.beginPath();
+                    ctx.moveTo(p0.x, p0.y);
+                    ctx.lineTo(p1.x, p1.y);
+                    ctx.stroke();
+                }
+                ctx.strokeStyle = g.selected ? 'rgba(120,200,255,0.75)' : 'rgba(160,190,230,0.40)';
+                ctx.lineWidth = 1.5;
+                const ax0 = localToScreen(g.x - H, g.y, g.z),
+                    ax1 = localToScreen(g.x + H, g.y, g.z);
+                ctx.beginPath();
+                ctx.moveTo(ax0.x, ax0.y);
+                ctx.lineTo(ax1.x, ax1.y);
+                ctx.stroke();
+                const ay0 = localToScreen(g.x, g.y - H, g.z),
+                    ay1 = localToScreen(g.x, g.y + H, g.z);
+                ctx.beginPath();
+                ctx.moveTo(ay0.x, ay0.y);
+                ctx.lineTo(ay1.x, ay1.y);
+                ctx.stroke();
+                ctx.restore();
+            };
 
-const localToScreen = (lx, ly, lz) => {
-  const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
-  return iso(lx * cosA - ly * sinA, lx * sinA + ly * cosA, lz, renderCam.x, renderCam.y);
-};
+            const drawGridV = gv => {
+                if (!gv.visible) return;
+                const H = 8,
+                    STEP = 1;
+                ctx.save();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = gv.selected ? 'rgba(255,160,100,0.45)' : 'rgba(180,140,100,0.22)';
+                for (let zi = -H; zi <= H; zi += STEP) {
+                    const p0 = localToScreen(gv.x - H, gv.y, gv.z + zi),
+                        p1 = localToScreen(gv.x + H, gv.y, gv.z + zi);
+                    ctx.beginPath();
+                    ctx.moveTo(p0.x, p0.y);
+                    ctx.lineTo(p1.x, p1.y);
+                    ctx.stroke();
+                }
+                for (let xi = -H; xi <= H; xi += STEP) {
+                    const p0 = localToScreen(gv.x + xi, gv.y, gv.z - H),
+                        p1 = localToScreen(gv.x + xi, gv.y, gv.z + H);
+                    ctx.beginPath();
+                    ctx.moveTo(p0.x, p0.y);
+                    ctx.lineTo(p1.x, p1.y);
+                    ctx.stroke();
+                }
+                ctx.strokeStyle = gv.selected ? 'rgba(255,180,120,0.75)' : 'rgba(220,180,140,0.40)';
+                ctx.lineWidth = 1.5;
+                const ax0 = localToScreen(gv.x - H, gv.y, gv.z),
+                    ax1 = localToScreen(gv.x + H, gv.y, gv.z);
+                ctx.beginPath();
+                ctx.moveTo(ax0.x, ax0.y);
+                ctx.lineTo(ax1.x, ax1.y);
+                ctx.stroke();
+                const az0 = localToScreen(gv.x, gv.y, gv.z - H),
+                    az1 = localToScreen(gv.x, gv.y, gv.z + H);
+                ctx.beginPath();
+                ctx.moveTo(az0.x, az0.y);
+                ctx.lineTo(az1.x, az1.y);
+                ctx.stroke();
+                ctx.restore();
+            };
 
-// ── Grid drawing (canvas strokes, called with destination-over) ────────────────
-const drawGrid = (g) => {
-  if (!g.visible) return;
-  const H = 8, STEP = 1;
-  ctx.save();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = g.selected ? 'rgba(100,180,255,0.45)' : 'rgba(100,140,180,0.22)';
-  for (let yi = -H; yi <= H; yi += STEP) {
-    const p0 = localToScreen(g.x - H, g.y + yi, g.z), p1 = localToScreen(g.x + H, g.y + yi, g.z);
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-  }
-  for (let xi = -H; xi <= H; xi += STEP) {
-    const p0 = localToScreen(g.x + xi, g.y - H, g.z), p1 = localToScreen(g.x + xi, g.y + H, g.z);
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-  }
-  ctx.strokeStyle = g.selected ? 'rgba(120,200,255,0.75)' : 'rgba(160,190,230,0.40)';
-  ctx.lineWidth = 1.5;
-  const ax0 = localToScreen(g.x - H, g.y, g.z), ax1 = localToScreen(g.x + H, g.y, g.z);
-  ctx.beginPath(); ctx.moveTo(ax0.x, ax0.y); ctx.lineTo(ax1.x, ax1.y); ctx.stroke();
-  const ay0 = localToScreen(g.x, g.y - H, g.z), ay1 = localToScreen(g.x, g.y + H, g.z);
-  ctx.beginPath(); ctx.moveTo(ay0.x, ay0.y); ctx.lineTo(ay1.x, ay1.y); ctx.stroke();
-  ctx.restore();
-};
+            const drawDirectionArrow = () => {
+                const z = 1.8;
+                const shaft = localToScreen(0, 0, z),
+                    tip = localToScreen(3.0, 0, z);
+                const w0 = localToScreen(2.4, 0.3, z),
+                    w1 = localToScreen(2.4, -0.3, z);
+                ctx.strokeStyle = 'rgba(0,220,255,0.85)';
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(shaft.x, shaft.y);
+                ctx.lineTo(tip.x, tip.y);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(0,220,255,0.85)';
+                ctx.beginPath();
+                ctx.moveTo(tip.x, tip.y);
+                ctx.lineTo(w0.x, w0.y);
+                ctx.lineTo(w1.x, w1.y);
+                ctx.closePath();
+                ctx.fill();
+            };
 
-const drawGridV = (gv) => {
-  if (!gv.visible) return;
-  const H = 8, STEP = 1;
-  ctx.save();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = gv.selected ? 'rgba(255,160,100,0.45)' : 'rgba(180,140,100,0.22)';
-  for (let zi = -H; zi <= H; zi += STEP) {
-    const p0 = localToScreen(gv.x - H, gv.y, gv.z + zi), p1 = localToScreen(gv.x + H, gv.y, gv.z + zi);
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-  }
-  for (let xi = -H; xi <= H; xi += STEP) {
-    const p0 = localToScreen(gv.x + xi, gv.y, gv.z - H), p1 = localToScreen(gv.x + xi, gv.y, gv.z + H);
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-  }
-  ctx.strokeStyle = gv.selected ? 'rgba(255,180,120,0.75)' : 'rgba(220,180,140,0.40)';
-  ctx.lineWidth = 1.5;
-  const ax0 = localToScreen(gv.x - H, gv.y, gv.z), ax1 = localToScreen(gv.x + H, gv.y, gv.z);
-  ctx.beginPath(); ctx.moveTo(ax0.x, ax0.y); ctx.lineTo(ax1.x, ax1.y); ctx.stroke();
-  const az0 = localToScreen(gv.x, gv.y, gv.z - H), az1 = localToScreen(gv.x, gv.y, gv.z + H);
-  ctx.beginPath(); ctx.moveTo(az0.x, az0.y); ctx.lineTo(az1.x, az1.y); ctx.stroke();
-  ctx.restore();
-};
+            const drawPivotCircles = () => {
+                if (!state.def?.parts) return;
+                let colorIdx = 0;
+                for (const part of state.def.parts) {
+                    if (!part.rotate) continue;
+                    const color = PIVOT_COLORS[colorIdx++ % PIVOT_COLORS.length];
+                    const [px, py, pz] = part.rotate.pivot;
+                    const pt = localToScreen(px, py, pz);
+                    ctx.save();
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            };
 
-const drawDirectionArrow = () => {
-  const z = 1.8;
-  const shaft = localToScreen(0, 0, z), tip = localToScreen(3.0, 0, z);
-  const w0 = localToScreen(2.4, 0.3, z), w1 = localToScreen(2.4, -0.3, z);
-  ctx.strokeStyle = 'rgba(0,220,255,0.85)';
-  ctx.lineWidth = 2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(shaft.x, shaft.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
-  ctx.fillStyle = 'rgba(0,220,255,0.85)';
-  ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y); ctx.lineTo(w0.x, w0.y); ctx.lineTo(w1.x, w1.y);
-  ctx.closePath(); ctx.fill();
-};
+            const hitTestPivot = (mx, my) => {
+                if (!state.def?.parts) return null;
+                for (const part of state.def.parts) {
+                    if (!part.rotate) continue;
+                    const [px, py, pz] = part.rotate.pivot;
+                    const pt = localToScreen(px, py, pz);
+                    if (Math.hypot(mx - pt.x, my - pt.y) < 9) return part.id;
+                }
+                return null;
+            };
 
-const drawPivotCircles = () => {
-  if (!state.def?.parts) return;
-  let colorIdx = 0;
-  for (const part of state.def.parts) {
-    if (!part.rotate) continue;
-    const color = PIVOT_COLORS[colorIdx++ % PIVOT_COLORS.length];
-    const [px, py, pz] = part.rotate.pivot;
-    const pt = localToScreen(px, py, pz);
-    ctx.save();
-    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-  }
-};
+            // ── Main draw ──────────────────────────────────────────────────────────────────
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const qw = canvas.width / 2,
+                    qh = canvas.height / 2;
+                const showCboxes = document.getElementById('show-cboxes').checked;
 
-const hitTestPivot = (mx, my) => {
-  if (!state.def?.parts) return null;
-  for (const part of state.def.parts) {
-    if (!part.rotate) continue;
-    const [px, py, pz] = part.rotate.pivot;
-    const pt = localToScreen(px, py, pz);
-    if (Math.hypot(mx - pt.x, my - pt.y) < 9) return part.id;
-  }
-  return null;
-};
+                for (let q = 0; q < 4; q++) {
+                    setRenderContext(q);
+                    const col = q % 2,
+                        row = Math.floor(q / 2);
+                    const ox = col * qw,
+                        oy = row * qh;
+                    const g = grids[q],
+                        gv = gridVs[q];
 
-// ── Main draw ──────────────────────────────────────────────────────────────────
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const qw = canvas.width / 2, qh = canvas.height / 2;
-  const showCboxes = document.getElementById('show-cboxes').checked;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(ox, oy, qw, qh);
+                    ctx.clip();
 
-  for (let q = 0; q < 4; q++) {
-    setRenderContext(q);
-    const col = q % 2, row = Math.floor(q / 2);
-    const ox = col * qw, oy = row * qh;
-    const g = grids[q], gv = gridVs[q];
+                    if (state.def) {
+                        const activeFaces = getActiveFaces();
+                        const colors = {};
+                        if (state.activePart) {
+                            const ap = state.def.parts?.find(p => p.id === state.activePart);
+                            if (ap)
+                                ap.faces.forEach(f => {
+                                    colors[f.id] = '#2d5c88';
+                                });
+                        }
+                        if (state.selectedFaceIdx >= 0 && activeFaces[state.selectedFaceIdx]) {
+                            colors[activeFaces[state.selectedFaceIdx].id] = '#ffdd44';
+                        }
+                        const testParams = {};
+                        for (const part of state.def.parts || []) {
+                            if (part.rotate && state.partTestAngles[part.id] !== undefined)
+                                testParams[part.rotate.param] = state.partTestAngles[part.id];
+                        }
+                        const renderedDef = applyParts(state.def, testParams);
+                        SceneRenderer.debugCollision = showCboxes;
+                        SceneRenderer.add(renderedDef, { x: 0, y: 0, angle: renderViewAngle, colors });
+                        SceneRenderer.flush(renderCam.x, renderCam.y);
 
-    ctx.save();
-    ctx.beginPath(); ctx.rect(ox, oy, qw, qh); ctx.clip();
+                        // Selection outline
+                        if (state.selectedFaceIdx >= 0) {
+                            const face = activeFaces[state.selectedFaceIdx];
+                            if (face && face.verts.length >= 2) {
+                                const pts = face.verts.map(v => localToScreen(v[0], v[1], v[2]));
+                                ctx.beginPath();
+                                ctx.moveTo(pts[0].x, pts[0].y);
+                                for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+                                ctx.closePath();
+                                ctx.strokeStyle = '#ffffff';
+                                ctx.lineWidth = 2;
+                                ctx.stroke();
+                            }
+                        }
 
-    if (state.def) {
-      const activeFaces = getActiveFaces();
-      const colors = {};
-      if (state.activePart) {
-        const ap = state.def.parts?.find(p => p.id === state.activePart);
-        if (ap) ap.faces.forEach(f => { colors[f.id] = '#2d5c88'; });
-      }
-      if (state.selectedFaceIdx >= 0 && activeFaces[state.selectedFaceIdx]) {
-        colors[activeFaces[state.selectedFaceIdx].id] = '#ffdd44';
-      }
-      const renderedDef = applyParts(state.def, state.partTestAngles);
-      SceneRenderer.debugCollision = showCboxes;
-      SceneRenderer.add(renderedDef, { x: 0, y: 0, angle: renderViewAngle, colors });
-      SceneRenderer.flush(renderCam.x, renderCam.y);
+                        if (!state.meta.isStatic) drawDirectionArrow();
 
-      // Selection outline
-      if (state.selectedFaceIdx >= 0) {
-        const face = activeFaces[state.selectedFaceIdx];
-        if (face && face.verts.length >= 2) {
-          const pts = face.verts.map(v => localToScreen(v[0], v[1], v[2]));
-          ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-          ctx.closePath(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
-        }
-      }
+                        // Vertex dots
+                        if (state.selectedFaceIdx >= 0) {
+                            const face = activeFaces[state.selectedFaceIdx];
+                            if (face) {
+                                face.verts.forEach((v, i) => {
+                                    const pt = localToScreen(v[0], v[1], v[2]);
+                                    const sel = i === state.selectedVertIdx;
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, sel ? 5 : 3.5, 0, Math.PI * 2);
+                                    ctx.fillStyle = sel ? '#ff4444' : '#ffee00';
+                                    ctx.fill();
+                                    ctx.strokeStyle = sel ? '#fff' : '#888';
+                                    ctx.lineWidth = 1;
+                                    ctx.stroke();
+                                });
+                            }
+                        }
 
-      if (!state.meta.isStatic) drawDirectionArrow();
+                        drawPivotCircles();
 
-      // Vertex dots
-      if (state.selectedFaceIdx >= 0) {
-        const face = activeFaces[state.selectedFaceIdx];
-        if (face) {
-          face.verts.forEach((v, i) => {
-            const pt = localToScreen(v[0], v[1], v[2]);
-            const sel = i === state.selectedVertIdx;
-            ctx.beginPath(); ctx.arc(pt.x, pt.y, sel ? 5 : 3.5, 0, Math.PI * 2);
-            ctx.fillStyle = sel ? '#ff4444' : '#ffee00'; ctx.fill();
-            ctx.strokeStyle = sel ? '#fff' : '#888'; ctx.lineWidth = 1; ctx.stroke();
-          });
-        }
-      }
+                        // Rescue zones
+                        if (state.def?.rescueZones?.length) {
+                            const zoneColors = {
+                                pickup: 'rgba(80,220,80,',
+                                dropoff: 'rgba(80,140,255,',
+                                both: 'rgba(255,180,60,',
+                            };
+                            for (const z of state.def.rescueZones) {
+                                const zz = z.z ?? 0;
+                                const c = zoneColors[z.role] || zoneColors.both;
+                                const pts = [
+                                    localToScreen(z.x - z.w, z.y - z.h, zz),
+                                    localToScreen(z.x + z.w, z.y - z.h, zz),
+                                    localToScreen(z.x + z.w, z.y + z.h, zz),
+                                    localToScreen(z.x - z.w, z.y + z.h, zz),
+                                ];
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.moveTo(pts[0].x, pts[0].y);
+                                for (let i = 1; i < 4; i++) ctx.lineTo(pts[i].x, pts[i].y);
+                                ctx.closePath();
+                                ctx.fillStyle = c + '0.18)';
+                                ctx.fill();
+                                ctx.strokeStyle = c + '0.8)';
+                                ctx.lineWidth = 1.5;
+                                ctx.setLineDash([4, 3]);
+                                ctx.stroke();
+                                ctx.restore();
+                            }
+                        }
 
-      drawPivotCircles();
+                        if (gridDrag.active && gridDrag.snapFaceIdx >= 0) {
+                            const allFaces = [...state.def.faces];
+                            if (state.def.parts) state.def.parts.forEach(p => allFaces.push(...p.faces));
+                            const snapFace = allFaces[gridDrag.snapFaceIdx];
+                            if (snapFace) {
+                                const sv = snapFace.verts[gridDrag.snapVertIdx];
+                                const spt = localToScreen(sv[0], sv[1], sv[2]);
+                                ctx.beginPath();
+                                ctx.arc(spt.x, spt.y, 8, 0, Math.PI * 2);
+                                ctx.strokeStyle = '#ffee00';
+                                ctx.lineWidth = 2;
+                                ctx.stroke();
+                            }
+                        }
+                    } else {
+                        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+                        ctx.font = '10px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Kein Modell', ox + qw / 2, oy + qh / 2);
+                    }
 
-      // Rescue zones
-      if (state.def?.rescueZones?.length) {
-        const zoneColors = { pickup: 'rgba(80,220,80,', dropoff: 'rgba(80,140,255,', both: 'rgba(255,180,60,' };
-        for (const z of state.def.rescueZones) {
-          const zz = z.z ?? 0;
-          const c = zoneColors[z.role] || zoneColors.both;
-          const pts = [
-            localToScreen(z.x - z.w, z.y - z.h, zz),
-            localToScreen(z.x + z.w, z.y - z.h, zz),
-            localToScreen(z.x + z.w, z.y + z.h, zz),
-            localToScreen(z.x - z.w, z.y + z.h, zz),
-          ];
-          ctx.save();
-          ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < 4; i++) ctx.lineTo(pts[i].x, pts[i].y);
-          ctx.closePath();
-          ctx.fillStyle = c + '0.18)'; ctx.fill();
-          ctx.strokeStyle = c + '0.8)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.stroke();
-          ctx.restore();
-        }
-      }
+                    drawGrid(g);
+                    drawGridV(gv);
 
-      if (gridDrag.active && gridDrag.snapFaceIdx >= 0) {
-        const allFaces = [...state.def.faces];
-        if (state.def.parts) state.def.parts.forEach(p => allFaces.push(...p.faces));
-        const snapFace = allFaces[gridDrag.snapFaceIdx];
-        if (snapFace) {
-          const sv = snapFace.verts[gridDrag.snapVertIdx];
-          const spt = localToScreen(sv[0], sv[1], sv[2]);
-          ctx.beginPath(); ctx.arc(spt.x, spt.y, 8, 0, Math.PI * 2);
-          ctx.strokeStyle = '#ffee00'; ctx.lineWidth = 2; ctx.stroke();
-        }
-      }
-    } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.07)';
-      ctx.font = '10px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('Kein Modell', ox + qw / 2, oy + qh / 2);
-    }
+                    // Quadrant border + angle label (normal compositing, always on top)
+                    ctx.strokeStyle = q === activeQ ? 'rgba(100,180,255,0.55)' : 'rgba(255,255,255,0.07)';
+                    ctx.lineWidth = q === activeQ ? 2 : 1;
+                    ctx.strokeRect(ox + 0.5, oy + 0.5, qw - 1, qh - 1);
+                    const deg = ((Math.round((quads[q].angle * 180) / Math.PI) % 360) + 360) % 360;
+                    ctx.fillStyle = q === activeQ ? 'rgba(140,200,255,0.8)' : 'rgba(255,255,255,0.2)';
+                    ctx.font = '10px monospace';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`${deg}°`, ox + 6, oy + 14);
 
-    drawGrid(g);
-    drawGridV(gv);
+                    ctx.restore();
+                }
 
-    // Quadrant border + angle label (normal compositing, always on top)
-    ctx.strokeStyle = q === activeQ ? 'rgba(100,180,255,0.55)' : 'rgba(255,255,255,0.07)';
-    ctx.lineWidth = q === activeQ ? 2 : 1;
-    ctx.strokeRect(ox + 0.5, oy + 0.5, qw - 1, qh - 1);
-    const deg = ((Math.round(quads[q].angle * 180 / Math.PI) % 360) + 360) % 360;
-    ctx.fillStyle = q === activeQ ? 'rgba(140,200,255,0.8)' : 'rgba(255,255,255,0.2)';
-    ctx.font = '10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText(`${deg}°`, ox + 6, oy + 14);
+                ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(qw, 0);
+                ctx.lineTo(qw, canvas.height);
+                ctx.moveTo(0, qh);
+                ctx.lineTo(canvas.width, qh);
+                ctx.stroke();
+            }
 
-    ctx.restore();
-  }
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(qw, 0); ctx.lineTo(qw, canvas.height);
-  ctx.moveTo(0, qh); ctx.lineTo(canvas.width, qh);
-  ctx.stroke();
-}
-
-// ── Sidebar ────────────────────────────────────────────────────────────────────
-function renderPartsList() {
-  const sec  = document.getElementById('parts-sec');
-  const list = document.getElementById('parts-list');
-  if (!state.def?.parts?.length) { sec.style.display = 'none'; return; }
-  sec.style.display = '';
-  let colorIdx = 0;
-  list.innerHTML = state.def.parts.map(part => {
-    const isRotating = !!part.rotate;
-    const color = isRotating ? PIVOT_COLORS[colorIdx++ % PIVOT_COLORS.length] : 'var(--dim)';
-    const angle = state.partTestAngles[part.id] ?? 0;
-    const sliderRow = isRotating ? `
+            // ── Sidebar ────────────────────────────────────────────────────────────────────
+            function renderPartsList() {
+                const sec = document.getElementById('parts-sec');
+                const list = document.getElementById('parts-list');
+                if (!state.def?.parts?.length) {
+                    sec.style.display = 'none';
+                    return;
+                }
+                sec.style.display = '';
+                let colorIdx = 0;
+                list.innerHTML = state.def.parts
+                    .map(part => {
+                        const isRotating = !!part.rotate;
+                        const color = isRotating ? PIVOT_COLORS[colorIdx++ % PIVOT_COLORS.length] : 'var(--dim)';
+                        const angle = state.partTestAngles[part.id] ?? 0;
+                        const sliderRow = isRotating
+                            ? `
       <div class="part-slider-row">
         <input type="range" min="-3.14" max="3.14" step="0.02" value="${angle}" data-pid="${part.id}">
-        <span class="part-slider-val" id="pval-${part.id}">${(angle * 180 / Math.PI).toFixed(0)}°</span>
-      </div>` : '';
-    return `
+        <span class="part-slider-val" id="pval-${part.id}">${((angle * 180) / Math.PI).toFixed(0)}°</span>
+      </div>`
+                            : '';
+                        return `
       <div class="part-item ${state.activePart === part.id ? 'active' : ''}" data-pid="${part.id}">
         <div class="part-header">
           <div class="part-dot" style="background:${color}"></div>
@@ -599,92 +1025,137 @@ function renderPartsList() {
           ${isRotating ? '<div class="part-rotate-badge">↺</div>' : ''}
         </div>${sliderRow}
       </div>`;
-  }).join('');
-  list.querySelectorAll('.part-header').forEach(el => {
-    el.addEventListener('click', () => {
-      const pid = el.parentElement.dataset.pid;
-      state.activePart = state.activePart === pid ? null : pid;
-      if (state.activePart !== null) { state.selectedFaceIdx = -1; state.selectedVertIdx = -1; }
-      renderPartsList(); renderFaceList(); renderFaceEditor(); draw();
-    });
-  });
-  list.querySelectorAll('input[type=range]').forEach(slider => {
-    slider.addEventListener('input', e => {
-      const pid = e.target.dataset.pid, val = parseFloat(e.target.value);
-      state.partTestAngles[pid] = val;
-      const valEl = document.getElementById(`pval-${pid}`);
-      if (valEl) valEl.textContent = (val * 180 / Math.PI).toFixed(0) + '°';
-      draw();
-    });
-    slider.addEventListener('click', e => e.stopPropagation());
-  });
-}
+                    })
+                    .join('');
+                list.querySelectorAll('.part-header').forEach(el => {
+                    el.addEventListener('click', () => {
+                        const pid = el.parentElement.dataset.pid;
+                        state.activePart = state.activePart === pid ? null : pid;
+                        if (state.activePart !== null) {
+                            state.selectedFaceIdx = -1;
+                            state.selectedVertIdx = -1;
+                        }
+                        renderPartsList();
+                        renderFaceList();
+                        renderFaceEditor();
+                        draw();
+                    });
+                });
+                list.querySelectorAll('input[type=range]').forEach(slider => {
+                    slider.addEventListener('input', e => {
+                        const pid = e.target.dataset.pid,
+                            val = parseFloat(e.target.value);
+                        state.partTestAngles[pid] = val;
+                        const valEl = document.getElementById(`pval-${pid}`);
+                        if (valEl) valEl.textContent = ((val * 180) / Math.PI).toFixed(0) + '°';
+                        draw();
+                    });
+                    slider.addEventListener('click', e => e.stopPropagation());
+                });
+            }
 
-function renderFaceList() {
-  const list = document.getElementById('face-list');
-  const count = document.getElementById('face-count');
-  const faces = getActiveFaces();
-  if (!state.def || !faces.length) {
-    list.innerHTML = state.def ? '<div class="empty">Part wählen oder Fläche hinzufügen</div>'
-                               : '<div class="empty">Kein Modell geladen</div>';
-    count.textContent = ''; return;
-  }
-  count.textContent = `(${faces.length})`;
-  list.innerHTML = faces.map((f, i) => `
+            function renderFaceList() {
+                const list = document.getElementById('face-list');
+                const count = document.getElementById('face-count');
+                const faces = getActiveFaces();
+                if (!state.def || !faces.length) {
+                    list.innerHTML = state.def
+                        ? '<div class="empty">Part wählen oder Fläche hinzufügen</div>'
+                        : '<div class="empty">Kein Modell geladen</div>';
+                    count.textContent = '';
+                    return;
+                }
+                count.textContent = `(${faces.length})`;
+                list.innerHTML = faces
+                    .map(
+                        (f, i) => `
     <div class="face-item ${i === state.selectedFaceIdx ? 'active' : ''}" data-i="${i}">
       <div class="face-swatch" style="background:${f.color}"></div>
       <div class="face-id" title="${f.id}">${f.id}</div>
-    </div>`).join('');
-  list.querySelectorAll('.face-item').forEach(el => {
-    el.addEventListener('click', () => selectFace(parseInt(el.dataset.i)));
-  });
-}
+    </div>`
+                    )
+                    .join('');
+                list.querySelectorAll('.face-item').forEach(el => {
+                    el.addEventListener('click', () => selectFace(parseInt(el.dataset.i)));
+                });
+            }
 
-function renderFaceEditor() {
-  const sec = document.getElementById('face-editor');
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !state.def || !faces.length) { sec.style.display = 'none'; return; }
-  const face = faces[state.selectedFaceIdx];
-  if (!face) { sec.style.display = 'none'; return; }
-  sec.style.display = '';
-  document.getElementById('face-id-input').value     = face.id;
-  document.getElementById('face-color').value        = toColorInput(face.color);
-  document.getElementById('face-color-hex').value    = face.color;
-  const hasStroke = !!face.stroke;
-  document.getElementById('face-has-stroke').checked = hasStroke;
-  document.getElementById('face-stroke').value       = toColorInput(face.stroke || '#aaaaaa');
-  document.getElementById('face-stroke-hex').value   = face.stroke || '#aaaaaa';
-  document.getElementById('face-stroke-w').value     = face.strokeWidth ?? 1;
-  const hasNormal = Array.isArray(face.normal);
-  document.getElementById('face-has-normal').checked = hasNormal;
-  document.getElementById('face-nx').value           = hasNormal ? face.normal[0] : 0;
-  document.getElementById('face-ny').value           = hasNormal ? face.normal[1] : 0;
-  renderVertList(face);
-}
+            function renderFaceEditor() {
+                const sec = document.getElementById('face-editor');
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !state.def || !faces.length) {
+                    sec.style.display = 'none';
+                    return;
+                }
+                const face = faces[state.selectedFaceIdx];
+                if (!face) {
+                    sec.style.display = 'none';
+                    return;
+                }
+                sec.style.display = '';
+                document.getElementById('face-id-input').value = face.id;
+                document.getElementById('face-color').value = toColorInput(face.color);
+                document.getElementById('face-color-hex').value = face.color;
+                const hasStroke = !!face.stroke;
+                document.getElementById('face-has-stroke').checked = hasStroke;
+                document.getElementById('face-stroke').value = toColorInput(face.stroke || '#aaaaaa');
+                document.getElementById('face-stroke-hex').value = face.stroke || '#aaaaaa';
+                document.getElementById('face-stroke-w').value = face.strokeWidth ?? 1;
+                const hasNormal = Array.isArray(face.normal);
+                document.getElementById('face-has-normal').checked = hasNormal;
+                document.getElementById('face-nx').value = hasNormal ? face.normal[0] : 0;
+                document.getElementById('face-ny').value = hasNormal ? face.normal[1] : 0;
+                renderVertList(face);
+            }
 
-function renderVertList(face) {
-  const list = document.getElementById('vert-list');
-  list.innerHTML = face.verts.map((v, i) => `
+            function renderVertList(face) {
+                const list = document.getElementById('vert-list');
+                list.innerHTML = face.verts
+                    .map(
+                        (v, i) => `
     <div class="vert-row ${i === state.selectedVertIdx ? 'selected' : ''}" data-i="${i}">
       <span class="vi">V${i}</span>
       <input type="number" class="vx" step="0.01" value="${v[0].toFixed(3)}" style="width:52px">
       <input type="number" class="vy" step="0.01" value="${v[1].toFixed(3)}" style="width:52px">
       <input type="number" class="vz" step="0.01" value="${v[2].toFixed(3)}" style="width:52px">
-    </div>`).join('');
-  list.querySelectorAll('.vert-row').forEach(row => {
-    const i = parseInt(row.dataset.i);
-    row.addEventListener('click', () => { state.selectedVertIdx = i; renderFaceEditor(); draw(); });
-    row.querySelector('.vx').addEventListener('input', e => { face.verts[i][0] = parseFloat(e.target.value) || 0; markDirty(); draw(); });
-    row.querySelector('.vy').addEventListener('input', e => { face.verts[i][1] = parseFloat(e.target.value) || 0; markDirty(); draw(); });
-    row.querySelector('.vz').addEventListener('input', e => { face.verts[i][2] = parseFloat(e.target.value) || 0; markDirty(); draw(); });
-  });
-}
+    </div>`
+                    )
+                    .join('');
+                list.querySelectorAll('.vert-row').forEach(row => {
+                    const i = parseInt(row.dataset.i);
+                    row.addEventListener('click', () => {
+                        state.selectedVertIdx = i;
+                        renderFaceEditor();
+                        draw();
+                    });
+                    row.querySelector('.vx').addEventListener('input', e => {
+                        face.verts[i][0] = parseFloat(e.target.value) || 0;
+                        markDirty();
+                        draw();
+                    });
+                    row.querySelector('.vy').addEventListener('input', e => {
+                        face.verts[i][1] = parseFloat(e.target.value) || 0;
+                        markDirty();
+                        draw();
+                    });
+                    row.querySelector('.vz').addEventListener('input', e => {
+                        face.verts[i][2] = parseFloat(e.target.value) || 0;
+                        markDirty();
+                        draw();
+                    });
+                });
+            }
 
-function renderCboxList() {
-  const list = document.getElementById('cbox-list');
-  const boxes = state.def?.collisionBoxes;
-  if (!boxes?.length) { list.innerHTML = '<div class="empty">–</div>'; return; }
-  list.innerHTML = boxes.map((cb, i) => `
+            function renderCboxList() {
+                const list = document.getElementById('cbox-list');
+                const boxes = state.def?.collisionBoxes;
+                if (!boxes?.length) {
+                    list.innerHTML = '<div class="empty">–</div>';
+                    return;
+                }
+                list.innerHTML = boxes
+                    .map(
+                        (cb, i) => `
     <div class="cbox-block">
       <div class="row">
         <input type="text" class="cbi-id" data-i="${i}" value="${cb.id}" style="flex:1;font-size:10px">
@@ -701,31 +1172,47 @@ function renderCboxList() {
         <input type="number" step="0.1" value="${cb.zMin}" class="cbi" data-i="${i}" data-f="zMin">
         <input type="number" step="0.1" value="${cb.zMax}" class="cbi" data-i="${i}" data-f="zMax">
       </div>
-    </div>`).join('');
-  list.querySelectorAll('.cbi').forEach(inp => {
-    inp.addEventListener('input', e => {
-      boxes[+e.target.dataset.i][e.target.dataset.f] = parseFloat(e.target.value) || 0;
-      markDirty(); draw();
-    });
-  });
-  list.querySelectorAll('.cbi-id').forEach(inp => {
-    inp.addEventListener('input', e => { boxes[+e.target.dataset.i].id = e.target.value; markDirty(); });
-  });
-  list.querySelectorAll('.cbox-del').forEach(btn => {
-    btn.addEventListener('click', () => { boxes.splice(+btn.dataset.i, 1); markDirty(); renderCboxList(); draw(); });
-  });
-}
+    </div>`
+                    )
+                    .join('');
+                list.querySelectorAll('.cbi').forEach(inp => {
+                    inp.addEventListener('input', e => {
+                        boxes[+e.target.dataset.i][e.target.dataset.f] = parseFloat(e.target.value) || 0;
+                        markDirty();
+                        draw();
+                    });
+                });
+                list.querySelectorAll('.cbi-id').forEach(inp => {
+                    inp.addEventListener('input', e => {
+                        boxes[+e.target.dataset.i].id = e.target.value;
+                        markDirty();
+                    });
+                });
+                list.querySelectorAll('.cbox-del').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        boxes.splice(+btn.dataset.i, 1);
+                        markDirty();
+                        renderCboxList();
+                        draw();
+                    });
+                });
+            }
 
-function renderZoneList() {
-  const list = document.getElementById('zone-list');
-  const zones = state.def?.rescueZones;
-  if (!zones?.length) { list.innerHTML = '<div class="empty">–</div>'; return; }
-  const roleLabel = { pickup: '⬆ Aufnehmen', dropoff: '⬇ Absetzen', both: '⇅ Beides' };
-  list.innerHTML = zones.map((z, i) => `
+            function renderZoneList() {
+                const list = document.getElementById('zone-list');
+                const zones = state.def?.rescueZones;
+                if (!zones?.length) {
+                    list.innerHTML = '<div class="empty">–</div>';
+                    return;
+                }
+                const roleLabel = { pickup: '⬆ Aufnehmen', dropoff: '⬇ Absetzen', both: '⇅ Beides' };
+                list.innerHTML = zones
+                    .map(
+                        (z, i) => `
     <div class="cbox-block">
       <div class="row">
         <select class="zone-role" data-i="${i}" style="flex:1;font-size:10px">
-          ${['pickup','dropoff','both'].map(r => `<option value="${r}"${z.role===r?' selected':''}>${roleLabel[r]}</option>`).join('')}
+          ${['pickup', 'dropoff', 'both'].map(r => `<option value="${r}"${z.role === r ? ' selected' : ''}>${roleLabel[r]}</option>`).join('')}
         </select>
         <button class="btn btn-sm btn-danger zone-del" data-i="${i}">✕</button>
       </div>
@@ -739,514 +1226,788 @@ function renderZoneList() {
         <label>Z</label>
         <input type="number" step="0.05" value="${z.z ?? 0}" class="zi" data-i="${i}" data-f="z" style="grid-column:2">
       </div>
-    </div>`).join('');
-  list.querySelectorAll('.zi').forEach(inp => {
-    inp.addEventListener('input', e => {
-      zones[+e.target.dataset.i][e.target.dataset.f] = parseFloat(e.target.value) || 0;
-      markDirty(); draw();
-    });
-  });
-  list.querySelectorAll('.zone-role').forEach(sel => {
-    sel.addEventListener('change', e => { zones[+e.target.dataset.i].role = e.target.value; markDirty(); draw(); });
-  });
-  list.querySelectorAll('.zone-del').forEach(btn => {
-    btn.addEventListener('click', () => { zones.splice(+btn.dataset.i, 1); markDirty(); renderZoneList(); draw(); });
-  });
-}
+    </div>`
+                    )
+                    .join('');
+                list.querySelectorAll('.zi').forEach(inp => {
+                    inp.addEventListener('input', e => {
+                        zones[+e.target.dataset.i][e.target.dataset.f] = parseFloat(e.target.value) || 0;
+                        markDirty();
+                        draw();
+                    });
+                });
+                list.querySelectorAll('.zone-role').forEach(sel => {
+                    sel.addEventListener('change', e => {
+                        zones[+e.target.dataset.i].role = e.target.value;
+                        markDirty();
+                        draw();
+                    });
+                });
+                list.querySelectorAll('.zone-del').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        zones.splice(+btn.dataset.i, 1);
+                        markDirty();
+                        renderZoneList();
+                        draw();
+                    });
+                });
+            }
 
-const renderAll = () => { renderPartsList(); renderFaceList(); renderFaceEditor(); renderCboxList(); renderZoneList(); draw(); };
+            const renderAll = () => {
+                renderPartsList();
+                renderFaceList();
+                renderFaceEditor();
+                renderCboxList();
+                renderZoneList();
+                draw();
+            };
 
-const selectFace = (i) => {
-  state.selectedFaceIdx = i; state.selectedVertIdx = -1;
-  renderFaceList(); renderFaceEditor(); draw();
-};
+            const selectFace = i => {
+                state.selectedFaceIdx = i;
+                state.selectedVertIdx = -1;
+                renderFaceList();
+                renderFaceEditor();
+                draw();
+            };
 
-function loadPreset(key) {
-  const p = PRESETS[key]; if (!p) return;
-  state.def = JSON.parse(JSON.stringify(p.def));
-  state.meta = { label: p.label, isStatic: p.isStatic, movementType: p.movementType };
-  state.selectedFaceIdx = -1; state.selectedVertIdx = -1;
-  state.activePart = null; state.partTestAngles = {};
-  state.dirty = false; state.filename = null;
-  syncMetaToUI(); renderAll();
-}
+            function loadPreset(key) {
+                const p = PRESETS[key];
+                if (!p) return;
+                state.def = JSON.parse(JSON.stringify(p.def));
+                state.meta = { label: p.label, isStatic: p.isStatic, movementType: p.movementType };
+                state.selectedFaceIdx = -1;
+                state.selectedVertIdx = -1;
+                state.activePart = null;
+                state.partTestAngles = {};
+                state.dirty = false;
+                state.filename = null;
+                syncMetaToUI();
+                renderAll();
+            }
 
-function syncMetaToUI() {
-  document.getElementById('meta-id').value    = state.def ? state.def.id : '';
-  document.getElementById('meta-label').value = state.meta.label;
-  document.getElementById('r-static').checked = state.meta.isStatic;
-  document.getElementById('r-moving').checked = !state.meta.isStatic;
-  document.getElementById('move-type').value  = state.meta.movementType;
-  document.getElementById('move-type-row').style.opacity = state.meta.isStatic ? '0.4' : '1';
-}
+            function syncMetaToUI() {
+                document.getElementById('meta-id').value = state.def ? state.def.id : '';
+                document.getElementById('meta-label').value = state.meta.label;
+                document.getElementById('r-static').checked = state.meta.isStatic;
+                document.getElementById('r-moving').checked = !state.meta.isStatic;
+                document.getElementById('move-type').value = state.meta.movementType;
+                document.getElementById('move-type-row').style.opacity = state.meta.isStatic ? '0.4' : '1';
+            }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-const toColorInput = (c) => {
-  if (!c) return '#888888';
-  if (c.startsWith('rgba')) {
-    const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (m) return '#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
-  }
-  return c.length === 4 ? '#' + c[1]+c[1]+c[2]+c[2]+c[3]+c[3] : c.slice(0,7);
-};
-const markDirty = () => { state.dirty = true; };
-const getQuadrant = (mx, my) => (mx < canvas.width / 2 ? 0 : 1) + (my < canvas.height / 2 ? 0 : 2);
-const setRenderContext = (q) => {
-  const qw = canvas.width / 2, qh = canvas.height / 2;
-  renderCx = (q % 2) * qw + qw / 2;
-  renderCy = Math.floor(q / 2) * qh + qh / 2;
-  renderZoom = quads[q].zoom; renderViewAngle = quads[q].angle; renderCam = quads[q].cam;
-};
-const hitTestGrid = (mx, my, g) => {
-  if (!g.visible) return false;
-  const H = 8;
-  return pointInPolygon(mx, my, [
-    localToScreen(g.x - H, g.y - H, g.z), localToScreen(g.x + H, g.y - H, g.z),
-    localToScreen(g.x + H, g.y + H, g.z), localToScreen(g.x - H, g.y + H, g.z),
-  ]);
-};
-const hitTestGridV = (mx, my, gv) => {
-  if (!gv.visible) return false;
-  const H = 8;
-  return pointInPolygon(mx, my, [
-    localToScreen(gv.x - H, gv.y, gv.z - H), localToScreen(gv.x + H, gv.y, gv.z - H),
-    localToScreen(gv.x + H, gv.y, gv.z + H), localToScreen(gv.x - H, gv.y, gv.z + H),
-  ]);
-};
-const syncGridUI = () => {
-  const g = grids[activeQ], gv = gridVs[activeQ];
-  document.getElementById('grid-x').value  = g.x.toFixed(2);
-  document.getElementById('grid-y').value  = g.y.toFixed(2);
-  document.getElementById('grid-z').value  = g.z.toFixed(2);
-  document.getElementById('grid-visible').checked  = g.visible;
-  document.getElementById('gridv-x').value = gv.x.toFixed(2);
-  document.getElementById('gridv-y').value = gv.y.toFixed(2);
-  document.getElementById('gridv-z').value = gv.z.toFixed(2);
-  document.getElementById('gridv-visible').checked = gv.visible;
-  const label = `(Ansicht ${activeQ + 1})`;
-  document.getElementById('grid-q-label').textContent  = label;
-  document.getElementById('gridv-q-label').textContent = label;
-};
-const snapGrid = (q) => {
-  const g = gridDrag.target === 'wall' ? gridVs[q] : grids[q];
-  if (!state.def) { gridDrag.snapFaceIdx = -1; gridDrag.snapVertIdx = -1; return; }
-  const T = 0.35;
-  let bestDist = Infinity, bestFi = -1, bestVi = -1;
-  const allFaces = [...state.def.faces];
-  if (state.def.parts) state.def.parts.forEach(p => allFaces.push(...p.faces));
-  for (let fi = 0; fi < allFaces.length; fi++) {
-    for (let vi = 0; vi < allFaces[fi].verts.length; vi++) {
-      const v = allFaces[fi].verts[vi];
-      const d = Math.min(Math.abs(v[2] - g.z), Math.hypot(v[0] - g.x, v[1] - g.y));
-      if (d < bestDist) { bestDist = d; bestFi = fi; bestVi = vi; }
-    }
-  }
-  if (bestFi >= 0 && bestDist < T) {
-    const v = allFaces[bestFi].verts[bestVi];
-    if (Math.abs(v[2] - g.z) < T) g.z = v[2];
-    if (Math.hypot(v[0] - g.x, v[1] - g.y) < T) { g.x = v[0]; g.y = v[1]; }
-    gridDrag.snapFaceIdx = bestFi; gridDrag.snapVertIdx = bestVi;
-  } else {
-    gridDrag.snapFaceIdx = -1; gridDrag.snapVertIdx = -1;
-  }
-};
-function pointInPolygon(mx, my, pts) {
-  let inside = false;
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
-    if ((yi > my) !== (yj > my) && mx < (xj - xi) * (my - yi) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-}
-const faceCentroidDepth = (face) => {
-  const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
-  let d = 0;
-  for (const v of face.verts) d += v[0] * cosA - v[1] * sinA + v[0] * sinA + v[1] * cosA;
-  return d / face.verts.length;
-};
+            // ── Helpers ────────────────────────────────────────────────────────────────────
+            const toColorInput = c => {
+                if (!c) return '#888888';
+                if (c.startsWith('rgba')) {
+                    const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                    if (m) return '#' + [m[1], m[2], m[3]].map(n => parseInt(n).toString(16).padStart(2, '0')).join('');
+                }
+                return c.length === 4 ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c.slice(0, 7);
+            };
+            const markDirty = () => {
+                state.dirty = true;
+            };
+            const getQuadrant = (mx, my) => (mx < canvas.width / 2 ? 0 : 1) + (my < canvas.height / 2 ? 0 : 2);
+            const setRenderContext = q => {
+                const qw = canvas.width / 2,
+                    qh = canvas.height / 2;
+                renderCx = (q % 2) * qw + qw / 2;
+                renderCy = Math.floor(q / 2) * qh + qh / 2;
+                renderZoom = quads[q].zoom;
+                renderViewAngle = quads[q].angle;
+                renderCam = quads[q].cam;
+            };
+            const hitTestGrid = (mx, my, g) => {
+                if (!g.visible) return false;
+                const H = 8;
+                return pointInPolygon(mx, my, [
+                    localToScreen(g.x - H, g.y - H, g.z),
+                    localToScreen(g.x + H, g.y - H, g.z),
+                    localToScreen(g.x + H, g.y + H, g.z),
+                    localToScreen(g.x - H, g.y + H, g.z),
+                ]);
+            };
+            const hitTestGridV = (mx, my, gv) => {
+                if (!gv.visible) return false;
+                const H = 8;
+                return pointInPolygon(mx, my, [
+                    localToScreen(gv.x - H, gv.y, gv.z - H),
+                    localToScreen(gv.x + H, gv.y, gv.z - H),
+                    localToScreen(gv.x + H, gv.y, gv.z + H),
+                    localToScreen(gv.x - H, gv.y, gv.z + H),
+                ]);
+            };
+            const syncGridUI = () => {
+                const g = grids[activeQ],
+                    gv = gridVs[activeQ];
+                document.getElementById('grid-x').value = g.x.toFixed(2);
+                document.getElementById('grid-y').value = g.y.toFixed(2);
+                document.getElementById('grid-z').value = g.z.toFixed(2);
+                document.getElementById('grid-visible').checked = g.visible;
+                document.getElementById('gridv-x').value = gv.x.toFixed(2);
+                document.getElementById('gridv-y').value = gv.y.toFixed(2);
+                document.getElementById('gridv-z').value = gv.z.toFixed(2);
+                document.getElementById('gridv-visible').checked = gv.visible;
+                const label = `(Ansicht ${activeQ + 1})`;
+                document.getElementById('grid-q-label').textContent = label;
+                document.getElementById('gridv-q-label').textContent = label;
+            };
+            const snapGrid = q => {
+                const g = gridDrag.target === 'wall' ? gridVs[q] : grids[q];
+                if (!state.def) {
+                    gridDrag.snapFaceIdx = -1;
+                    gridDrag.snapVertIdx = -1;
+                    return;
+                }
+                const T = 0.35;
+                let bestDist = Infinity,
+                    bestFi = -1,
+                    bestVi = -1;
+                const allFaces = [...state.def.faces];
+                if (state.def.parts) state.def.parts.forEach(p => allFaces.push(...p.faces));
+                for (let fi = 0; fi < allFaces.length; fi++) {
+                    for (let vi = 0; vi < allFaces[fi].verts.length; vi++) {
+                        const v = allFaces[fi].verts[vi];
+                        const d = Math.min(Math.abs(v[2] - g.z), Math.hypot(v[0] - g.x, v[1] - g.y));
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestFi = fi;
+                            bestVi = vi;
+                        }
+                    }
+                }
+                if (bestFi >= 0 && bestDist < T) {
+                    const v = allFaces[bestFi].verts[bestVi];
+                    if (Math.abs(v[2] - g.z) < T) g.z = v[2];
+                    if (Math.hypot(v[0] - g.x, v[1] - g.y) < T) {
+                        g.x = v[0];
+                        g.y = v[1];
+                    }
+                    gridDrag.snapFaceIdx = bestFi;
+                    gridDrag.snapVertIdx = bestVi;
+                } else {
+                    gridDrag.snapFaceIdx = -1;
+                    gridDrag.snapVertIdx = -1;
+                }
+            };
+            function pointInPolygon(mx, my, pts) {
+                let inside = false;
+                for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+                    const xi = pts[i].x,
+                        yi = pts[i].y,
+                        xj = pts[j].x,
+                        yj = pts[j].y;
+                    if (yi > my !== yj > my && mx < ((xj - xi) * (my - yi)) / (yj - yi) + xi) inside = !inside;
+                }
+                return inside;
+            }
+            const faceCentroidDepth = face => {
+                const cosA = Math.cos(renderViewAngle),
+                    sinA = Math.sin(renderViewAngle);
+                let d = 0;
+                for (const v of face.verts) d += v[0] * cosA - v[1] * sinA + v[0] * sinA + v[1] * cosA;
+                return d / face.verts.length;
+            };
 
-// ── Interaction ────────────────────────────────────────────────────────────────
-let isDragging = false, dragMoved = false, lastMouse = { x: 0, y: 0 };
-const vertDrag  = { active: false, vertIdx: -1, moved: false };
-const pivotDrag = { active: false, partId: null, moved: false };
-const gridDrag  = { active: false, moved: false, target: 'floor', quadrant: 0, snapFaceIdx: -1, snapVertIdx: -1 };
+            // ── Interaction ────────────────────────────────────────────────────────────────
+            let isDragging = false,
+                dragMoved = false,
+                lastMouse = { x: 0, y: 0 };
+            const vertDrag = { active: false, vertIdx: -1, moved: false };
+            const pivotDrag = { active: false, partId: null, moved: false };
+            const gridDrag = {
+                active: false,
+                moved: false,
+                target: 'floor',
+                quadrant: 0,
+                snapFaceIdx: -1,
+                snapVertIdx: -1,
+            };
 
-const hitTestVertex = (mx, my) => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !state.def || !faces.length) return -1;
-  const face = faces[state.selectedFaceIdx];
-  if (!face) return -1;
-  for (let i = 0; i < face.verts.length; i++) {
-    const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
-    if (Math.hypot(mx - pt.x, my - pt.y) < 8) return i;
-  }
-  return -1;
-};
-const syncVertRow = (face, i) => {
-  const row = document.querySelector(`#vert-list .vert-row[data-i="${i}"]`);
-  if (!row) return;
-  const v = face.verts[i];
-  row.querySelector('.vx').value = v[0].toFixed(3);
-  row.querySelector('.vy').value = v[1].toFixed(3);
-  row.querySelector('.vz').value = v[2].toFixed(3);
-};
+            const hitTestVertex = (mx, my) => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !state.def || !faces.length) return -1;
+                const face = faces[state.selectedFaceIdx];
+                if (!face) return -1;
+                for (let i = 0; i < face.verts.length; i++) {
+                    const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
+                    if (Math.hypot(mx - pt.x, my - pt.y) < 8) return i;
+                }
+                return -1;
+            };
+            const syncVertRow = (face, i) => {
+                const row = document.querySelector(`#vert-list .vert-row[data-i="${i}"]`);
+                if (!row) return;
+                const v = face.verts[i];
+                row.querySelector('.vx').value = v[0].toFixed(3);
+                row.querySelector('.vy').value = v[1].toFixed(3);
+                row.querySelector('.vz').value = v[2].toFixed(3);
+            };
 
-area.addEventListener('mousedown', e => {
-  vertDrag.moved = false; pivotDrag.moved = false; gridDrag.moved = false;
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  activeQ = getQuadrant(mx, my); lockedQ = activeQ;
-  setRenderContext(lockedQ);
-  const g = grids[lockedQ], gv = gridVs[lockedQ];
+            area.addEventListener('mousedown', e => {
+                vertDrag.moved = false;
+                pivotDrag.moved = false;
+                gridDrag.moved = false;
+                const rect = canvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left,
+                    my = e.clientY - rect.top;
+                activeQ = getQuadrant(mx, my);
+                lockedQ = activeQ;
+                setRenderContext(lockedQ);
+                const g = grids[lockedQ],
+                    gv = gridVs[lockedQ];
 
-  const pid = hitTestPivot(mx, my);
-  if (pid && state.def?.parts?.find(p => p.id === pid)?.rotate) {
-    pivotDrag.active = true; pivotDrag.partId = pid;
-    area.style.cursor = 'ew-resize'; lastMouse = { x: e.clientX, y: e.clientY }; return;
-  }
-  const vi = hitTestVertex(mx, my);
-  if (vi >= 0) {
-    vertDrag.active = true; vertDrag.vertIdx = vi; area.style.cursor = 'grabbing';
-    if (state.selectedVertIdx !== vi) { state.selectedVertIdx = vi; renderFaceEditor(); draw(); }
-  } else if (e.shiftKey && g.selected && g.visible && hitTestGrid(mx, my, g)) {
-    gridDrag.active = true; gridDrag.target = 'floor'; gridDrag.quadrant = lockedQ; area.style.cursor = 'grabbing';
-  } else if (e.shiftKey && gv.selected && gv.visible && hitTestGridV(mx, my, gv)) {
-    gridDrag.active = true; gridDrag.target = 'wall'; gridDrag.quadrant = lockedQ; area.style.cursor = 'grabbing';
-  } else {
-    isDragging = true; dragMoved = false;
-  }
-  lastMouse = { x: e.clientX, y: e.clientY };
-});
+                const pid = hitTestPivot(mx, my);
+                if (pid && state.def?.parts?.find(p => p.id === pid)?.rotate) {
+                    pivotDrag.active = true;
+                    pivotDrag.partId = pid;
+                    area.style.cursor = 'ew-resize';
+                    lastMouse = { x: e.clientX, y: e.clientY };
+                    return;
+                }
+                const vi = hitTestVertex(mx, my);
+                if (vi >= 0) {
+                    vertDrag.active = true;
+                    vertDrag.vertIdx = vi;
+                    area.style.cursor = 'grabbing';
+                    if (state.selectedVertIdx !== vi) {
+                        state.selectedVertIdx = vi;
+                        renderFaceEditor();
+                        draw();
+                    }
+                } else if (e.shiftKey && g.selected && g.visible && hitTestGrid(mx, my, g)) {
+                    gridDrag.active = true;
+                    gridDrag.target = 'floor';
+                    gridDrag.quadrant = lockedQ;
+                    area.style.cursor = 'grabbing';
+                } else if (e.shiftKey && gv.selected && gv.visible && hitTestGridV(mx, my, gv)) {
+                    gridDrag.active = true;
+                    gridDrag.target = 'wall';
+                    gridDrag.quadrant = lockedQ;
+                    area.style.cursor = 'grabbing';
+                } else {
+                    isDragging = true;
+                    dragMoved = false;
+                }
+                lastMouse = { x: e.clientX, y: e.clientY };
+            });
 
-window.addEventListener('mouseup', () => {
-  isDragging = false; vertDrag.active = false; pivotDrag.active = false;
-  gridDrag.active = false; gridDrag.snapFaceIdx = -1; gridDrag.snapVertIdx = -1;
-  area.style.cursor = '';
-});
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+                vertDrag.active = false;
+                pivotDrag.active = false;
+                gridDrag.active = false;
+                gridDrag.snapFaceIdx = -1;
+                gridDrag.snapVertIdx = -1;
+                area.style.cursor = '';
+            });
 
-window.addEventListener('mousemove', e => {
-  const dsx = e.clientX - lastMouse.x, dsy = e.clientY - lastMouse.y;
-  lastMouse = { x: e.clientX, y: e.clientY };
+            window.addEventListener('mousemove', e => {
+                const dsx = e.clientX - lastMouse.x,
+                    dsy = e.clientY - lastMouse.y;
+                lastMouse = { x: e.clientX, y: e.clientY };
 
-  if (pivotDrag.active && pivotDrag.partId) {
-    if (Math.abs(dsx) > 0) {
-      state.partTestAngles[pivotDrag.partId] = (state.partTestAngles[pivotDrag.partId] ?? 0) + dsx * 0.015;
-      pivotDrag.moved = true;
-      const slider = document.querySelector(`#parts-list input[data-pid="${pivotDrag.partId}"]`);
-      if (slider) {
-        const val = state.partTestAngles[pivotDrag.partId];
-        slider.value = val;
-        const valEl = document.getElementById(`pval-${pivotDrag.partId}`);
-        if (valEl) valEl.textContent = (val * 180 / Math.PI).toFixed(0) + '°';
-      }
-      draw();
-    }
-    return;
-  }
+                if (pivotDrag.active && pivotDrag.partId) {
+                    if (Math.abs(dsx) > 0) {
+                        state.partTestAngles[pivotDrag.partId] =
+                            (state.partTestAngles[pivotDrag.partId] ?? 0) + dsx * 0.015;
+                        pivotDrag.moved = true;
+                        const slider = document.querySelector(`#parts-list input[data-pid="${pivotDrag.partId}"]`);
+                        if (slider) {
+                            const val = state.partTestAngles[pivotDrag.partId];
+                            slider.value = val;
+                            const valEl = document.getElementById(`pval-${pivotDrag.partId}`);
+                            if (valEl) valEl.textContent = ((val * 180) / Math.PI).toFixed(0) + '°';
+                        }
+                        draw();
+                    }
+                    return;
+                }
 
-  if (vertDrag.active && state.selectedFaceIdx >= 0 && state.def) {
-    setRenderContext(lockedQ);
-    const face = getActiveFaces()[state.selectedFaceIdx];
-    if (face && (Math.abs(dsx) + Math.abs(dsy) > 0)) {
-      const v = face.verts[vertDrag.vertIdx];
-      if (e.shiftKey) {
-        v[2] -= dsy / (SH * renderZoom);
-      } else {
-        const tw2 = TW * renderZoom / 2, th2 = TH * renderZoom / 2;
-        const dwx = (dsx / tw2 + dsy / th2) / 2, dwy = (dsy / th2 - dsx / tw2) / 2;
-        const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
-        v[0] += dwx * cosA + dwy * sinA; v[1] += -dwx * sinA + dwy * cosA;
-      }
-      vertDrag.moved = true; markDirty(); syncVertRow(face, vertDrag.vertIdx); draw();
-    }
-    return;
-  }
+                if (vertDrag.active && state.selectedFaceIdx >= 0 && state.def) {
+                    setRenderContext(lockedQ);
+                    const face = getActiveFaces()[state.selectedFaceIdx];
+                    if (face && Math.abs(dsx) + Math.abs(dsy) > 0) {
+                        const v = face.verts[vertDrag.vertIdx];
+                        if (e.shiftKey) {
+                            v[2] -= dsy / (SH * renderZoom);
+                        } else {
+                            const tw2 = (TW * renderZoom) / 2,
+                                th2 = (TH * renderZoom) / 2;
+                            const dwx = (dsx / tw2 + dsy / th2) / 2,
+                                dwy = (dsy / th2 - dsx / tw2) / 2;
+                            const cosA = Math.cos(renderViewAngle),
+                                sinA = Math.sin(renderViewAngle);
+                            v[0] += dwx * cosA + dwy * sinA;
+                            v[1] += -dwx * sinA + dwy * cosA;
+                        }
+                        vertDrag.moved = true;
+                        markDirty();
+                        syncVertRow(face, vertDrag.vertIdx);
+                        draw();
+                    }
+                    return;
+                }
 
-  if (gridDrag.active && (Math.abs(dsx) + Math.abs(dsy) > 0)) {
-    setRenderContext(lockedQ);
-    const g = gridDrag.target === 'wall' ? gridVs[gridDrag.quadrant] : grids[gridDrag.quadrant];
-    const tw2 = TW * renderZoom / 2;
-    const dwx = dsx / tw2 / 2, dwy = -dsx / tw2 / 2;
-    const cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
-    g.x += dwx * cosA + dwy * sinA; g.y += -dwx * sinA + dwy * cosA;
-    g.z -= dsy / (SH * renderZoom);
-    gridDrag.moved = true; snapGrid(gridDrag.quadrant); syncGridUI(); draw();
-    return;
-  }
+                if (gridDrag.active && Math.abs(dsx) + Math.abs(dsy) > 0) {
+                    setRenderContext(lockedQ);
+                    const g = gridDrag.target === 'wall' ? gridVs[gridDrag.quadrant] : grids[gridDrag.quadrant];
+                    const tw2 = (TW * renderZoom) / 2;
+                    const dwx = dsx / tw2 / 2,
+                        dwy = -dsx / tw2 / 2;
+                    const cosA = Math.cos(renderViewAngle),
+                        sinA = Math.sin(renderViewAngle);
+                    g.x += dwx * cosA + dwy * sinA;
+                    g.y += -dwx * sinA + dwy * cosA;
+                    g.z -= dsy / (SH * renderZoom);
+                    gridDrag.moved = true;
+                    snapGrid(gridDrag.quadrant);
+                    syncGridUI();
+                    draw();
+                    return;
+                }
 
-  if (isDragging) {
-    if (Math.abs(dsx) + Math.abs(dsy) > 3) dragMoved = true;
-    if (e.shiftKey) {
-      quads[lockedQ].angle = (quads[lockedQ].angle + dsx * 0.008) % (Math.PI * 2);
-      if (quads[lockedQ].angle < 0) quads[lockedQ].angle += Math.PI * 2;
-    } else {
-      quads[lockedQ].cam.x -= dsx; quads[lockedQ].cam.y -= dsy;
-    }
-    draw();
-  }
-});
+                if (isDragging) {
+                    if (Math.abs(dsx) + Math.abs(dsy) > 3) dragMoved = true;
+                    if (e.shiftKey) {
+                        quads[lockedQ].angle = (quads[lockedQ].angle + dsx * 0.008) % (Math.PI * 2);
+                        if (quads[lockedQ].angle < 0) quads[lockedQ].angle += Math.PI * 2;
+                    } else {
+                        quads[lockedQ].cam.x -= dsx;
+                        quads[lockedQ].cam.y -= dsy;
+                    }
+                    draw();
+                }
+            });
 
-area.addEventListener('mousemove', e => {
-  if (vertDrag.active || isDragging || gridDrag.active || pivotDrag.active) return;
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  const newQ = getQuadrant(mx, my);
-  if (newQ !== activeQ) { activeQ = newQ; syncGridUI(); draw(); }
-  setRenderContext(activeQ);
-  if (hitTestVertex(mx, my) >= 0) { area.style.cursor = 'grab'; return; }
-  if (hitTestPivot(mx, my)) { area.style.cursor = 'ew-resize'; return; }
-  const g = grids[activeQ], gv = gridVs[activeQ];
-  if (g.visible && g.selected && e.shiftKey && hitTestGrid(mx, my, g)) { area.style.cursor = 'grab'; return; }
-  if (gv.visible && gv.selected && e.shiftKey && hitTestGridV(mx, my, gv)) { area.style.cursor = 'grab'; return; }
-  area.style.cursor = '';
-});
+            area.addEventListener('mousemove', e => {
+                if (vertDrag.active || isDragging || gridDrag.active || pivotDrag.active) return;
+                const rect = canvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left,
+                    my = e.clientY - rect.top;
+                const newQ = getQuadrant(mx, my);
+                if (newQ !== activeQ) {
+                    activeQ = newQ;
+                    syncGridUI();
+                    draw();
+                }
+                setRenderContext(activeQ);
+                if (hitTestVertex(mx, my) >= 0) {
+                    area.style.cursor = 'grab';
+                    return;
+                }
+                if (hitTestPivot(mx, my)) {
+                    area.style.cursor = 'ew-resize';
+                    return;
+                }
+                const g = grids[activeQ],
+                    gv = gridVs[activeQ];
+                if (g.visible && g.selected && e.shiftKey && hitTestGrid(mx, my, g)) {
+                    area.style.cursor = 'grab';
+                    return;
+                }
+                if (gv.visible && gv.selected && e.shiftKey && hitTestGridV(mx, my, gv)) {
+                    area.style.cursor = 'grab';
+                    return;
+                }
+                area.style.cursor = '';
+            });
 
-area.addEventListener('click', e => {
-  if (dragMoved || vertDrag.moved || gridDrag.moved || pivotDrag.moved) return;
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  setRenderContext(lockedQ);
-  const g = grids[lockedQ], gv = gridVs[lockedQ];
+            area.addEventListener('click', e => {
+                if (dragMoved || vertDrag.moved || gridDrag.moved || pivotDrag.moved) return;
+                const rect = canvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left,
+                    my = e.clientY - rect.top;
+                setRenderContext(lockedQ);
+                const g = grids[lockedQ],
+                    gv = gridVs[lockedQ];
 
-  if (state.def) {
-    const activeFaces = getActiveFaces();
-    if (state.selectedFaceIdx >= 0) {
-      const face = activeFaces[state.selectedFaceIdx];
-      if (face) {
-        for (let i = 0; i < face.verts.length; i++) {
-          const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
-          if (Math.hypot(mx - pt.x, my - pt.y) < 8) { state.selectedVertIdx = i; renderFaceEditor(); draw(); return; }
-        }
-      }
-    }
-    if (activeFaces.length) {
-      const order = activeFaces.map((_, i) => i).sort((a, b) => faceCentroidDepth(activeFaces[b]) - faceCentroidDepth(activeFaces[a]));
-      for (const i of order) {
-        const f = activeFaces[i];
-        if (f.normal) {
-          const [nx, ny] = f.normal, cosA = Math.cos(renderViewAngle), sinA = Math.sin(renderViewAngle);
-          if ((nx * cosA - ny * sinA) + (nx * sinA + ny * cosA) <= 0) continue;
-        }
-        const pts = f.verts.map(v => localToScreen(v[0], v[1], v[2]));
-        if (pointInPolygon(mx, my, pts)) { selectFace(i); return; }
-      }
-    }
-  }
+                if (state.def) {
+                    const activeFaces = getActiveFaces();
+                    if (state.selectedFaceIdx >= 0) {
+                        const face = activeFaces[state.selectedFaceIdx];
+                        if (face) {
+                            for (let i = 0; i < face.verts.length; i++) {
+                                const pt = localToScreen(face.verts[i][0], face.verts[i][1], face.verts[i][2]);
+                                if (Math.hypot(mx - pt.x, my - pt.y) < 8) {
+                                    state.selectedVertIdx = i;
+                                    renderFaceEditor();
+                                    draw();
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    if (activeFaces.length) {
+                        const order = activeFaces
+                            .map((_, i) => i)
+                            .sort((a, b) => faceCentroidDepth(activeFaces[b]) - faceCentroidDepth(activeFaces[a]));
+                        for (const i of order) {
+                            const f = activeFaces[i];
+                            if (f.normal) {
+                                const [nx, ny] = f.normal,
+                                    cosA = Math.cos(renderViewAngle),
+                                    sinA = Math.sin(renderViewAngle);
+                                if (nx * cosA - ny * sinA + (nx * sinA + ny * cosA) <= 0) continue;
+                            }
+                            const pts = f.verts.map(v => localToScreen(v[0], v[1], v[2]));
+                            if (pointInPolygon(mx, my, pts)) {
+                                selectFace(i);
+                                return;
+                            }
+                        }
+                    }
+                }
 
-  if (g.visible && hitTestGrid(mx, my, g)) { g.selected = true; draw(); return; }
-  if (gv.visible && hitTestGridV(mx, my, gv)) { gv.selected = true; draw(); return; }
-  if (g.selected) { g.selected = false; draw(); }
-  else if (gv.selected) { gv.selected = false; draw(); }
-});
+                if (g.visible && hitTestGrid(mx, my, g)) {
+                    g.selected = true;
+                    draw();
+                    return;
+                }
+                if (gv.visible && hitTestGridV(mx, my, gv)) {
+                    gv.selected = true;
+                    draw();
+                    return;
+                }
+                if (g.selected) {
+                    g.selected = false;
+                    draw();
+                } else if (gv.selected) {
+                    gv.selected = false;
+                    draw();
+                }
+            });
 
-window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    const g = grids[activeQ], gv = gridVs[activeQ];
-    if (g.selected) { g.selected = false; draw(); }
-    else if (gv.selected) { gv.selected = false; draw(); }
-  }
-});
+            window.addEventListener('keydown', e => {
+                if (e.key === 'Escape') {
+                    const g = grids[activeQ],
+                        gv = gridVs[activeQ];
+                    if (g.selected) {
+                        g.selected = false;
+                        draw();
+                    } else if (gv.selected) {
+                        gv.selected = false;
+                        draw();
+                    }
+                }
+            });
 
-area.addEventListener('wheel', e => {
-  e.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const q = getQuadrant(e.clientX - rect.left, e.clientY - rect.top);
-  quads[q].zoom = Math.max(0.5, Math.min(20, quads[q].zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
-  draw();
-}, { passive: false });
+            area.addEventListener(
+                'wheel',
+                e => {
+                    e.preventDefault();
+                    const rect = canvas.getBoundingClientRect();
+                    const q = getQuadrant(e.clientX - rect.left, e.clientY - rect.top);
+                    quads[q].zoom = Math.max(0.5, Math.min(20, quads[q].zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+                    draw();
+                },
+                { passive: false }
+            );
 
-// ── UI events ──────────────────────────────────────────────────────────────────
-document.getElementById('preset-select').addEventListener('change', e => {
-  if (e.target.value) { loadPreset(e.target.value); e.target.value = ''; }
-});
-document.getElementById('meta-id').addEventListener('input', e => {
-  if (state.def) { state.def.id = e.target.value; markDirty(); }
-});
-document.getElementById('meta-label').addEventListener('input', e => { state.meta.label = e.target.value; markDirty(); });
-document.querySelectorAll('input[name="mobil"]').forEach(r => {
-  r.addEventListener('change', () => {
-    state.meta.isStatic = document.getElementById('r-static').checked;
-    document.getElementById('move-type-row').style.opacity = state.meta.isStatic ? '0.4' : '1';
-    markDirty(); draw();
-  });
-});
-document.getElementById('move-type').addEventListener('change', e => { state.meta.movementType = e.target.value; markDirty(); });
-document.getElementById('show-cboxes').addEventListener('change', () => draw());
+            // ── UI events ──────────────────────────────────────────────────────────────────
+            document.getElementById('preset-select').addEventListener('change', e => {
+                if (e.target.value) {
+                    loadPreset(e.target.value);
+                    e.target.value = '';
+                }
+            });
+            document.getElementById('meta-id').addEventListener('input', e => {
+                if (state.def) {
+                    state.def.id = e.target.value;
+                    markDirty();
+                }
+            });
+            document.getElementById('meta-label').addEventListener('input', e => {
+                state.meta.label = e.target.value;
+                markDirty();
+            });
+            document.querySelectorAll('input[name="mobil"]').forEach(r => {
+                r.addEventListener('change', () => {
+                    state.meta.isStatic = document.getElementById('r-static').checked;
+                    document.getElementById('move-type-row').style.opacity = state.meta.isStatic ? '0.4' : '1';
+                    markDirty();
+                    draw();
+                });
+            });
+            document.getElementById('move-type').addEventListener('change', e => {
+                state.meta.movementType = e.target.value;
+                markDirty();
+            });
+            document.getElementById('show-cboxes').addEventListener('change', () => draw());
 
-document.getElementById('face-id-input').addEventListener('input', e => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  faces[state.selectedFaceIdx].id = e.target.value; markDirty(); renderFaceList();
-});
+            document.getElementById('face-id-input').addEventListener('input', e => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                faces[state.selectedFaceIdx].id = e.target.value;
+                markDirty();
+                renderFaceList();
+            });
 
-const setupColorPair = (colorId, hexId, apply) => {
-  document.getElementById(colorId).addEventListener('input', e => {
-    document.getElementById(hexId).value = e.target.value; apply(e.target.value);
-  });
-  document.getElementById(hexId).addEventListener('change', e => {
-    const v = e.target.value.trim();
-    if (/^#[0-9a-fA-F]{3,8}$/.test(v) || v.startsWith('rgba')) {
-      document.getElementById(colorId).value = toColorInput(v); apply(v);
-    }
-  });
-};
-setupColorPair('face-color', 'face-color-hex', v => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  faces[state.selectedFaceIdx].color = v; markDirty(); renderFaceList(); draw();
-});
-setupColorPair('face-stroke', 'face-stroke-hex', v => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  if (document.getElementById('face-has-stroke').checked) { faces[state.selectedFaceIdx].stroke = v; markDirty(); draw(); }
-});
-document.getElementById('face-has-stroke').addEventListener('change', e => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  faces[state.selectedFaceIdx].stroke = e.target.checked ? (document.getElementById('face-stroke-hex').value || '#aaaaaa') : null;
-  markDirty(); draw();
-});
-document.getElementById('face-stroke-w').addEventListener('input', e => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  faces[state.selectedFaceIdx].strokeWidth = parseFloat(e.target.value) || 1; markDirty(); draw();
-});
-document.getElementById('face-has-normal').addEventListener('change', e => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  const face = faces[state.selectedFaceIdx];
-  if (e.target.checked) {
-    face.normal = [parseFloat(document.getElementById('face-nx').value) || 0,
-                   parseFloat(document.getElementById('face-ny').value) || 0];
-  } else { delete face.normal; }
-  markDirty(); draw();
-});
-['face-nx','face-ny'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    const faces = getActiveFaces();
-    if (state.selectedFaceIdx < 0 || !faces.length || !document.getElementById('face-has-normal').checked) return;
-    faces[state.selectedFaceIdx].normal = [
-      parseFloat(document.getElementById('face-nx').value) || 0,
-      parseFloat(document.getElementById('face-ny').value) || 0,
-    ];
-    markDirty(); draw();
-  });
-});
-document.getElementById('btn-add-vert').addEventListener('click', () => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  const face = faces[state.selectedFaceIdx];
-  face.verts.push([...(face.verts[face.verts.length - 1] || [0,0,0])]);
-  markDirty(); renderFaceEditor(); draw();
-});
-document.getElementById('btn-del-vert').addEventListener('click', () => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  const face = faces[state.selectedFaceIdx];
-  if (face.verts.length <= 3) return;
-  face.verts.pop();
-  state.selectedVertIdx = Math.min(state.selectedVertIdx, face.verts.length - 1);
-  markDirty(); renderFaceEditor(); draw();
-});
-document.getElementById('btn-del-face').addEventListener('click', () => {
-  const faces = getActiveFaces();
-  if (state.selectedFaceIdx < 0 || !faces.length) return;
-  faces.splice(state.selectedFaceIdx, 1);
-  state.selectedFaceIdx = Math.min(state.selectedFaceIdx, faces.length - 1);
-  if (!faces.length) state.selectedFaceIdx = -1;
-  state.selectedVertIdx = -1; markDirty(); renderAll();
-});
-document.getElementById('btn-add-face').addEventListener('click', () => {
-  if (!state.def) return;
-  const faces = getActiveFaces();
-  faces.push({ id: 'face_' + faces.length, verts: [[0,0,0],[1,0,0],[1,1,0],[0,1,0]], color: '#888888' });
-  state.selectedFaceIdx = faces.length - 1; state.selectedVertIdx = -1;
-  markDirty(); renderAll();
-});
-document.getElementById('btn-add-cbox').addEventListener('click', () => {
-  if (!state.def) return;
-  if (!state.def.collisionBoxes) state.def.collisionBoxes = [];
-  state.def.collisionBoxes.push({ id: 'box_' + state.def.collisionBoxes.length, xMin:-1,xMax:1,yMin:-1,yMax:1,zMin:0,zMax:1 });
-  markDirty(); renderCboxList(); draw();
-});
-document.getElementById('btn-add-zone').addEventListener('click', () => {
-  if (!state.def) return;
-  if (!state.def.rescueZones) state.def.rescueZones = [];
-  state.def.rescueZones.push({ x: 0, y: 0, w: 1.5, h: 1.5, z: 0, role: 'both' });
-  markDirty(); renderZoneList(); draw();
-});
+            const setupColorPair = (colorId, hexId, apply) => {
+                document.getElementById(colorId).addEventListener('input', e => {
+                    document.getElementById(hexId).value = e.target.value;
+                    apply(e.target.value);
+                });
+                document.getElementById(hexId).addEventListener('change', e => {
+                    const v = e.target.value.trim();
+                    if (/^#[0-9a-fA-F]{3,8}$/.test(v) || v.startsWith('rgba')) {
+                        document.getElementById(colorId).value = toColorInput(v);
+                        apply(v);
+                    }
+                });
+            };
+            setupColorPair('face-color', 'face-color-hex', v => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                faces[state.selectedFaceIdx].color = v;
+                markDirty();
+                renderFaceList();
+                draw();
+            });
+            setupColorPair('face-stroke', 'face-stroke-hex', v => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                if (document.getElementById('face-has-stroke').checked) {
+                    faces[state.selectedFaceIdx].stroke = v;
+                    markDirty();
+                    draw();
+                }
+            });
+            document.getElementById('face-has-stroke').addEventListener('change', e => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                faces[state.selectedFaceIdx].stroke = e.target.checked
+                    ? document.getElementById('face-stroke-hex').value || '#aaaaaa'
+                    : null;
+                markDirty();
+                draw();
+            });
+            document.getElementById('face-stroke-w').addEventListener('input', e => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                faces[state.selectedFaceIdx].strokeWidth = parseFloat(e.target.value) || 1;
+                markDirty();
+                draw();
+            });
+            document.getElementById('face-has-normal').addEventListener('change', e => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                const face = faces[state.selectedFaceIdx];
+                if (e.target.checked) {
+                    face.normal = [
+                        parseFloat(document.getElementById('face-nx').value) || 0,
+                        parseFloat(document.getElementById('face-ny').value) || 0,
+                    ];
+                } else {
+                    delete face.normal;
+                }
+                markDirty();
+                draw();
+            });
+            ['face-nx', 'face-ny'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    const faces = getActiveFaces();
+                    if (
+                        state.selectedFaceIdx < 0 ||
+                        !faces.length ||
+                        !document.getElementById('face-has-normal').checked
+                    )
+                        return;
+                    faces[state.selectedFaceIdx].normal = [
+                        parseFloat(document.getElementById('face-nx').value) || 0,
+                        parseFloat(document.getElementById('face-ny').value) || 0,
+                    ];
+                    markDirty();
+                    draw();
+                });
+            });
+            document.getElementById('btn-add-vert').addEventListener('click', () => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                const face = faces[state.selectedFaceIdx];
+                face.verts.push([...(face.verts[face.verts.length - 1] || [0, 0, 0])]);
+                markDirty();
+                renderFaceEditor();
+                draw();
+            });
+            document.getElementById('btn-del-vert').addEventListener('click', () => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                const face = faces[state.selectedFaceIdx];
+                if (face.verts.length <= 3) return;
+                face.verts.pop();
+                state.selectedVertIdx = Math.min(state.selectedVertIdx, face.verts.length - 1);
+                markDirty();
+                renderFaceEditor();
+                draw();
+            });
+            document.getElementById('btn-del-face').addEventListener('click', () => {
+                const faces = getActiveFaces();
+                if (state.selectedFaceIdx < 0 || !faces.length) return;
+                faces.splice(state.selectedFaceIdx, 1);
+                state.selectedFaceIdx = Math.min(state.selectedFaceIdx, faces.length - 1);
+                if (!faces.length) state.selectedFaceIdx = -1;
+                state.selectedVertIdx = -1;
+                markDirty();
+                renderAll();
+            });
+            document.getElementById('btn-add-face').addEventListener('click', () => {
+                if (!state.def) return;
+                const faces = getActiveFaces();
+                faces.push({
+                    id: 'face_' + faces.length,
+                    verts: [
+                        [0, 0, 0],
+                        [1, 0, 0],
+                        [1, 1, 0],
+                        [0, 1, 0],
+                    ],
+                    color: '#888888',
+                });
+                state.selectedFaceIdx = faces.length - 1;
+                state.selectedVertIdx = -1;
+                markDirty();
+                renderAll();
+            });
+            document.getElementById('btn-add-cbox').addEventListener('click', () => {
+                if (!state.def) return;
+                if (!state.def.collisionBoxes) state.def.collisionBoxes = [];
+                state.def.collisionBoxes.push({
+                    id: 'box_' + state.def.collisionBoxes.length,
+                    xMin: -1,
+                    xMax: 1,
+                    yMin: -1,
+                    yMax: 1,
+                    zMin: 0,
+                    zMax: 1,
+                });
+                markDirty();
+                renderCboxList();
+                draw();
+            });
+            document.getElementById('btn-add-zone').addEventListener('click', () => {
+                if (!state.def) return;
+                if (!state.def.rescueZones) state.def.rescueZones = [];
+                state.def.rescueZones.push({ x: 0, y: 0, w: 1.5, h: 1.5, z: 0, role: 'both' });
+                markDirty();
+                renderZoneList();
+                draw();
+            });
 
-// Grid UI events — all operate on the ACTIVE quadrant's grid
-document.getElementById('grid-visible').addEventListener('change', e => {
-  grids[activeQ].visible = e.target.checked;
-  if (!grids[activeQ].visible) grids[activeQ].selected = false; draw();
-});
-document.getElementById('grid-x').addEventListener('input', e => { grids[activeQ].x = parseFloat(e.target.value) || 0; draw(); });
-document.getElementById('grid-y').addEventListener('input', e => { grids[activeQ].y = parseFloat(e.target.value) || 0; draw(); });
-document.getElementById('grid-z').addEventListener('input', e => { grids[activeQ].z = parseFloat(e.target.value) || 0; draw(); });
-document.getElementById('gridv-visible').addEventListener('change', e => {
-  gridVs[activeQ].visible = e.target.checked;
-  if (!gridVs[activeQ].visible) gridVs[activeQ].selected = false; draw();
-});
-document.getElementById('gridv-x').addEventListener('input', e => { gridVs[activeQ].x = parseFloat(e.target.value) || 0; draw(); });
-document.getElementById('gridv-y').addEventListener('input', e => { gridVs[activeQ].y = parseFloat(e.target.value) || 0; draw(); });
-document.getElementById('gridv-z').addEventListener('input', e => { gridVs[activeQ].z = parseFloat(e.target.value) || 0; draw(); });
+            // Grid UI events — all operate on the ACTIVE quadrant's grid
+            document.getElementById('grid-visible').addEventListener('change', e => {
+                grids[activeQ].visible = e.target.checked;
+                if (!grids[activeQ].visible) grids[activeQ].selected = false;
+                draw();
+            });
+            document.getElementById('grid-x').addEventListener('input', e => {
+                grids[activeQ].x = parseFloat(e.target.value) || 0;
+                draw();
+            });
+            document.getElementById('grid-y').addEventListener('input', e => {
+                grids[activeQ].y = parseFloat(e.target.value) || 0;
+                draw();
+            });
+            document.getElementById('grid-z').addEventListener('input', e => {
+                grids[activeQ].z = parseFloat(e.target.value) || 0;
+                draw();
+            });
+            document.getElementById('gridv-visible').addEventListener('change', e => {
+                gridVs[activeQ].visible = e.target.checked;
+                if (!gridVs[activeQ].visible) gridVs[activeQ].selected = false;
+                draw();
+            });
+            document.getElementById('gridv-x').addEventListener('input', e => {
+                gridVs[activeQ].x = parseFloat(e.target.value) || 0;
+                draw();
+            });
+            document.getElementById('gridv-y').addEventListener('input', e => {
+                gridVs[activeQ].y = parseFloat(e.target.value) || 0;
+                draw();
+            });
+            document.getElementById('gridv-z').addEventListener('input', e => {
+                gridVs[activeQ].z = parseFloat(e.target.value) || 0;
+                draw();
+            });
 
-document.querySelectorAll('.quad-reset').forEach(btn => {
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const q = parseInt(btn.dataset.q);
-    quads[q].angle = quads[q].defaultAngle; draw();
-  });
-});
+            document.querySelectorAll('.quad-reset').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const q = parseInt(btn.dataset.q);
+                    quads[q].angle = quads[q].defaultAngle;
+                    draw();
+                });
+            });
 
-document.querySelectorAll('.quad-grid-toggle').forEach(btn => {
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const q = parseInt(btn.dataset.q);
-    const allOn = grids[q].visible || gridVs[q].visible;
-    grids[q].visible = !allOn;
-    gridVs[q].visible = !allOn;
-    if (!grids[q].visible)  grids[q].selected = false;
-    if (!gridVs[q].visible) gridVs[q].selected = false;
-    btn.classList.toggle('hidden', !grids[q].visible);
-    syncGridUI(); draw();
-  });
-});
+            document.querySelectorAll('.quad-grid-toggle').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const q = parseInt(btn.dataset.q);
+                    const allOn = grids[q].visible || gridVs[q].visible;
+                    grids[q].visible = !allOn;
+                    gridVs[q].visible = !allOn;
+                    if (!grids[q].visible) grids[q].selected = false;
+                    if (!gridVs[q].visible) gridVs[q].selected = false;
+                    btn.classList.toggle('hidden', !grids[q].visible);
+                    syncGridUI();
+                    draw();
+                });
+            });
 
-// ── Serialization ──────────────────────────────────────────────────────────────
-function toJSON() {
-  const out = {
-    id: state.def.id, label: state.meta.label,
-    static: state.meta.isStatic, movementType: state.meta.movementType,
-    pivot: state.def.pivot || [0,0,0],
-    faces: state.def.faces, collisionBoxes: state.def.collisionBoxes || [],
-  };
-  if (state.def.parts?.length) out.parts = state.def.parts;
-  if (state.def.rescueZones?.length) out.rescueZones = state.def.rescueZones;
-  return JSON.stringify(out, null, 2);
-}
-function fromJSON(content) {
-  const d = JSON.parse(content);
-  state.def = { id: d.id, pivot: d.pivot || [0,0,0], faces: d.faces || [],
-    collisionBoxes: d.collisionBoxes || [], parts: d.parts, rotateNodes: d.rotateNodes,
-    rescueZones: d.rescueZones };
-  state.meta = { label: d.label || d.id, isStatic: d.static !== false, movementType: d.movementType || 'none' };
-  state.selectedFaceIdx = -1; state.selectedVertIdx = -1;
-  state.activePart = null; state.partTestAngles = {}; state.dirty = false;
-  syncMetaToUI(); renderAll();
-}
+            // ── Serialization ──────────────────────────────────────────────────────────────
+            function toJSON() {
+                const out = {
+                    id: state.def.id,
+                    label: state.meta.label,
+                    static: state.meta.isStatic,
+                    movementType: state.meta.movementType,
+                    pivot: state.def.pivot || [0, 0, 0],
+                    faces: state.def.faces,
+                    collisionBoxes: state.def.collisionBoxes || [],
+                };
+                if (state.def.parts?.length) out.parts = state.def.parts;
+                if (state.def.rescueZones?.length) out.rescueZones = state.def.rescueZones;
+                return JSON.stringify(out, null, 2);
+            }
+            function fromJSON(content) {
+                const d = JSON.parse(content);
+                state.def = {
+                    id: d.id,
+                    pivot: d.pivot || [0, 0, 0],
+                    faces: d.faces || [],
+                    collisionBoxes: d.collisionBoxes || [],
+                    parts: d.parts,
+                    rotateNodes: d.rotateNodes,
+                    rescueZones: d.rescueZones,
+                };
+                state.meta = {
+                    label: d.label || d.id,
+                    isStatic: d.static !== false,
+                    movementType: d.movementType || 'none',
+                };
+                state.selectedFaceIdx = -1;
+                state.selectedVertIdx = -1;
+                state.activePart = null;
+                state.partTestAngles = {};
+                state.dirty = false;
+                syncMetaToUI();
+                renderAll();
+            }
 
-window.modelEditorExport = () => state.def ? toJSON() : null;
-window.modelEditorImport = content => { fromJSON(content); state.dirty = false; };
-window.modelEditorGetState = () => ({
-  id: state.def ? state.def.id : null, label: state.meta.label,
-  dirty: state.dirty, filename: state.filename,
-  faceCount: state.def ? state.def.faces.length : 0,
-});
+            window.modelEditorExport = () => (state.def ? toJSON() : null);
+            window.modelEditorImport = content => {
+                fromJSON(content);
+                state.dirty = false;
+            };
+            window.modelEditorGetState = () => ({
+                id: state.def ? state.def.id : null,
+                label: state.meta.label,
+                dirty: state.dirty,
+                filename: state.filename,
+                faceCount: state.def ? state.def.faces.length : 0,
+            });
 
-syncGridUI();
-draw();
-</script>
-</body>
+            syncGridUI();
+            draw();
+        </script>
+    </body>
 </html>

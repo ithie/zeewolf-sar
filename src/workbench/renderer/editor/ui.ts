@@ -147,12 +147,19 @@ export const renderFoliageList = () => {
         .join(' &nbsp;|&nbsp; ');
     notifyWorkbench();
 };
+const _lsDe = (ls: string | { de: string; en?: string } | undefined): string =>
+    !ls ? '' : typeof ls === 'string' ? ls : (ls.de || '');
+const _lsEn = (ls: string | { de: string; en?: string } | undefined): string =>
+    !ls ? '' : typeof ls === 'string' ? '' : (ls.en || '');
+
 export const syncToData = () => {
     const m = getCurrentMission();
     if (!m) return;
-    m.headline = getInput('m_headline').value;
-    m.sublines = getEl<HTMLTextAreaElement>('m_sublines').value.split('\n').filter(l => l.trim());
-    m.briefing = getEl<HTMLTextAreaElement>('m_briefing').value;
+    m.headline = { de: getInput('m_headline_de').value, en: getInput('m_headline_en').value };
+    const subDe = getEl<HTMLTextAreaElement>('m_sublines_de').value.split('\n').filter(l => l.trim());
+    const subEn = getEl<HTMLTextAreaElement>('m_sublines_en').value.split('\n').filter(l => l.trim());
+    m.sublines = subDe.map((de, i) => ({ de, en: subEn[i] || '' }));
+    m.briefing = { de: getEl<HTMLTextAreaElement>('m_briefing_de').value, en: getEl<HTMLTextAreaElement>('m_briefing_en').value };
     m.rain = getInput('m_rain').checked;
     m.night = getInput('m_night').checked;
     m.windDir = parseInt(getInput('m_wind_dir').value) || 0;
@@ -192,9 +199,12 @@ export const loadMission = (idx: number) => {
     if (!m.payloads) m.payloads = [];
     if (!m.objects) m.objects = [];
 
-    getInput('m_headline').value = m.headline;
-    getEl<HTMLTextAreaElement>('m_sublines').value = (m.sublines || []).join('\n');
-    getEl<HTMLTextAreaElement>('m_briefing').value = m.briefing || '';
+    getInput('m_headline_de').value = _lsDe(m.headline);
+    getInput('m_headline_en').value = _lsEn(m.headline);
+    getEl<HTMLTextAreaElement>('m_sublines_de').value = (m.sublines || []).map(_lsDe).join('\n');
+    getEl<HTMLTextAreaElement>('m_sublines_en').value = (m.sublines || []).map(_lsEn).join('\n');
+    getEl<HTMLTextAreaElement>('m_briefing_de').value = _lsDe(m.briefing);
+    getEl<HTMLTextAreaElement>('m_briefing_en').value = _lsEn(m.briefing);
     getInput('m_grid_size').value = m.gridSize.toString();
     getInput('m_rain').checked = m.rain;
     getInput('m_night').checked = m.night;
@@ -223,7 +233,7 @@ const renderMissionList = () => {
         const div = document.createElement('div');
         div.className = 'mission-item' + (i === state.curIdx ? ' active' : '');
         const span = document.createElement('span');
-        span.innerText = `${i + 1}. ${m.headline.substring(0, 18)}`;
+        span.innerText = `${i + 1}. ${_lsDe(m.headline).substring(0, 18)}`;
         const controls = document.createElement('div');
         controls.className = 'm-controls';
         const btnUp = document.createElement('button');
@@ -654,8 +664,8 @@ export const initUI = () => {
 
     // General sync
     [
-        'm_headline',
-        'm_briefing',
+        'm_headline_de', 'm_headline_en',
+        'm_briefing_de', 'm_briefing_en',
         'm_rain',
         'm_night',
         'm_wind_dir',
@@ -663,7 +673,7 @@ export const initUI = () => {
         'm_wind_var',
         'm_npc_heli_count',
         'm_npc_heli_type',
-        'm_sublines',
+        'm_sublines_de', 'm_sublines_en',
     ].forEach(id => getEl(id)?.addEventListener('input', syncToData));
 
     const canvas = getEl<HTMLCanvasElement>('editorCanvas');
@@ -953,12 +963,12 @@ export const initUI = () => {
 
         const briefingSong = getEl<HTMLSelectElement>('c_music_briefing').value;
         const ingameSong   = getEl<HTMLSelectElement>('c_music_ingame').value;
+        const cSubDe = getEl<HTMLTextAreaElement>('c_sublines_de').value.split('\n').filter(l => l.trim());
+        const cSubEn = getEl<HTMLTextAreaElement>('c_sublines_en').value.split('\n').filter(l => l.trim());
         const exportData = {
-            type: state.type || 'ZEEWOLF_CAMPAIGN',
-            campaignTitle: getInput('c_title').value,
-            campaignSublines: getEl<HTMLTextAreaElement>('c_sublines')
-                .value.split('\n')
-                .filter(l => l.trim()),
+            type: getEl<HTMLSelectElement>('c_type').value || 'ZEEWOLF_CAMPAIGN',
+            campaignTitle: { de: getInput('c_title_de').value, en: getInput('c_title_en').value },
+            campaignSublines: cSubDe.map((de, i) => ({ de, en: cSubEn[i] || '' })),
             ...(briefingSong || ingameSong ? { music: {
                 ...(briefingSong ? { briefing: briefingSong } : {}),
                 ...(ingameSong   ? { ingame:   ingameSong   } : {}),
@@ -975,8 +985,13 @@ export const initUI = () => {
         if (!raw) return;
         try {
             const parsed = JSON.parse(raw);
-            getInput('c_title').value = parsed.campaignTitle || 'Imported Campaign';
-            getEl<HTMLTextAreaElement>('c_sublines').value = (parsed.campaignSublines || []).join('\n');
+            const ct = parsed.campaignTitle;
+            getInput('c_title_de').value = ct ? (typeof ct === 'string' ? ct : (ct.de || '')) : 'Imported Campaign';
+            getInput('c_title_en').value = ct && typeof ct !== 'string' ? (ct.en || '') : '';
+            const cs: any[] = parsed.campaignSublines || [];
+            getEl<HTMLTextAreaElement>('c_sublines_de').value = cs.map(s => typeof s === 'string' ? s : (s.de || '')).join('\n');
+            getEl<HTMLTextAreaElement>('c_sublines_en').value = cs.map(s => typeof s === 'string' ? '' : (s.en || '')).join('\n');
+            getEl<HTMLSelectElement>('c_type').value = parsed.type || 'ZEEWOLF_CAMPAIGN';
             getEl<HTMLSelectElement>('c_music_briefing').value = parsed.music?.briefing || '';
             getEl<HTMLSelectElement>('c_music_ingame').value   = parsed.music?.ingame   || '';
             state.type = parsed.type;

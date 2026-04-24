@@ -20,7 +20,6 @@ export const mountTouchControls = (): void => {
                     <span class="pitch-label pitch-dn">↓</span>
                 </div>
                 <div id="touch-deliver-toggle" class="touch-btn" data-key="KeyR" title="Absetz-Modus">
-                    <span class="deliver-label">⬇</span>
                     <div class="toggle-track">
                         <div class="toggle-knob"></div>
                     </div>

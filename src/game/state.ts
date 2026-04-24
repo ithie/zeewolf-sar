@@ -3,10 +3,17 @@ import { HELI_TYPES } from './heli-types';
 // ─── Remote heli (Multiplayer) ────────────────────────────────────────────────
 export interface RemoteHeli {
     type: string;
-    x: number; y: number; z: number;
-    vx: number; vy: number; vz: number;
-    angle: number; tilt: number; roll: number;
-    rotorRPM: number; rotationPos: number;
+    x: number;
+    y: number;
+    z: number;
+    vx: number;
+    vy: number;
+    vz: number;
+    angle: number;
+    tilt: number;
+    roll: number;
+    rotorRPM: number;
+    rotationPos: number;
     inAir: boolean;
 }
 
@@ -45,9 +52,9 @@ export const G = {
     activePayload: null as any,
     rescuerSwing: { x: 0, y: 0, vx: 0, vy: 0 },
     parkedHelis: [
-        { type: 'jayhawk', xRel:  7.0, yRel: -2.5, angle: Math.PI * 0.19 },
-        { type: 'jayhawk', xRel:  1.5, yRel: -2.7, angle: Math.PI * 0.15 },
-        { type: 'dolphin', xRel:  7.0, yRel:  2.5, angle: Math.PI * 0.55 },
+        { type: 'coasthawk', xRel: 7.0, yRel: -2.5, angle: Math.PI * 0.19 },
+        { type: 'coasthawk', xRel: 1.5, yRel: -2.7, angle: Math.PI * 0.15 },
+        { type: 'dolphin', xRel: 7.0, yRel: 2.5, angle: Math.PI * 0.55 },
     ],
     deliverMode: false,
     heli: {
@@ -82,7 +89,21 @@ export const G = {
     TREES_MAP: null as any,
     PAD: null as any,
     START_POS: null as any,
-    fuelTruck: { state: 'PARKED', x: 0, y: 0, angle: 0, arm: 0, parkX: 0, parkY: 0, parkAngle: 0, t: 0, wps: null as null, wpI: 0, targetX: null as number | null, targetY: null as number | null },
+    fuelTruck: {
+        state: 'PARKED',
+        x: 0,
+        y: 0,
+        angle: 0,
+        arm: 0,
+        parkX: 0,
+        parkY: 0,
+        parkAngle: 0,
+        t: 0,
+        wps: null as null,
+        wpI: 0,
+        targetX: null as number | null,
+        targetY: null as number | null,
+    },
     /** Remote player's heli – set when multiplayer is active, null otherwise */
     remoteHeli: null as RemoteHeli | null,
 };

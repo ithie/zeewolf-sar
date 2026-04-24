@@ -5,6 +5,8 @@ import { HELI_TYPES } from '../../heli-types';
 import type { MpChannels } from '../../multiplayer/rtc';
 import type { MpEvent } from '../../multiplayer/sync';
 
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
+
 export type MpLobbyCallbacks = {
     onConnected: (isHost: boolean, peerCallsign: string, channels: MpChannels, heliType: string) => void;
     onBack: () => void;
@@ -28,8 +30,7 @@ const hide = (id: string) => { el(id).style.display = 'none'; };
 
 export const mountMpLobby = (): void => {
     _ensureEl('mp-lobby-screen').classList.add('ui-screen');
-    const heliCards = HELI_TYPES
-        .filter(h => h.id !== 'glider')
+    const heliCards = (!_IS_APP ? HELI_TYPES.filter(h => h.id !== 'glider') : HELI_TYPES)
         .map(h => `
             <div class="mp-heli-card" data-id="${h.id}">
                 <div class="mp-heli-card-label">${h.selectLabel}</div>
@@ -163,7 +164,7 @@ const _showHeliAndReadyPhase = (
     readyBtn.onclick = () => {
         localReady = true;
         readyBtn.disabled = true;
-        setStatus('mp-ready-status', I18N.MP_WAIT_READY);
+        setStatus('mp-ready-status', I18N.MP_WAIT_READY!);
         channels.sendEvent({ t: 'ready' });
         if (peerReady) bothReady();
     };
@@ -185,7 +186,7 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
     el('mp-create-btn').onclick = async () => {
         hide('mp-lobby-initial');
         show('mp-host-flow');
-        setStatus('mp-host-status', I18N.MP_GENERATING);
+        setStatus('mp-host-status', I18N.MP_GENERATING!);
 
         const peer = createRTCPeer();
 
@@ -203,7 +204,7 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
         try {
             const offerB64 = await peer.createOffer();
             (el('mp-offer-txt') as HTMLTextAreaElement).value = offerB64;
-            setStatus('mp-host-status', I18N.MP_WAIT_ANSWER);
+            setStatus('mp-host-status', I18N.MP_WAIT_ANSWER!);
 
             el('mp-copy-offer-btn').onclick = () => {
                 navigator.clipboard.writeText(offerB64).catch(() => {});
@@ -217,15 +218,15 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
             connectBtn.onclick = async () => {
                 try {
                     connectBtn.disabled = true;
-                    setStatus('mp-host-status', I18N.MP_CONNECTING);
+                    setStatus('mp-host-status', I18N.MP_CONNECTING!);
                     await peer.applyAnswer(answerInput.value.trim());
                 } catch {
-                    setStatus('mp-host-status', I18N.MP_ERROR, 'error');
+                    setStatus('mp-host-status', I18N.MP_ERROR!, 'error');
                     connectBtn.disabled = false;
                 }
             };
         } catch {
-            setStatus('mp-host-status', I18N.MP_ERROR, 'error');
+            setStatus('mp-host-status', I18N.MP_ERROR!, 'error');
         }
 
         el('mp-host-back-btn').onclick = () => {
@@ -256,7 +257,7 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
         el('mp-gen-answer-btn').onclick = async () => {
             const offerTxt = (el('mp-offer-input') as HTMLTextAreaElement).value.trim();
             if (!offerTxt) return;
-            setStatus('mp-guest-status', I18N.MP_GENERATING);
+            setStatus('mp-guest-status', I18N.MP_GENERATING!);
             (el('mp-gen-answer-btn') as HTMLButtonElement).disabled = true;
             try {
                 const answerB64 = await peer.createAnswer(offerTxt);
@@ -264,13 +265,13 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
                 el('mp-answer-txt').style.display = 'block';
                 el('mp-guest-step2-label').style.display = 'block';
                 el('mp-guest-copy-row').style.display = 'flex';
-                setStatus('mp-guest-status', I18N.MP_WAIT_CONNECT);
+                setStatus('mp-guest-status', I18N.MP_WAIT_CONNECT!);
 
                 el('mp-copy-answer-btn').onclick = () => {
                     navigator.clipboard.writeText(answerB64).catch(() => {});
                 };
             } catch {
-                setStatus('mp-guest-status', I18N.MP_ERROR, 'error');
+                setStatus('mp-guest-status', I18N.MP_ERROR!, 'error');
                 (el('mp-gen-answer-btn') as HTMLButtonElement).disabled = false;
             }
         };

@@ -3,14 +3,16 @@ import { G, zstate } from './state';
 import { getHeliType } from './heli-types';
 import { I18N } from './i18n';
 
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
+
 export interface PhysicsCtx {
     windStr: number;
     windDir: number;
     windVar: boolean;
     hasPad: boolean;
     hasCarrier: boolean;
-    partyMode: boolean;
-    partyPalette: readonly string[];
+    partyMode?: boolean;
+    partyPalette?: readonly string[];
     showMsg: (txt: string) => void;
     missionComplete: () => void;
     triggerCrash: (reason: string) => void;
@@ -723,11 +725,11 @@ export function handleParticles(dt: number, ctx: PhysicsCtx) {
     const gH = getGround(G.heli.x, G.heli.y, G.points, G.CARRIER);
     const rotors = getRotorPositions();
     if (G.heli.rotorRPM > 0.8) {
-        if (ctx.partyMode) {
+        if (!_IS_APP && ctx.partyMode) {
             rotors.forEach((rotor: any) => {
                 for (let i = 0; i < 3; i++) {
                     const a = Math.random() * Math.PI * 2;
-                    const col = ctx.partyPalette[Math.floor(Math.random() * ctx.partyPalette.length)];
+                    const col = ctx.partyPalette![Math.floor(Math.random() * ctx.partyPalette!.length)];
                     const r = parseInt(col.slice(1, 3), 16),
                         g2 = parseInt(col.slice(3, 5), 16),
                         b = parseInt(col.slice(5, 7), 16);
@@ -776,12 +778,12 @@ export function handleParticles(dt: number, ctx: PhysicsCtx) {
             });
         }
     }
-    if (ctx.partyMode && G.TREES_MAP && G.TREES_MAP.length > 0) {
+    if (!_IS_APP && ctx.partyMode && G.TREES_MAP && G.TREES_MAP.length > 0) {
         const emit = Math.min(4, Math.ceil(G.TREES_MAP.length / 8));
         for (let i = 0; i < emit; i++) {
             const t = G.TREES_MAP[Math.floor(Math.random() * G.TREES_MAP.length)];
             const topZ = (t.gz ?? 0) + (t.s ?? 1) * 2.2;
-            const col = ctx.partyPalette[Math.floor(Math.random() * ctx.partyPalette.length)];
+            const col = ctx.partyPalette![Math.floor(Math.random() * ctx.partyPalette!.length)];
             const [pr, pg, pb] = [
                 parseInt(col.slice(1, 3), 16),
                 parseInt(col.slice(3, 5), 16),
@@ -1035,7 +1037,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
         G.rescuerSwing.x = G.activePayload.x;
         G.rescuerSwing.y = G.activePayload.y;
     } else {
-        if (G.heli.winch > 0.3 && G.heli.type !== 'glider') {
+        if (G.heli.winch > 0.3) {
             const rs = G.rescuerSwing;
             const tension = 0.018,
                 damping = 0.88;
@@ -1085,7 +1087,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     let inAir = G.heli.z > effectiveGroundH + 0.15;
     G.heli.inAir = inAir;
 
-    if (G.heli.type === 'glider') {
+    if (!_IS_APP && G.heli.type === 'glider') {
         G.heli.inAir = true;
         const dX = Math.cos(G.heli.angle),
             dY = Math.sin(G.heli.angle);
@@ -1216,7 +1218,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     G.heli.x += G.heli.vx * dt;
     G.heli.y += G.heli.vy * dt;
     G.heli.z += G.heli.vz * dt;
-    if (G.heli.type === 'glider' && G.heli.z > 14) {
+    if (!_IS_APP && G.heli.type === 'glider' && G.heli.z > 14) {
         G.heli.z = 14;
         G.heli.vz = Math.min(G.heli.vz, 0);
     }
@@ -1250,14 +1252,12 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     }
 
     // winch
-    if (G.heli.type !== 'glider') {
-        if (G.keys['KeyQ']) G.heli.winch = Math.max(0, G.heli.winch - 0.02 * dt);
-        if (G.keys['KeyE']) G.heli.winch = Math.min(5.0, G.heli.winch + 0.02 * dt);
-    }
+    if (G.keys['KeyQ']) G.heli.winch = Math.max(0, G.heli.winch - 0.02 * dt);
+    if (G.keys['KeyE']) G.heli.winch = Math.min(5.0, G.heli.winch + 0.02 * dt);
 
     // deliver-mode toggle (R key — rising edge only)
     const keyR = !!G.keys['KeyR'];
-    if (keyR && !_prevKeyR && G.heli.type !== 'glider') {
+    if (keyR && !_prevKeyR) {
         if (G.deliverMode) {
             G.deliverMode = false;
         } else if (G.heli.onboard > 0 && !G.activePayload) {
@@ -1267,7 +1267,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     _prevKeyR = keyR;
 
     // deliver-mode: lower a person from onboard when winch extends
-    if (G.deliverMode && G.heli.type !== 'glider' && !G.activePayload && G.heli.onboard > 0 && G.heli.winch > 0.3) {
+    if (G.deliverMode && !G.activePayload && G.heli.onboard > 0 && G.heli.winch > 0.3) {
         const dp: any = {
             x: G.rescuerSwing.x, y: G.rescuerSwing.y,
             z: G.heli.z - G.heli.winch,
@@ -1286,7 +1286,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     }
 
     // pickup
-    if (G.heli.type !== 'glider' && !G.activePayload && !G.deliverMode) {
+    if (!G.activePayload && !G.deliverMode) {
         for (let p of G.payloads) {
             if (p.rescued || p.hanging || p.npcTarget || p.isDelivery) continue;
             let dist = Math.hypot(G.heli.x - p.x, G.heli.y - p.y);
@@ -1314,7 +1314,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     }
 
     // crate touchdown delivery
-    if (G.heli.type !== 'glider' && G.activePayload?.type === 'crate' && onPad) {
+    if (G.activePayload?.type === 'crate' && onPad) {
         const padSurfaceZ = onCarrierDeck ? G.CARRIER.zDeck : G.PAD.z;
         const crateZ = G.heli.z - G.heli.winch;
         if (crateZ <= padSurfaceZ + 0.4) {
@@ -1329,7 +1329,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
     }
 
     // deposit / winch-in
-    if (G.heli.type !== 'glider' && G.activePayload && G.heli.winch < 0.5) {
+    if (G.activePayload && G.heli.winch < 0.5) {
         let p = G.activePayload;
         if (p.isDelivery) {
             // deliver-mode payload winched back in
@@ -1417,7 +1417,7 @@ export function updatePhysics(dt: number, ctx: PhysicsCtx) {
             const relVy = G.heli.vy - G.remoteHeli.vy;
             const closingSpeed = Math.hypot(relVx, relVy);
             if (closingSpeed > 0.08) {
-                ctx.triggerCrash(I18N.CRASH_REMOTE_HELI);
+                ctx.triggerCrash(I18N.CRASH_REMOTE_HELI!);
             } else {
                 // Soft nudge apart
                 const nx = dx / dist, ny = dy / dist;
