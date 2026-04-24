@@ -1,15 +1,12 @@
 import './heli-info-screen.css';
 import { iso } from '../../render';
 import { HELI_TYPES } from '../../heli-types';
-import { RANKS } from '../../session';
 import { tileW, tileH, stepH } from '../../render-config';
 import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
-import { I18N } from '../../i18n';
 
 let _G: any;
 let _drawHeli: (...args: any[]) => void;
-let _getRankIndex: () => number = () => 0;
 let _onBack: (() => void) | null = null;
 
 let _selectedHeliInfoId: string | null = null;
@@ -42,11 +39,9 @@ const _handleBack = () => {
 export const initHeliInfoScreen = (
     G: any,
     drawHeli: (...args: any[]) => void,
-    getRankIndex: () => number,
 ) => {
     _G = G;
     _drawHeli = drawHeli;
-    _getRankIndex = getRankIndex;
 };
 
 export const toHeliInfo = () => {
@@ -57,7 +52,6 @@ export const toHeliInfo = () => {
 };
 
 const _buildHeliInfoCards = () => {
-    const rankIndex = _getRankIndex();
     const area = document.getElementById('heli-cards-area')!;
     area.innerHTML = '';
     const panel = document.getElementById('heli-detail-panel')!;
@@ -65,22 +59,12 @@ const _buildHeliInfoCards = () => {
     panel.innerHTML = '';
 
     HELI_TYPES.filter(ht => ht.id !== 'glider').forEach(ht => {
-        const locked = ht.minRankIndex > rankIndex;
         const card = document.createElement('div');
-        card.className = 'heli-card' + (locked ? ' rank-locked' : '');
+        card.className = 'heli-card';
         card.id = 'heli-card-' + ht.id;
-
-        if (locked) {
-            const reqRank = RANKS[ht.minRankIndex];
-            card.innerHTML = `<canvas id="heli-info-cv-${ht.id}" width="254" height="180"></canvas>
-                <div class="heli-card-label">${ht.selectLabel}</div>
-                <div class="heli-lock-badge">${I18N.HELI_LOCKED_FROM(reqRank.name.toUpperCase())}</div>`;
-        } else {
-            card.innerHTML = `<canvas id="heli-info-cv-${ht.id}" width="254" height="180"></canvas>
-                <div class="heli-card-label">${ht.selectLabel}</div>`;
-            card.addEventListener('click', () => _selectHeliInfo(ht.id));
-        }
-
+        card.innerHTML = `<canvas id="heli-info-cv-${ht.id}" width="254" height="180"></canvas>
+            <div class="heli-card-label">${ht.selectLabel}</div>`;
+        card.addEventListener('click', () => _selectHeliInfo(ht.id));
         area.appendChild(card);
     });
 };

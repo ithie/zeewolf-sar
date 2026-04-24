@@ -1,8 +1,10 @@
 import './heli-select.css';
 import { iso } from '../../render';
-import { HELI_TYPES } from '../../heli-types';
+import { HELI_TYPES, type HeliType } from '../../heli-types';
+import { RANKS } from '../../session';
 import { tileW, tileH, stepH } from '../../render-config';
 import { zstate } from '../../state';
+import { I18N } from '../../i18n';
 
 let _G: any;
 let _drawHeli: (...args: any[]) => void;
@@ -71,7 +73,7 @@ export const animateHeliPreviews = () => {
     requestAnimationFrame(animateHeliPreviews);
 };
 
-export const buildHeliSelect = (campaignType: string) => {
+export const buildHeliSelect = (campaignType: string, rankIndex: number) => {
     const container = document.getElementById('heli-options');
     if (!container) return;
     container.innerHTML = '';
@@ -83,16 +85,22 @@ export const buildHeliSelect = (campaignType: string) => {
     container.style.width = types.length === 1 ? '350px' : '900px';
     (document.querySelector('#heli-select .subtitle') as HTMLElement)!.textContent =
         isGlider ? 'FLUGZEUG WÄHLEN' : 'HUBSCHRAUBER WÄHLEN';
-    types.forEach(ht => {
+    types.forEach((ht: HeliType) => {
+        const locked = ht.minRankIndex > rankIndex;
         const div = document.createElement('div');
-        div.className = 'grid-box';
-        div.setAttribute('onclick', `startGame('${ht.id}')`);
-        div.setAttribute('onmouseenter', `setHover('${ht.id}', true)`);
-        div.setAttribute('onmouseleave', `setHover('${ht.id}', false)`);
+        div.className = 'grid-box' + (locked ? ' locked' : '');
+        if (!locked) {
+            div.setAttribute('onclick', `startGame('${ht.id}')`);
+            div.setAttribute('onmouseenter', `setHover('${ht.id}', true)`);
+            div.setAttribute('onmouseleave', `setHover('${ht.id}', false)`);
+        }
+        const lockLabel = locked
+            ? `<div class="box-sub" style="color:#333">${I18N.HELI_LOCKED_FROM(RANKS[ht.minRankIndex].name.toUpperCase())}</div>`
+            : `<div class="box-sub" style="color: #aaa">${ht.selectCap}</div>`;
         div.innerHTML = `<canvas id="icon-${ht.id}" class="mini-canvas" width="300" height="200"></canvas>
             <div class="box-label">${ht.selectLabel}</div>
             <div class="box-sub">${ht.selectSub}</div>
-            <div class="box-sub" style="color: #aaa">${ht.selectCap}</div>`;
+            ${lockLabel}`;
         container.appendChild(div);
     });
 };

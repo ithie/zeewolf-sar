@@ -93,7 +93,7 @@ const { drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } = createDra
 
 const { parkedHelis } = G;
 
-initHeliInfoScreen(G, drawHeli, () => RANKS.indexOf(getRank(_session, _getRankMissions())));
+initHeliInfoScreen(G, drawHeli);
 initHeliSelect(G, drawHeli);
 
 // ─── helper flags ────────────────────────────────────────────────────────────
@@ -450,7 +450,7 @@ const selectMission = (missionIndex: number) => {
     G.START_POS = { x: selPad.x + 4, y: selPad.y + 4 };
     initGrid(gridSize, G.points);
 
-    buildHeliSelect(campaignType);
+    buildHeliSelect(campaignType, RANKS.indexOf(getRank(_session, _getRankMissions())));
     showScreen('heli-select');
     animateHeliPreviews();
 };
@@ -1969,7 +1969,7 @@ function backFromHeliSelect() {
     _openMissionSelect();
 }
 
-buildHeliSelect('normal'); // initial build for splash screen background
+buildHeliSelect('normal', 0); // initial build before session is loaded
 
 let _rafId = 0;
 
