@@ -1762,7 +1762,17 @@
   ];
   const OBJ_ICONS = { pad:'🟩', carrier:'🚢', boat:'⛵', submarine:'🤿', lighthouse:'🔦' };
 
+  let _edLang = 'de';
+  const edSetLang = lang => { _edLang = lang; if (edLastState) edRenderPanel(edLastState); };
+  const edTabs = () => `<div style="display:flex;gap:4px;margin-bottom:4px">
+    <button class="ed-btn-sm${_edLang==='de'?' active':''}" onclick="edSetLang('de')" style="${_edLang==='de'?'background:var(--accent);color:#fff':''}">DE</button>
+    <button class="ed-btn-sm${_edLang==='en'?' active':''}" onclick="edSetLang('en')" style="${_edLang==='en'?'background:var(--accent);color:#fff':''}">EN</button>
+  </div>`;
+  const edLs = (ls, lang) => !ls ? '' : (typeof ls === 'string' ? ls : (ls[lang] || ''));
+  let edLastState = null;
+
   const edRenderPanel = st => {
+    edLastState = st;
     const controls = document.getElementById('editor-controls');
     if (!st) { controls.innerHTML = '<div class="ed-section"><div class="ed-empty">Lade Editor…</div></div>'; return; }
 
@@ -1772,10 +1782,18 @@
       <div class="ed-section">
         <div class="ed-section-title">Kampagne</div>
         <label style="font-size:10px;color:var(--text-dim)">Titel</label>
-        <input type="text" value="${edH(st.campaignTitle)}"
-          oninput="edDispatch('set-campaign-title',{value:this.value})">
+        ${edTabs()}
+        <input type="text" value="${edH(edLs(st.campaignTitle,_edLang))}"
+          oninput="edDispatch('set-campaign-title',{lang:'${_edLang}',value:this.value})">
         <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Sublines (1 pro Zeile)</label>
-        <textarea rows="2" oninput="edDispatch('set-campaign-sublines',{value:this.value})">${edH(st.campaignSublines)}</textarea>
+        ${edTabs()}
+        <textarea rows="2" oninput="edDispatch('set-campaign-sublines',{lang:'${_edLang}',value:this.value})">${edH(edLs(st.campaignSublines,_edLang))}</textarea>
+        <label style="font-size:10px;color:var(--text-dim);margin-top:6px">Typ</label>
+        <select onchange="edDispatch('set-campaign-type',{value:this.value})">
+          <option value="ZEEWOLF_CAMPAIGN"${st.campaignType==='ZEEWOLF_CAMPAIGN'?' selected':''}>Kampagne</option>
+          <option value="tutorial"${st.campaignType==='tutorial'?' selected':''}>Tutorial</option>
+          <option value="free-flight"${st.campaignType==='free-flight'?' selected':''}>Free Flight</option>
+        </select>
         <label style="font-size:10px;color:var(--text-dim);margin-top:6px">Musik – Briefing</label>
         <div style="display:flex;gap:4px;align-items:center">
           <select style="flex:1" onchange="edDispatch('set-campaign-music-briefing',{value:this.value})">
@@ -1797,7 +1815,7 @@
         <div class="ed-section-title">Missionen</div>
         ${st.missions.map(m => `
           <div class="ed-mission-item${m.active?' active':''}" onclick="edDispatch('select-mission',{idx:${m.idx}})">
-            <span>${m.idx+1}. ${edH(m.headline.substring(0,20))}</span>
+            <span>${m.idx+1}. ${edH(edLs(m.headline,'de').substring(0,20))}</span>
             <div class="ed-mission-controls">
               <button onclick="event.stopPropagation();edDispatch('move-mission',{idx:${m.idx},dir:-1})">↑</button>
               <button onclick="event.stopPropagation();edDispatch('move-mission',{idx:${m.idx},dir:1})">↓</button>
@@ -1861,13 +1879,16 @@
 
       ${cm ? `
       <div class="ed-section">
-        <div class="ed-section-title">Mission: ${edH(cm.headline)}</div>
+        <div class="ed-section-title">Mission: ${edH(edLs(cm.headline,'de'))}</div>
         <label style="font-size:10px;color:var(--text-dim)">Name</label>
-        <input type="text" value="${edH(cm.headline)}" oninput="edDispatch('set-headline',{value:this.value})">
+        ${edTabs()}
+        <input type="text" value="${edH(edLs(cm.headline,_edLang))}" oninput="edDispatch('set-headline',{lang:'${_edLang}',value:this.value})">
         <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Ziele</label>
-        <textarea rows="2" placeholder="Eine Zeile pro Ziel…" oninput="edDispatch('set-sublines',{value:this.value})">${edH((cm.sublines||[]).join('\n'))}</textarea>
+        ${edTabs()}
+        <textarea rows="2" placeholder="Eine Zeile pro Ziel…" oninput="edDispatch('set-sublines',{lang:'${_edLang}',value:this.value})">${edH((cm.sublines||[]).map(s=>edLs(s,_edLang)).join('\n'))}</textarea>
         <label style="font-size:10px;color:var(--text-dim);margin-top:4px">Briefing</label>
-        <textarea rows="3" oninput="edDispatch('set-briefing',{value:this.value})">${edH(cm.briefing)}</textarea>
+        ${edTabs()}
+        <textarea rows="3" oninput="edDispatch('set-briefing',{lang:'${_edLang}',value:this.value})">${edH(edLs(cm.briefing,_edLang))}</textarea>
         <div style="margin-top:6px">
           <label><input type="checkbox" ${cm.rain?'checked':''} onchange="edDispatch('set-rain',{value:this.checked})"> 🌧️ Regen / Sturm</label>
           <label><input type="checkbox" ${cm.night?'checked':''} onchange="edDispatch('set-night',{value:this.checked})"> 🌙 Nacht</label>

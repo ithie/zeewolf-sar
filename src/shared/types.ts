@@ -1,3 +1,6 @@
+/** Text field that can be a plain string (legacy) or a { de, en } object. */
+export type LocalizedString = string | { de: string; en?: string };
+
 type PadObject = { type: 'pad'; x: number; y: number };
 type CarrierObject = {
     type: 'carrier';
@@ -43,9 +46,9 @@ export type MissionPayload = {
 };
 
 export interface Mission {
-    headline: string;
-    sublines?: string[];
-    briefing: string;
+    headline: LocalizedString;
+    sublines?: LocalizedString[];
+    briefing: LocalizedString;
     previewBase64?: string;
     gridSize: number;
     terrain: number[][];
@@ -72,8 +75,8 @@ export type MissionData = Omit<Mission, 'terrain' | 'foliage'> & {
 
 export interface CampaignExport {
     type: string;
-    campaignTitle: string;
-    campaignSublines: string[];
+    campaignTitle: LocalizedString;
+    campaignSublines: LocalizedString[];
     music?: { briefing?: string; ingame?: string };
     levels: (Omit<Mission, 'terrain' | 'foliage'> & {
         terrain: string;

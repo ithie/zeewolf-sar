@@ -8,11 +8,13 @@ declare global {
         backFromHeliSelect: () => void;
         returnToBase:       () => void;
         selectCampaign:     (index: string) => void;
+        selectMission:      (index: number) => void;
         startGame:          (type: string) => void;
         setHover:           (type: string, state: boolean) => void;
         toSettings:         () => void;
         approveCookies:     () => void;
         declineCookies:     () => void;
+        confirmDeleteSession: () => void;
     }
 }
 

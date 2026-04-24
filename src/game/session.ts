@@ -5,14 +5,25 @@ export const CONSENT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 /** Bump this whenever the privacy notice changes — forces the banner to re-appear. */
 export const CONSENT_VERSION = 'v25.0';
 
+export interface MissionProgress {
+    completed: boolean;
+    bestTimeMs: number | null;
+}
+
+export interface CampaignProgress {
+    completed: boolean;
+    missions: MissionProgress[];
+}
+
 export interface PlayerSession {
     cookieConsent: boolean | null;
     consentTimestamp: number | null;  // Date.now() at time of consent
     consentVersion: string;           // version of the notice the user last accepted
-    playerName: string;
-    campaignsDone: number;
-    missionsDone: number;
-    unlockedCampaignIndices: number[];
+    playerName: string;               // callsign, max 5 chars A-Z
+    activeCampaignIndex: number;
+    highestUnlockedCampaignIndex: number; // highest regular campaign index reachable (for cross-device import)
+    campaignProgress: Record<string, CampaignProgress>;
+    rankOverride: number;             // rank index preserved across device imports
     allUnlocked: boolean;
     lastSeenVersion: string;
 }
@@ -20,15 +31,14 @@ export interface PlayerSession {
 export interface Rank {
     name: string;
     pips: string;
-    minCampaigns: number;
     minMissions: number;
 }
 
 export const RANKS: Rank[] = [
-    { name: 'Leutnant',     pips: '★',     minCampaigns: 0, minMissions: 0  },
-    { name: 'Oberleutnant', pips: '★  ★',  minCampaigns: 1, minMissions: 3  },
-    { name: 'Hauptmann',    pips: '★ ★ ★', minCampaigns: 2, minMissions: 8  },
-    { name: 'Major',        pips: '◆',     minCampaigns: 3, minMissions: 15 },
+    { name: 'Leutnant',     pips: '★',     minMissions: 0  },
+    { name: 'Oberleutnant', pips: '★  ★',  minMissions: 10 },
+    { name: 'Hauptmann',    pips: '★ ★ ★', minMissions: 30 },
+    { name: 'Major',        pips: '◆',     minMissions: 60 },
 ];
 
 export const isConsentExpired = (s: PlayerSession): boolean =>
@@ -44,9 +54,10 @@ const _default = (): PlayerSession => ({
     consentTimestamp: null,
     consentVersion: '',
     playerName: '',
-    campaignsDone: 0,
-    missionsDone: 0,
-    unlockedCampaignIndices: [0],
+    activeCampaignIndex: 0,
+    highestUnlockedCampaignIndex: 0,
+    campaignProgress: {},
+    rankOverride: 0,
     allUnlocked: false,
     lastSeenVersion: '',
 });
@@ -68,33 +79,86 @@ export const saveSession = (s: PlayerSession): void => {
     } catch {}
 };
 
-export const getRank = (s: PlayerSession): Rank => {
+export const getMissionsDone = (s: PlayerSession): number =>
+    Object.values(s.campaignProgress).reduce(
+        (sum, cp) => sum + cp.missions.filter(m => m.completed).length,
+        0
+    );
+
+export const getCampaignsDone = (s: PlayerSession): number =>
+    Object.values(s.campaignProgress).filter(cp => cp.completed).length;
+
+export const getRank = (s: PlayerSession, nonTutorialMissions?: number): Rank => {
+    const missions = nonTutorialMissions ?? getMissionsDone(s);
+    let derivedIdx = 0;
     for (let i = RANKS.length - 1; i >= 0; i--) {
-        if (s.campaignsDone >= RANKS[i].minCampaigns && s.missionsDone >= RANKS[i].minMissions) {
-            return RANKS[i];
-        }
+        if (missions >= RANKS[i].minMissions) { derivedIdx = i; break; }
     }
-    return RANKS[0];
+    return RANKS[Math.max(derivedIdx, s.rankOverride ?? 0)];
 };
 
-export const isCampaignUnlocked = (s: PlayerSession, index: number): boolean =>
-    s.allUnlocked || s.unlockedCampaignIndices.includes(index);
+export const isCampaignUnlocked = (
+    s: PlayerSession,
+    campaigns: ReadonlyArray<{ type: string }>,
+    index: number
+): boolean => {
+    const type = campaigns[index]?.type;
+    if (!type) return false;
+    if (s.allUnlocked) return true;
+    if (type === 'tutorial' || type === 'free-flight') return true;
+    // Cross-device import: highest reached campaign unlocks all up to that index
+    if (index <= (s.highestUnlockedCampaignIndex ?? 0)) return true;
+
+    const regular = campaigns
+        .map((c, i) => ({ type: c.type, i }))
+        .filter(c => c.type !== 'glider' && c.type !== 'multiplayer' && c.type !== 'tutorial' && c.type !== 'free-flight');
+    const pos = regular.findIndex(c => c.i === index);
+    if (pos <= 0) return true; // first regular campaign always unlocked
+    const prev = regular[pos - 1];
+    return !!(s.campaignProgress[String(prev.i)]?.completed);
+};
+
+export const isMissionUnlocked = (
+    s: PlayerSession,
+    campaignKey: string,
+    missionIndex: number,
+    campaignType: string
+): boolean => {
+    if (s.allUnlocked || campaignType === 'free-flight') return true;
+    if (missionIndex === 0) return true;
+    return !!(s.campaignProgress[campaignKey]?.missions[missionIndex - 1]?.completed);
+};
 
 // ─── Save Code (9-char Base32) ────────────────────────────────────────────────
 // Bit layout (45 bits → 9 × 5-bit Base32 chars):
-//   [0-1]  rankIndex            (2 bits, 0-3)
-//   [2-4]  highestUnlocked      (3 bits, 0-7 = highest non-tutorial campaign index)
-//   [5-44] callsign             (8 × 5 bits: A-Z = 0-25, null = 26, pad = 0)
+//   [0-1]   rank index                   (2 bits, 0-3)
+//   [2-4]   highestUnlockedCampaign      (3 bits, 0-7)
+//   [5-7]   activeCampaignIndex          (3 bits, 0-7)
+//   [8-11]  nextMission in active camp.  (4 bits, 0-15)
+//   [12-36] callsign                     (5 × 5 bits: A-Z=0-25, null=26)
+//   [37-44] checksum                     (8 bits, XOR-fold of bits 0-36)
 //
 // Alphabet: standard Base32 (RFC 4648) A-Z 2-7, case-insensitive.
 // Display format: XXXXX-XXXX
+// Old codes (no checksum / 6-bit checksum) are rejected automatically.
 
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
-export const encodeSession = (s: PlayerSession): string => {
-    const rankIdx = RANKS.indexOf(getRank(s));
-    const highest = s.allUnlocked ? 7 : Math.max(...s.unlockedCampaignIndices, 0);
-    const callsign = (s.playerName || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8);
+const _checksumBits = (bits: number[]): number => {
+    let acc = 0;
+    for (let i = 0; i < 37; i++) {
+        if (bits[i]) acc ^= (1 << (i % 8));
+    }
+    return acc & 0xFF;
+};
+
+export const encodeSession = (s: PlayerSession, nonTutorialMissions: number): string => {
+    const rankIdx    = RANKS.indexOf(getRank(s, nonTutorialMissions));
+    const highest    = Math.min(s.highestUnlockedCampaignIndex ?? 0, 7);
+    const active     = Math.min(s.activeCampaignIndex, 7);
+    const activeCp   = s.campaignProgress[String(s.activeCampaignIndex)];
+    const nextMission = Math.min(activeCp ? activeCp.missions.filter(m => m.completed).length : 0, 15);
+    const callsign   = (s.playerName || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5);
 
     const bits: number[] = [];
     const push = (val: number, n: number) => {
@@ -102,10 +166,13 @@ export const encodeSession = (s: PlayerSession): string => {
     };
 
     push(rankIdx, 2);
-    push(Math.min(highest, 7), 3);
-    for (let i = 0; i < 8; i++) {
+    push(highest, 3);
+    push(active, 3);
+    push(nextMission, 4);
+    for (let i = 0; i < 5; i++) {
         push(i < callsign.length ? callsign.charCodeAt(i) - 65 : 26, 5);
     }
+    push(_checksumBits(bits), 8); // bits is 37 long at this point
 
     let code = '';
     for (let i = 0; i < 9; i++) {
@@ -128,26 +195,34 @@ export const decodeSession = (input: string): Partial<PlayerSession> | null => {
     const read = (start: number, n: number) =>
         bits.slice(start, start + n).reduce((a, b) => (a << 1) | b, 0);
 
-    const rankIdx    = Math.min(read(0, 2), RANKS.length - 1);
-    const highest    = read(2, 3);
+    if (read(37, 8) !== _checksumBits(bits)) return null; // rejects old/corrupt codes
 
-    let callsign = '';
-    for (let i = 0; i < 8; i++) {
-        const v = read(5 + i * 5, 5);
+    const rankIdx                    = Math.min(read(0, 2), RANKS.length - 1);
+    const highestUnlockedCampaignIndex = read(2, 3);
+    const activeCampaignIndex        = read(5, 3);
+    const nextMission                = read(8, 4);
+
+    let playerName = '';
+    for (let i = 0; i < 5; i++) {
+        const v = read(12 + i * 5, 5);
         if (v === 26) break;
-        if (v < 26) callsign += String.fromCharCode(65 + v);
+        if (v < 26) playerName += String.fromCharCode(65 + v);
     }
 
-    const rank = RANKS[rankIdx];
-    const unlocked: number[] = [];
-    for (let i = 0; i <= highest; i++) unlocked.push(i);
+    // Reconstruct partial campaign progress for active campaign
+    const campaignProgress: Record<string, CampaignProgress> = {};
+    if (nextMission > 0) {
+        campaignProgress[String(activeCampaignIndex)] = {
+            completed: false,
+            missions: Array.from({ length: nextMission }, () => ({ completed: true, bestTimeMs: null })),
+        };
+    }
 
     return {
-        playerName: callsign,
-        rankIdx,
-        campaignsDone: rank.minCampaigns,
-        missionsDone:  rank.minMissions,
-        unlockedCampaignIndices: unlocked,
-        allUnlocked: false,
-    } as Partial<PlayerSession> & { rankIdx: number };
+        playerName,
+        activeCampaignIndex,
+        highestUnlockedCampaignIndex,
+        rankOverride: rankIdx,
+        campaignProgress,
+    };
 };

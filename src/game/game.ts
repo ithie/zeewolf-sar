@@ -9,6 +9,7 @@ import {
     loadSession,
     saveSession,
     getRank,
+    RANKS,
     isCampaignUnlocked,
     isConsentExpired,
     isConsentOutdated,
@@ -27,7 +28,7 @@ import CARRIER_DEF from './models/carrier.zdef';
 import SUBMARINE_DEF from './models/submarine.zdef';
 import { applyParts } from './def-utils';
 import { createSceneRenderer } from './scene-renderer';
-import { getHeliType } from './heli-types';
+import { getHeliType, HELI_TYPES } from './heli-types';
 import { G } from './state';
 import {
     getGround,
@@ -59,13 +60,16 @@ import {
     drawMenuHeli,
     animMainMenuBg,
 } from './ui/heli-select/heli-select';
-import { I18N } from './i18n';
+import { I18N, localize, onLanguageChange } from './i18n';
 import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-banner';
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
-import { mountSettingsRankup, initSettings, toSettings, showRankUp } from './ui/settings/settings';
+import { mountSettings, initSettings, toSettings } from './ui/settings/settings';
+import { mountRankup, showRankUp } from './ui/rankup/rankup';
 import { mountMuteButton, refreshMuteButton } from './ui/mute-button/mute-button';
 import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
+import { mountMissionSelect, showMissionSelect } from './ui/mission-select/mission-select';
+import { showScreen } from './ui/nav';
 
 const assertDom = () => {
     if (!document.getElementById('gameCanvas')) {
@@ -89,7 +93,7 @@ const { drawTree, drawPerson, drawTractor, drawFuelTruck, drawHeli } = createDra
 
 const { parkedHelis } = G;
 
-initHeliInfoScreen(G, drawHeli);
+initHeliInfoScreen(G, drawHeli, () => RANKS.indexOf(getRank(_session, _getRankMissions())));
 initHeliSelect(G, drawHeli);
 
 // ─── helper flags ────────────────────────────────────────────────────────────
@@ -209,7 +213,7 @@ function triggerCrash(reason: string) {
 
 const showBriefing = () => {
     const { headline, sublines, briefing, previewBase64 } = campaignHandler.getCurrentMissionData();
-    const rank = getRank(_session);
+    const rank = getRank(_session, _getRankMissions());
     const address = I18N.BRIEFING_ADDRESS(rank.name, _session.playerName).toUpperCase();
     _showBriefing(headline, sublines, briefing, previewBase64, address);
     const briefingSong = campaignHandler.getActiveCampaignMusic().briefing;
@@ -223,51 +227,67 @@ const dismissBriefing = async () => {
 
 function missionComplete() {
     const { campaignType } = campaignHandler.getCurrentMissionData();
-    const next = campaignHandler.campaign.getNextMission();
     const isTutorial = campaignType === 'tutorial';
 
-    // ── session tracking ────────────────────────────────────────────────────
-    let rankUpRank: Rank | null = null;
+    const prevRank = getRank(_session, _getRankMissions());
 
-    // Unlock next campaign on completion — always, including tutorial
-    if (next === 'DONE') {
-        const allCampaigns = campaignHandler.getCampaigns();
-        for (let i = _selectedCampaignIndex + 1; i < allCampaigns.length; i++) {
-            if ((allCampaigns[i] as any).type !== 'glider') {
-                if (!_session.unlockedCampaignIndices.includes(i)) _session.unlockedCampaignIndices.push(i);
-                break;
+    // Record mission progress + best time
+    const elapsed = Date.now() - _missionStartTime;
+    const campaignKey = String(_selectedCampaignIndex);
+    if (!_session.campaignProgress[campaignKey]) {
+        _session.campaignProgress[campaignKey] = { completed: false, missions: [] };
+    }
+    const cp = _session.campaignProgress[campaignKey];
+    if (!cp.missions[_selectedMissionIndex]) {
+        cp.missions[_selectedMissionIndex] = { completed: false, bestTimeMs: null };
+    }
+    const mp = cp.missions[_selectedMissionIndex];
+    mp.completed = true;
+    if (_missionStartTime > 0 && (mp.bestTimeMs === null || elapsed < mp.bestTimeMs)) {
+        mp.bestTimeMs = elapsed;
+    }
+
+    // Check if the entire campaign is now done
+    const campaigns = campaignHandler.getCampaigns();
+    const totalMissions = campaigns[_selectedCampaignIndex].levels.length;
+    const allDone =
+        cp.missions.filter((m, i) => i < totalMissions && m?.completed).length >= totalMissions;
+    if (allDone) {
+        cp.completed = true;
+        // Unlock next regular campaign for cross-device import
+        if (campaignType !== 'tutorial' && campaignType !== 'free-flight') {
+            const regular = campaigns
+                .map((c, i) => ({ type: c.type, i }))
+                .filter(c => c.type !== 'glider' && c.type !== 'multiplayer' && c.type !== 'tutorial' && c.type !== 'free-flight');
+            const pos = regular.findIndex(c => c.i === _selectedCampaignIndex);
+            if (pos >= 0 && pos + 1 < regular.length) {
+                _session.highestUnlockedCampaignIndex = Math.max(
+                    _session.highestUnlockedCampaignIndex ?? 0,
+                    regular[pos + 1].i
+                );
             }
         }
     }
 
-    // Rank progression — tutorial does not count
+    // Rank check — only tutorial missions don't count
+    let rankUpRank: Rank | null = null;
     if (!isTutorial) {
-        const prevRank = getRank(_session);
-        _session.missionsDone++;
-        if (next === 'DONE') _session.campaignsDone++;
-        const newRank = getRank(_session);
+        const newRank = getRank(_session, _getRankMissions());
         if (newRank.name !== prevRank.name) rankUpRank = newRank;
     }
 
     saveSession(_session);
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
 
-    if (next === 'DONE') {
-        cancelAnimationFrame(_rafId);
-        _rafId = 0;
+    if (allDone) {
         document.getElementById('campaign-complete-name')!.textContent = '';
         document.getElementById('campaign-complete-screen')!.style.display = 'flex';
         soundHandler.play(musicConfig.success || 'final', false);
-        if (rankUpRank) showRankUp(rankUpRank, _session.playerName);
+        if (rankUpRank) showRankUp(rankUpRank, _session.playerName, HELI_TYPES.find(h => h.minRankIndex === RANKS.indexOf(rankUpRank))?.selectLabel);
         return;
     }
-    const { gridSize, objects: nextObjects } = next;
-    const nextPad = (nextObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
-    G.PAD = { xMin: nextPad.x, xMax: nextPad.x + 7, yMin: nextPad.y, yMax: nextPad.y + 7, z: 0.5 };
-    G.START_POS = { x: nextPad.x + 4, y: nextPad.y + 4 };
-    initGrid(gridSize, G.points);
 
-    cancelAnimationFrame(_rafId);
-    _rafId = 0;
     const successEl = document.getElementById('mission-success-screen')!;
     successEl.style.display = 'flex';
     successEl.onclick = () => {
@@ -286,10 +306,26 @@ function missionComplete() {
         G.heli.vz = 0;
         G.particles = [];
         G.debris = [];
-        showBriefing();
-        if (rankUpRank) showRankUp(rankUpRank, _session.playerName);
+        _openMissionSelect();
+        if (rankUpRank) showRankUp(rankUpRank, _session.playerName, HELI_TYPES.find(h => h.minRankIndex === RANKS.indexOf(rankUpRank))?.selectLabel);
     };
 }
+
+const _resetHeliState = () => {
+    zstate.crashed = false;
+    zstate.introActive = false;
+    zstate.introProgress = 0;
+    G.heli.fuel = 100;
+    G.heli.onboard = 0;
+    G.heli.engineOn = false;
+    G.heli.rotorRPM = 0;
+    G.heli.vx = 0;
+    G.heli.vy = 0;
+    G.heli.vz = 0;
+    G.particles = [];
+    G.debris = [];
+    G.totalRescued = 0;
+};
 
 function returnToBase() {
     cancelAnimationFrame(_rafId);
@@ -304,44 +340,49 @@ function returnToBase() {
         return;
     }
     setTouchVisible(false);
-    zstate.crashed = false;
-    zstate.introActive = false;
-    zstate.introProgress = 0;
-    G.heli.fuel = 100;
-    G.heli.onboard = 0;
-    G.heli.engineOn = false;
-    G.heli.rotorRPM = 0;
-    G.heli.vx = 0;
-    G.heli.vy = 0;
-    G.heli.vz = 0;
-    G.particles = [];
-    G.debris = [];
-    G.totalRescued = 0;
+    _resetHeliState();
 
     document.getElementById('campaign-complete-screen')!.style.display = 'none';
     document.getElementById('campaign-failed-screen')!.style.display = 'none';
     document.getElementById('mission-success-screen')!.style.display = 'none';
     document.getElementById('crash-screen')!.style.display = 'none';
     hideBriefing();
-    document.getElementById('campaign-select')!.style.display = 'flex';
-    document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
+    _openMissionSelect(); // calls showScreen('mission-select')
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
 }
+
+const returnToCampaignSelect = () => {
+    cancelAnimationFrame(_rafId);
+    _rafId = 0;
+    stopHeliSound();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    _partyMode = false;
+    zstate.gameStarted = false;
+    setTouchVisible(false);
+    _resetHeliState();
+    document.getElementById('campaign-complete-screen')!.style.display = 'none';
+    hideBriefing();
+    _openCampaignSelect(); // calls showScreen('campaign-select')
+    soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+};
+
+const _openCampaignSelect = () => {
+    _buildCampaignGrid(document.getElementById('campaign-grid')!);
+    showScreen('campaign-select');
+};
 
 // ─── campaign / G.heli select ──────────────────────────────────────────────────
 function toCampaignSelect() {
     soundHandler.play(musicConfig.mainMenu || 'maintheme', false);
-    document.getElementById('splash')!.style.display = 'none';
-    document.getElementById('main-menu')!.style.display = 'none';
-    document.getElementById('campaign-select')!.style.display = 'flex';
-    document.getElementById('campaign-grid')!.innerHTML = _buildCampaignGrid().join('');
+    _openCampaignSelect();
 }
 
 function launchEasterEgg() {
     const index = campaignHandler.getCampaigns().findIndex(c => c.type === 'glider');
     if (index < 0) return;
     toCampaignSelect();
-    selectCampaign(String(index));
+    _doSelectCampaign(index);
 }
 
 function setHover(type: string, state: boolean) {
@@ -349,19 +390,70 @@ function setHover(type: string, state: boolean) {
 }
 
 function selectCampaign(index: string) {
-    _selectedCampaignIndex = Number(index);
-    campaignHandler.campaign.setActiveCampaign(Number(index));
+    const idx = Number(index);
+    const campaigns = campaignHandler.getCampaigns();
+    const type = campaigns[idx]?.type;
+    const isAlwaysAvailable = type === 'tutorial' || type === 'free-flight';
+
+    if (!isAlwaysAvailable && _session.activeCampaignIndex !== idx) {
+        const activeKey = String(_session.activeCampaignIndex);
+        const activeCp = _session.campaignProgress[activeKey];
+        const activeType = campaigns[_session.activeCampaignIndex]?.type;
+        const activeIsRegular = activeType !== 'tutorial' && activeType !== 'free-flight';
+        const hasProgress = activeCp && activeCp.missions.some(m => m?.completed) && !activeCp.completed;
+
+        if (activeIsRegular && hasProgress) {
+            _pendingSwitchIndex = idx;
+            document.getElementById('campaign-switch-warning')!.style.display = 'flex';
+            return;
+        }
+    }
+
+    _doSelectCampaign(idx);
+}
+
+const _doSelectCampaign = (idx: number) => {
+    const campaigns = campaignHandler.getCampaigns();
+    const type = campaigns[idx]?.type;
+    const isAlwaysAvailable = type === 'tutorial' || type === 'free-flight';
+
+    if (!isAlwaysAvailable) {
+        _session.activeCampaignIndex = idx;
+        saveSession(_session);
+    }
+
+    _selectedCampaignIndex = idx;
+    _selectedMissionIndex = 0;
+    campaignHandler.campaign.setActiveCampaign(idx);
+
+    _openMissionSelect(); // calls showScreen('mission-select')
+};
+
+const _openMissionSelect = () => {
+    const campaigns = campaignHandler.getCampaigns();
+    showMissionSelect({
+        campaign: campaigns[_selectedCampaignIndex],
+        campaignIndex: _selectedCampaignIndex,
+        session: _session,
+        onSelect: selectMission,
+        onBack: toCampaignSelect,
+    });
+};
+
+const selectMission = (missionIndex: number) => {
+    _selectedMissionIndex = missionIndex;
+    campaignHandler.campaign.setActiveMission(missionIndex);
+
     const { gridSize, objects: selObjects, campaignType } = campaignHandler.getCurrentMissionData();
-    const selPad = (selObjects || []).find(o => o.type === 'pad') || { x: 10, y: 10 };
+    const selPad = (selObjects || []).find((o: any) => o.type === 'pad') || { x: 10, y: 10 };
     G.PAD = { xMin: selPad.x, xMax: selPad.x + 7, yMin: selPad.y, yMax: selPad.y + 7, z: 0.5 };
     G.START_POS = { x: selPad.x + 4, y: selPad.y + 4 };
     initGrid(gridSize, G.points);
-    document.getElementById('campaign-grid')!.innerHTML = '';
-    document.getElementById('campaign-select')!.style.display = 'none';
+
     buildHeliSelect(campaignType);
-    document.getElementById('heli-select')!.style.display = 'flex';
+    showScreen('heli-select');
     animateHeliPreviews();
-}
+};
 
 function startGame(type: string) {
     if (zstate.gameStarted) return;
@@ -381,7 +473,7 @@ function startGame(type: string) {
     initCarrierFromMission();
     initBoatsFromMission();
     initSubmarinesFromMission();
-    document.getElementById('heli-select')!.style.display = 'none';
+    showScreen(null);
     showBriefing();
 }
 
@@ -404,7 +496,7 @@ const launchMission = async (showLoader = true): Promise<void> => {
     _lighthouseY = _lhObj ? _lhObj.y : -1;
     _missionGridSize = campaignHandler.getTerrain().gridSize;
 
-    const handle = showLoader ? showLoadingScreen(_lmd.headline ?? 'MISSION') : null;
+    const handle = showLoader ? showLoadingScreen(localize(_lmd.headline) || 'MISSION') : null;
 
     // Step 1 — terrain
     generateTerrain(G.points, _missionHasPad ? G.PAD : null);
@@ -436,6 +528,7 @@ const launchMission = async (showLoader = true): Promise<void> => {
     G.heli.winch = 0;
     zstate.crashed = false;
     zstate.gameStarted = true;
+    _missionStartTime = Date.now();
     setTouchVisible(true);
 
     if (G.heli.type === 'glider') {
@@ -1866,19 +1959,14 @@ function toMainMenu() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     zstate.gameStarted = false;
     _partyMode = false;
-    ['splash', 'campaign-select', 'heli-select', 'heli-info', 'credits-screen'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-    document.getElementById('main-menu')!.style.display = 'flex';
+    showScreen('main-menu');
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     animMainMenuBg();
     startMenuParticles();
 }
 
 function backFromHeliSelect() {
-    document.getElementById('heli-select')!.style.display = 'none';
-    toCampaignSelect();
+    _openMissionSelect();
 }
 
 buildHeliSelect('normal'); // initial build for splash screen background
@@ -2074,7 +2162,22 @@ const _drawTerrain = (camX: number, camY: number, _rx: number, _ry: number, isNi
 
 // ─── session ──────────────────────────────────────────────────────────────────
 let _session: PlayerSession = loadSession();
+
+const _getRankMissions = (): number => {
+    const tutorialKeys = new Set(
+        campaignHandler.getCampaigns()
+            .map((c, i) => c.type === 'tutorial' ? String(i) : null)
+            .filter((k): k is string => k !== null)
+    );
+    return Object.entries(_session.campaignProgress)
+        .filter(([key]) => !tutorialKeys.has(key))
+        .reduce((sum, [, cp]) => sum + cp.missions.filter(m => m.completed).length, 0);
+};
+
 let _selectedCampaignIndex = 0;
+let _selectedMissionIndex = 0;
+let _missionStartTime = 0;
+let _pendingSwitchIndex = -1;
 let _unlockSeq = '';
 
 const approveCookies = () => {
@@ -2097,26 +2200,39 @@ const declineCookies = () => {
     notifyConsent();
 };
 
-const _buildCampaignGrid = (): string[] => {
-    const campaigns: string[] = [];
-    campaignHandler.getCampaigns().forEach(({ campaignTitle, campaignSublines, levels, type }, index) => {
-        if (type === 'glider' || type === 'multiplayer') return;
-        const locked = type !== 'tutorial' && !isCampaignUnlocked(_session, index);
-        let sublines = '';
-        campaignSublines.forEach(s => {
-            sublines += `<div class="box-sub">${s}</div>`;
-        });
-        sublines += `<div class="box-sub">Missionen: ${levels.length}</div>`;
+const _buildCampaignGrid = (gridEl: HTMLElement) => {
+    const campaigns = campaignHandler.getCampaigns();
+    gridEl.innerHTML = '';
+    const typePriority = (t: string) => t === 'tutorial' ? 0 : t === 'free-flight' ? 1 : 2;
+    const displayOrder = campaigns
+        .map((c, i) => ({ ...c, index: i }))
+        .filter(c => c.type !== 'glider' && c.type !== 'multiplayer')
+        .sort((a, b) => typePriority(a.type) - typePriority(b.type));
+    displayOrder.forEach(({ campaignTitle, campaignSublines, levels, type, index }) => {
+        const locked = !isCampaignUnlocked(_session, campaigns, index);
         const isTutorial = type === 'tutorial';
-        campaigns.push(
-            `<div class="grid-box${locked ? ' locked' : ''}" onclick="${locked ? '' : `selectCampaign('${index}')`}"` +
-                `${isTutorial ? ` style="border-color: #ff9900"` : ''}>` +
-                `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>${campaignTitle}</div>` +
-                (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines) +
-                `</div>`
-        );
+        const isActive = !isTutorial && type !== 'free-flight' && _session.activeCampaignIndex === index;
+        const cp = _session.campaignProgress[String(index)];
+        const completedCount = cp?.missions.filter(m => m?.completed).length ?? 0;
+
+        const tile = document.createElement('div');
+        tile.className = `grid-box${locked ? ' locked' : ''}`;
+        if (isTutorial) tile.style.borderColor = '#ff9900';
+
+        let sublines = campaignSublines.map(s => `<div class="box-sub">${localize(s)}</div>`).join('');
+        sublines += `<div class="box-sub">Missionen: ${levels.length}</div>`;
+        if (isActive && completedCount > 0) {
+            sublines += `<div class="box-sub" style="color:#8af">${completedCount}/${levels.length} abgeschlossen</div>`;
+        }
+
+        tile.innerHTML =
+            `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>` +
+            `${localize(campaignTitle)}</div>` +
+            (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines);
+
+        if (!locked) tile.addEventListener('click', () => selectCampaign(String(index)));
+        gridEl.appendChild(tile);
     });
-    return campaigns;
 };
 
 window.onkeydown = e => {
@@ -2353,9 +2469,10 @@ const mountGameOverlays = () => {
 };
 
 const mountGameScreens = () => {
-    ['campaign-select','heli-select','crash-screen','mission-success-screen',
+    ['campaign-select','mission-select','heli-select','crash-screen','mission-success-screen',
      'win-screen','mission-briefing','campaign-complete-screen','campaign-failed-screen']
         .forEach(id => { _ensureEl(id).classList.add('ui-screen'); });
+    mountMissionSelect();
 
     document.getElementById('campaign-select')!.innerHTML = `
         <div class="title">${I18N.CAMPAIGN_SELECT_TITLE}</div>
@@ -2391,7 +2508,7 @@ const mountGameScreens = () => {
         <div id="campaign-complete-name" style="color: #5f5; font-size: 24px; margin: 10px 0"></div>
         <p style="color: #aaa; font-size: 16px; letter-spacing: 2px">${I18N.ALL_MISSIONS_CLEARED}</p>
         <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
-    document.getElementById('campaign-complete-screen')!.addEventListener('click', returnToBase);
+    document.getElementById('campaign-complete-screen')!.addEventListener('click', returnToCampaignSelect);
 
     document.getElementById('campaign-failed-screen')!.innerHTML = `
         <div class="title" style="color: #fff">${I18N.CAMPAIGN_FAILED}</div>
@@ -2399,6 +2516,36 @@ const mountGameScreens = () => {
         <p style="color: #aaa; font-size: 16px; letter-spacing: 2px">${I18N.MISSION_ABORTED}</p>
         <p class="start-hint">${I18N.RETURN_TO_BASE}</p>`;
     document.getElementById('campaign-failed-screen')!.addEventListener('click', returnToBase);
+
+    // Campaign-switch warning overlay
+    const warningEl = _ensureEl('campaign-switch-warning');
+    warningEl.innerHTML = `
+        <div class="title" style="font-size: 26px; color: #f90">${I18N.CAMPAIGN_SWITCH_WARNING}</div>
+        <p style="color:#aaa; font-size:15px; letter-spacing:1px; margin: 10px 0 24px">
+            ${I18N.CAMPAIGN_SWITCH_PROGRESS_WARN}
+        </p>
+        <div style="display:flex; gap: 20px">
+            <div class="back-btn" id="campaign-switch-cancel">${I18N.BACK}</div>
+            <div class="back-btn" style="color:#f90; border-color:#f90" id="campaign-switch-confirm">
+                ${I18N.CAMPAIGN_SWITCH_CONFIRM}
+            </div>
+        </div>`;
+    document.getElementById('campaign-switch-cancel')!.addEventListener('click', () => {
+        warningEl.style.display = 'none';
+        _pendingSwitchIndex = -1;
+    });
+    document.getElementById('campaign-switch-confirm')!.addEventListener('click', () => {
+        warningEl.style.display = 'none';
+        const switchTo = _pendingSwitchIndex;
+        _pendingSwitchIndex = -1;
+        if (switchTo >= 0) {
+            // Clear progress of old active campaign
+            const oldKey = String(_session.activeCampaignIndex);
+            delete _session.campaignProgress[oldKey];
+            saveSession(_session);
+            _doSelectCampaign(switchTo);
+        }
+    });
 };
 
 declare const __APP_VERSION__: string;
@@ -2410,13 +2557,7 @@ const _previewLaunch = !import.meta.env.DEV ? undefined : (missionData: any, hel
     _rafId = 0;
     stopHeliSound();
 
-    // Reset all screens
-    ['campaign-select','heli-select','crash-screen','mission-success-screen',
-     'win-screen','mission-briefing','campaign-complete-screen','campaign-failed-screen',
-     'splash','main-menu'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
+    showScreen(null);
     hideBriefing();
 
     // Reset heli + state
@@ -2474,22 +2615,28 @@ window.onload = () => {
         launchMission,
         showMsg,
     });
+    const _mountScreens = () => {
+        mountHeliInfoScreen(toMainMenu);
+        mountCreditsScreen(toMainMenu);
+        mountMainMenu({
+            onSplashClick: toMainMenu,
+            onStart: toCampaignSelect,
+            onMultiplayer: toMpLobby,
+            onHeli: toHeliInfo,
+            onSettings: toSettings,
+            onCredits: toCredits,
+        });
+        (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
+        mountBriefing();
+        initBriefing(dismissBriefing);
+        mountSettings();
+        mountRankup();
+        mountGameScreens();
+    };
+
     mountGameOverlays();
-    mountHeliInfoScreen(toMainMenu);
-    mountCreditsScreen(toMainMenu);
-    mountMainMenu({
-        onSplashClick: toMainMenu,
-        onStart: toCampaignSelect,
-        onMultiplayer: toMpLobby,
-        onHeli: toHeliInfo,
-        onSettings: toSettings,
-        onCredits: toCredits,
-    });
-    (document.getElementById('splash-version') as HTMLElement).textContent = `v${__APP_VERSION__}`;
+    _mountScreens();
     zinit();
-    mountBriefing();
-    initBriefing(dismissBriefing);
-    mountSettingsRankup();
     const _getPref = (key: string, def: boolean) => {
         try { const v = localStorage.getItem(key); return v === null ? def : v === '1'; } catch { return def; }
     };
@@ -2523,6 +2670,7 @@ window.onload = () => {
     initSettings({
         getSession: () => _session,
         saveSession,
+        getRankMissions: _getRankMissions,
         getControlMode,
         setControlMode,
         isTouchDevice: _isTouchDevice,
@@ -2540,12 +2688,12 @@ window.onload = () => {
         },
     });
     mountWhatsNew();
-    mountGameScreens();
+    onLanguageChange(_mountScreens);
     setupTouchControls();
     startMenuParticles();
 
     const _showSplash = () => {
-        (document.getElementById('splash') as HTMLElement).style.display = 'flex';
+        showScreen('splash');
     };
 
     const _afterConsent = () => {
@@ -2587,8 +2735,13 @@ window.toCredits = toCredits;
 window.backFromHeliSelect = backFromHeliSelect;
 window.returnToBase = returnToBase;
 window.selectCampaign = selectCampaign;
+window.selectMission = selectMission;
 window.startGame = startGame;
 window.setHover = setHover;
 window.toSettings = toSettings;
 window.approveCookies = approveCookies;
 window.declineCookies = declineCookies;
+window.confirmDeleteSession = () => {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    setTimeout(() => window.location.reload(), 1200);
+};

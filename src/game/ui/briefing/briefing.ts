@@ -1,5 +1,6 @@
 import './briefing.css';
-import { I18N } from '../../i18n';
+import { I18N, localize } from '../../i18n';
+import type { LocalizedString } from '../../../shared/types';
 import { COMMANDER_SVG } from '../../main';
 import { ensureEl as _ensureEl } from '../dom-helpers';
 
@@ -30,9 +31,9 @@ export const initBriefing = (onDismiss: () => void) => {
 };
 
 export const showBriefing = (
-    headline: string | undefined,
-    sublines: string[] | undefined,
-    briefing: string | undefined,
+    headline: LocalizedString | undefined,
+    sublines: LocalizedString[] | undefined,
+    briefing: LocalizedString | undefined,
     previewBase64: string | undefined,
     address: string,
 ) => {
@@ -44,11 +45,11 @@ export const showBriefing = (
         mapEl.style.display = 'none';
     }
     document.getElementById('briefing-address')!.textContent = address;
-    document.getElementById('briefing-headline')!.textContent = headline || 'MISSION BRIEFING';
+    document.getElementById('briefing-headline')!.textContent = localize(headline) || 'MISSION BRIEFING';
     const sublinesEl = document.getElementById('briefing-sublines')!;
     sublinesEl.innerHTML =
-        Array.isArray(sublines) && sublines.length ? sublines.map(s => `▸ ${s}`).join('<br>') : '';
-    document.getElementById('briefing-body')!.textContent = briefing || '';
+        Array.isArray(sublines) && sublines.length ? sublines.map(s => `▸ ${localize(s)}`).join('<br>') : '';
+    document.getElementById('briefing-body')!.textContent = localize(briefing) || '';
     document.getElementById('mission-briefing')!.style.display = 'flex';
 };
 

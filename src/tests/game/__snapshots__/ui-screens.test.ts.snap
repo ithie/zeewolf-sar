@@ -79,7 +79,7 @@ exports[`UI screen snapshots > heli-info-screen 1`] = `
 exports[`UI screen snapshots > main-menu 1`] = `
 "
         <canvas id="main-menu-bg-canvas"></canvas>
-        <div class="title">ZEEWOLF: SAR</div>
+        <div class="title">SAR: CALLSIGN WOLF</div>
         <div class="subtitle" style="margin-bottom: 44px">MAIN SYSTEM</div>
         <nav class="menu-nav">
             <div class="menu-item" id="menu-item-start">SPIEL STARTEN</div>
@@ -247,7 +247,7 @@ exports[`UI screen snapshots > settings-screen 1`] = `
 
 exports[`UI screen snapshots > splash (main-menu) 1`] = `
 "
-        <div class="title">ZEEWOLF: SAR</div>
+        <div class="title">SAR: CALLSIGN WOLF</div>
         <div class="subtitle" id="splash-version"></div>
         <canvas id="menu-heli-big"></canvas>
         <p class="start-hint">KLICKEN ZUM SYSTEMSTART</p>"
@@ -255,10 +255,10 @@ exports[`UI screen snapshots > splash (main-menu) 1`] = `
 
 exports[`UI screen snapshots > whats-new 1`] = `
 "
-        <div id="whats-new-version">NEUIGKEITEN · v25.2</div>
-        <div id="whats-new-title">SOUND &amp; UI</div>
+        <div id="whats-new-version">NEUIGKEITEN · v25.3</div>
+        <div id="whats-new-title">NEUER NAME &amp; LADESCREEN</div>
         <ul id="whats-new-items">
-            <li>Prozedurale Rotor-Sounds — jeder Heli klingt anders</li><li>Wind reagiert auf den echten Spielwind inkl. Böen</li><li>Musik und Sound-Effekte separat ein-/ausschaltbar (Einstellungen)</li><li>Sound Lab in der Workbench: Rotor, Wind und Möwen zum Experimentieren</li><li>Alle UI-Elemente als eigenständige Module — sauberere Architektur</li>
+            <li>Das Spiel heißt jetzt SAR: Callsign WOLF</li><li>Dein Rufzeichen ist WOLF — bis du es in den Einstellungen änderst</li><li>Neuer Ladescreen vor jedem Einsatz</li>
         </ul>
         <div id="whats-new-hint">KLICKEN ZUM FORTFAHREN</div>"
 `;

@@ -26,7 +26,8 @@ import { mountMainMenu } from '../../game/ui/main-menu/main-menu';
 import { mountBriefing } from '../../game/ui/briefing/briefing';
 import { mountCookieBanner } from '../../game/ui/cookie-banner/cookie-banner';
 import { mountMuteButton } from '../../game/ui/mute-button/mute-button';
-import { initSettings, mountSettingsRankup } from '../../game/ui/settings/settings';
+import { initSettings, mountSettings } from '../../game/ui/settings/settings';
+import { mountRankup } from '../../game/ui/rankup/rankup';
 import { mountCreditsScreen } from '../../game/ui/credits-screen/credits-screen';
 import { mountHeliInfoScreen } from '../../game/ui/heli-info-screen/heli-info-screen';
 import { mountMpLobby } from '../../game/ui/mp-lobby/mp-lobby';
@@ -40,10 +41,12 @@ const mockSession = (): PlayerSession => ({
     cookieConsent: true,
     consentTimestamp: Date.now(),
     consentVersion: 'v25.0',
-    playerName: 'TESTPILOT',
-    campaignsDone: 0,
-    missionsDone: 0,
-    unlockedCampaignIndices: [],
+    playerName: 'WOLF',
+    activeCampaignIndex: 0,
+    highestUnlockedCampaignIndex: 0,
+
+    campaignProgress: {},
+    rankOverride: 0,
     allUnlocked: false,
     lastSeenVersion: '25.0',
 });
@@ -51,6 +54,7 @@ const mockSession = (): PlayerSession => ({
 const mockSettingsDeps = () => ({
     getSession: mockSession,
     saveSession: vi.fn(),
+    getRankMissions: () => 0,
     getControlMode: () => 'heading' as const,
     setControlMode: vi.fn(),
     isTouchDevice: () => false,
@@ -106,13 +110,13 @@ describe('UI screen snapshots', () => {
 
     it('settings-screen', () => {
         initSettings(mockSettingsDeps());
-        mountSettingsRankup();
+        mountSettings(); mountRankup();
         snap('settings-screen');
     });
 
     it('rankup-overlay', () => {
         initSettings(mockSettingsDeps());
-        mountSettingsRankup();
+        mountSettings(); mountRankup();
         snap('rankup-overlay');
     });
 

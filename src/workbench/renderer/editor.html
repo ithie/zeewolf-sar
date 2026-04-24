@@ -125,10 +125,13 @@
             <button id="btn-zoom-in">+</button>
             <button id="btn-zoom-out">-</button>
 
-            <!-- Mission data (synced via syncToData / loadMission) -->
-            <input type="text"   id="m_headline" value="Phase 1">
-            <textarea            id="m_sublines"></textarea>
-            <textarea            id="m_briefing"></textarea>
+            <!-- Mission data – localised (de/en pairs, synced via syncToData / loadMission) -->
+            <input type="text" id="m_headline_de" value="Phase 1">
+            <input type="text" id="m_headline_en" value="">
+            <textarea id="m_sublines_de"></textarea>
+            <textarea id="m_sublines_en"></textarea>
+            <textarea id="m_briefing_de"></textarea>
+            <textarea id="m_briefing_en"></textarea>
             <input type="checkbox" id="m_rain">
             <input type="checkbox" id="m_night">
             <input type="number" id="m_npc_heli_count" value="0" min="0" max="3">
@@ -139,10 +142,17 @@
                 <option value="chinook">Chinook</option>
             </select>
 
-            <!-- Campaign metadata (read by export) -->
-            <input type="text" id="c_title" value="OPERATION ZEEWOLF">
-            <textarea id="c_sublines">Sichere den Archipel.
+            <!-- Campaign metadata – localised (de/en pairs, read by export) -->
+            <input type="text" id="c_title_de" value="OPERATION ZEEWOLF">
+            <input type="text" id="c_title_en" value="">
+            <textarea id="c_sublines_de">Sichere den Archipel.
 Viel Glück, Pilot.</textarea>
+            <textarea id="c_sublines_en"></textarea>
+            <select id="c_type">
+                <option value="ZEEWOLF_CAMPAIGN">Kampagne</option>
+                <option value="tutorial">Tutorial</option>
+                <option value="free-flight">Free Flight</option>
+            </select>
             <select id="c_music_briefing">
                 <option value="">— kein Song —</option>
                 <option value="main">main</option>
@@ -233,8 +243,9 @@ Viel Glück, Pilot.</textarea>
             const foliageSummary = Object.entries(foliageCounts)
                 .map(function([t, n]) { return (foliageIcons[t] || '🌲') + ' ' + t + ': ' + n; }).join(' | ');
             return {
-                campaignTitle:    document.getElementById('c_title').value,
-                campaignSublines: document.getElementById('c_sublines').value,
+                campaignTitle:    { de: document.getElementById('c_title_de').value, en: document.getElementById('c_title_en').value },
+                campaignSublines: { de: document.getElementById('c_sublines_de').value, en: document.getElementById('c_sublines_en').value },
+                campaignType:     document.getElementById('c_type').value,
                 musicBriefing:    document.getElementById('c_music_briefing').value,
                 musicIngame:      document.getElementById('c_music_ingame').value,
                 missions: s.campaign.map(function(mis, i) {
@@ -278,8 +289,9 @@ Viel Glück, Pilot.</textarea>
             const fire = function(id, ev) { const el = get(id); if (el) el.dispatchEvent(new Event(ev)); };
 
             switch (action) {
-                case 'set-campaign-title':         set('c_title', data.value); break;
-                case 'set-campaign-sublines':      set('c_sublines', data.value); break;
+                case 'set-campaign-title':    set('c_title_' + (data.lang || 'de'), data.value); break;
+                case 'set-campaign-sublines': set('c_sublines_' + (data.lang || 'de'), data.value); break;
+                case 'set-campaign-type':          set('c_type', data.value); break;
                 case 'set-campaign-music-briefing': set('c_music_briefing', data.value); break;
                 case 'set-campaign-music-ingame':   set('c_music_ingame', data.value); break;
 
@@ -325,9 +337,9 @@ Viel Glück, Pilot.</textarea>
                 case 'zoom-in':  clk('btn-zoom-in');  break;
                 case 'zoom-out': clk('btn-zoom-out'); break;
 
-                case 'set-headline':  set('m_headline', data.value);      fire('m_headline',       'input'); break;
-                case 'set-sublines':  set('m_sublines', data.value);      fire('m_sublines',       'input'); break;
-                case 'set-briefing':  set('m_briefing', data.value);      fire('m_briefing',       'input'); break;
+                case 'set-headline':  { const l = data.lang||'de'; set('m_headline_'+l, data.value); fire('m_headline_'+l, 'input'); break; }
+                case 'set-sublines':  { const l = data.lang||'de'; set('m_sublines_'+l, data.value); fire('m_sublines_'+l, 'input'); break; }
+                case 'set-briefing':  { const l = data.lang||'de'; set('m_briefing_'+l, data.value); fire('m_briefing_'+l, 'input'); break; }
                 case 'set-rain':      chk('m_rain',     data.value);      fire('m_rain',           'input'); break;
                 case 'set-night':     chk('m_night',    data.value);      fire('m_night',          'input'); break;
                 case 'set-wind-dir':  set('m_wind_dir', data.value);      fire('m_wind_dir',       'input'); break;

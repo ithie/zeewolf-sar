@@ -3,6 +3,7 @@ import { soundHandler, musicConfig } from '../../main';
 import { I18N } from '../../i18n';
 
 import { ensureEl as _ensureEl } from '../dom-helpers';
+import { showScreen } from '../nav';
 
 export const mountCreditsScreen = (onBack: () => void): void => {
     const root = _ensureEl('credits-screen');
@@ -21,9 +22,8 @@ export const mountCreditsScreen = (onBack: () => void): void => {
 };
 
 export const toCredits = () => {
-    document.getElementById('main-menu')!.style.display = 'none';
     _buildCredits();
-    document.getElementById('credits-screen')!.style.display = 'flex';
+    showScreen('credits-screen');
     if (musicConfig.credits) soundHandler.play(musicConfig.credits, true);
 };
 
@@ -32,9 +32,9 @@ const _buildCredits = () => {
     inner.innerHTML = '';
     const sections = [
         { role: I18N.CREDITS_ROLE_DEVELOPMENT, names: ['Yarrick'] },
-        { role: I18N.CREDITS_ROLE_CAMPAIGN, names: ['Yarrick', 'Jay "G" Man'] },
-        { role: I18N.CREDITS_ROLE_SOUND, names: ['Gaunt'] },
-        { role: I18N.CREDITS_ROLE_TEST, names: ['Da Harp', 'Jay "G" Man', 'DBuhn', 'Bri B.'] },
+        { role: I18N.CREDITS_ROLE_CAMPAIGN, names: ['Jay "G" Man'] },
+        { role: I18N.CREDITS_ROLE_SOUND, names: ['Chris "Loud" E.'] },
+        { role: I18N.CREDITS_ROLE_TEST, names: ['Da Harp', 'Jay "G" Man', 'DBuhn', 'Gaunt', 'Bri B.'] },
         { role: I18N.CREDITS_ROLE_INSPIREDBY, names: ['Zeewolf (Binary Asylum, 1994)'] },
     ];
     const title = document.createElement('div');

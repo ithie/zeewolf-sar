@@ -37,6 +37,8 @@ export interface HeliType {
     selectSub: string;      // e.g. "Agile / Fast"
     selectCap: string;      // e.g. "Cap: 3 (Lightweight)"
     description?: string;
+    // Minimum rank index required to fly this type (0=Leutnant, 1=Oberleutnant, 2=Hauptmann)
+    minRankIndex: number;
 }
 
 export const HELI_TYPES: HeliType[] = [
@@ -61,6 +63,7 @@ export const HELI_TYPES: HeliType[] = [
         selectSub: 'Wendig / Schnell',
         selectCap: 'Kap.: 3 (Leichtgewicht)',
         description: 'Ein wendiger Küstenwachthubschrauber — ideal für schnelle Einsätze in schwierigem Gelände. Leicht, präzise, reaktionsschnell. Das bevorzugte Werkzeug erfahrener Piloten.',
+        minRankIndex: 1,
     },
     {
         id: 'jayhawk',
@@ -83,6 +86,7 @@ export const HELI_TYPES: HeliType[] = [
         selectSub: 'Schwer / Stabil',
         selectCap: 'Kap.: 10 (Schwerlast)',
         description: 'Das Arbeitstier der Seenotrettung. Trägt schwere Lasten über weite Strecken, auch bei rauem Wetter. Einmal in Fahrt gebracht, ist er schwer aufzuhalten.',
+        minRankIndex: 0,
     },
     {
         id: 'chinook',
@@ -105,6 +109,7 @@ export const HELI_TYPES: HeliType[] = [
         selectSub: 'Tandem / Extraschwer',
         selectCap: 'Kap.: 20 (Schwerlast)',
         description: 'Zwei Rotoren, keine Ausrede. Der CH-47 ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Chinook.',
+        minRankIndex: 2,
     },
     {
         id: 'glider',
@@ -126,6 +131,7 @@ export const HELI_TYPES: HeliType[] = [
         selectLabel: 'ASK-21 SEGLER',
         selectSub: 'Motorlos / Thermisch',
         selectCap: '✈ Easteregg',
+        minRankIndex: 0,
     },
 ];
 

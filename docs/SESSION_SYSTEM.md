@@ -6,8 +6,6 @@ SAR: Callsign WOLF optionally saves player progress locally in the browser (loca
 
 ## Overview
 
-The session system consists of three parts:
-
 | Component             | File                  | Responsibility                               |
 | --------------------- | --------------------- | -------------------------------------------- |
 | Data model & encoding | `src/game/session.ts` | Load, save, rank, save code                  |
@@ -20,12 +18,26 @@ The session system consists of three parts:
 
 ```typescript
 interface PlayerSession {
-    cookieConsent: boolean | null; // null = not yet decided
-    playerName: string; // callsign, max. 8 chars, A–Z
-    campaignsDone: number; // campaigns completed (excl. Tutorial)
-    missionsDone: number; // missions completed (excl. Tutorial)
-    unlockedCampaignIndices: number[]; // indices of unlocked campaigns
-    allUnlocked: boolean; // UNLOCK easter egg activated
+    cookieConsent: boolean | null;          // null = not yet decided
+    consentTimestamp: number | null;
+    consentVersion: string;
+    playerName: string;                     // callsign, max 5 chars A–Z
+    activeCampaignIndex: number;            // currently active campaign (array index)
+    highestUnlockedCampaignIndex: number;   // highest regular campaign reached (for cross-device import)
+    campaignProgress: Record<string, CampaignProgress>;
+    rankOverride: number;                   // rank index preserved via save code import
+    allUnlocked: boolean;                   // UNLOCK easter egg
+    lastSeenVersion: string;
+}
+
+interface CampaignProgress {
+    completed: boolean;
+    missions: MissionProgress[];
+}
+
+interface MissionProgress {
+    completed: boolean;
+    bestTimeMs: number | null;
 }
 ```
 
@@ -35,25 +47,27 @@ Stored under the key `zeewolf_session` in `localStorage`. Only written when `coo
 
 ## Ranks
 
-| Rank         | Insignia | Condition                 |
-| ------------ | -------- | ------------------------- |
-| Leutnant     | ★        | Start                     |
-| Oberleutnant | ★ ★      | 1 campaign + 3 missions   |
-| Hauptmann    | ★ ★ ★    | 2 campaigns + 8 missions  |
-| Major        | ◆        | 3 campaigns + 15 missions |
+Rank is derived purely from completed non-tutorial missions.
 
-- The Tutorial does **not** count toward rank progression.
-- Replaying a campaign or mission counts each time.
-- A promotion overlay is shown when the rank increases.
+| Rank         | Insignia | Min. missions (excl. Tutorial) |
+| ------------ | -------- | ------------------------------ |
+| Leutnant     | ★        | 0                              |
+| Oberleutnant | ★ ★      | 10                             |
+| Hauptmann    | ★ ★ ★    | 30                             |
+| Major        | ◆        | 60                             |
+
+- Tutorial missions do **not** count toward rank progression. Free Flight missions do.
+- `rankOverride` ensures the rank is never lower than what was stored in an imported save code.
+- A promotion overlay is shown whenever the rank increases mid-session.
 
 ---
 
 ## Campaign Unlocking
 
-- The Tutorial is always unlocked.
-- Completing a campaign unlocks the next one (sequential).
-- Locked campaigns are greyed out in the campaign menu.
-- Easter egg `UNLOCK`: type anywhere in the game → all campaigns unlocked immediately.
+- Tutorial and Free Flight are always available.
+- Regular campaigns unlock sequentially: completing campaign N unlocks campaign N+1.
+- `highestUnlockedCampaignIndex` caches the furthest unlocked campaign array index, allowing a new device to restore the correct unlock state from a save code alone.
+- Easter egg `UNLOCK`: type anywhere in the game → all campaigns unlocked immediately (`allUnlocked = true`).
 
 ---
 
@@ -63,7 +77,7 @@ Player progress can be exported as a compact 9-character code and imported on an
 
 ### Format
 
-```bash
+```text
 XXXXX-XXXX
 ```
 
@@ -71,23 +85,25 @@ XXXXX-XXXX
 
 ### Encoding (45 bits → 9 × Base32 characters)
 
-| Bits | Content                   | Range                            |
-| ---- | ------------------------- | -------------------------------- |
-| 0–1  | Rank index                | 0–3                              |
-| 2–4  | Highest unlocked campaign | 0–7                              |
-| 5–44 | Callsign (8 × 5 bits)     | A–Z = 0–25, null terminator = 26 |
+| Bits  | Content                   | Range / Notes                                 |
+| ----- | ------------------------- | --------------------------------------------- |
+| 0–1   | Rank index                | 0–3                                           |
+| 2–4   | Highest unlocked campaign | 0–7 (campaign array index)                    |
+| 5–7   | Active campaign           | 0–7 (campaign array index)                    |
+| 8–11  | Next mission              | 0–15 (completed missions in active campaign)  |
+| 12–36 | Callsign (5×5 bits)       | A–Z = 0–25, null terminator = 26              |
+| 37–44 | Checksum                  | 8-bit XOR-fold of bits 0–36                   |
 
 **Alphabet:** Standard Base32 (RFC 4648): `ABCDEFGHIJKLMNOPQRSTUVWXYZ234567`
 
 Each character encodes 5 bits. 45 bits ÷ 5 = exactly 9 characters, no padding required.
 
-The callsign is stored character by character as a 5-bit value (A=0 … Z=25). Callsigns shorter than 8 characters are terminated with the null value (26); remaining slots are zero-padded.
+**Checksum:** Each data bit `i` (0–36) XORs into accumulator position `i % 8`. Codes without a valid checksum are rejected — this also ensures old pre-checksum codes are not silently misread.
 
 ### On Import
 
-- Invalid codes (wrong length, invalid characters) are rejected with an error message.
-- Valid codes **overwrite** the entire existing save state.
-- `campaignsDone` and `missionsDone` are set to the minimum values for the decoded rank.
+- Codes with invalid checksum, wrong length, or invalid characters are rejected.
+- Valid codes set: `playerName`, `activeCampaignIndex`, `highestUnlockedCampaignIndex`, `rankOverride`, and a reconstructed `campaignProgress` (active campaign with N missions marked complete, no best times).
 - Cookie consent is preserved; if consent is active, the imported state is saved immediately.
 
 ---
@@ -101,9 +117,7 @@ A consent banner is shown on first visit, in accordance with Art. 6(1)(a) GDPR.
 | Accept  | Save state is persisted in `localStorage`         |
 | Decline | Game fully playable, but no persistent save state |
 
-Consent can be revoked at any time by clearing browser storage (`localStorage.clear()`). **No data is transmitted to any server or shared with third parties.**
-
-> **Note:** This documentation describes the technical implementation and does not constitute legal advice. For a production deployment with real user data, review by a data protection officer is recommended.
+Consent expires after 2 weeks and must be renewed. Consent can also be revoked by clearing browser storage or using the "Delete session" button in Settings. **No data is transmitted to any server or shared with third parties.**
 
 ---
 
@@ -116,15 +130,15 @@ loadSession(): PlayerSession
 saveSession(s: PlayerSession): void
 // Persists session — only if cookieConsent === true.
 
-getRank(s: PlayerSession): Rank
-// Returns the current rank.
+getRank(s: PlayerSession, nonTutorialMissions?: number): Rank
+// Returns the current rank. Pass non-tutorial mission count for correct calculation.
 
-isCampaignUnlocked(s: PlayerSession, index: number): boolean
-// Returns whether a campaign at the given index is unlocked.
+isCampaignUnlocked(s: PlayerSession, campaigns: ReadonlyArray<{type: string}>, index: number): boolean
+// Returns whether the campaign at the given index is accessible.
 
-encodeSession(s: PlayerSession): string
+encodeSession(s: PlayerSession, nonTutorialMissions: number): string
 // Generates the 9-character save code (format: XXXXX-XXXX).
 
 decodeSession(input: string): Partial<PlayerSession> | null
-// Decodes a save code. Returns null for invalid input.
+// Decodes a save code. Returns null for invalid or old-format codes.
 ```
