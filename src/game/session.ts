@@ -1,5 +1,7 @@
 export const STORAGE_KEY = 'zeewolf_session';
 
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
+
 export const CONSENT_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 
 /** Bump this whenever the privacy notice changes — forces the banner to re-appear. */
@@ -111,7 +113,7 @@ export const isCampaignUnlocked = (
 
     const regular = campaigns
         .map((c, i) => ({ type: c.type, i }))
-        .filter(c => c.type !== 'glider' && c.type !== 'multiplayer' && c.type !== 'tutorial' && c.type !== 'free-flight');
+        .filter(c => (!_IS_APP ? c.type !== 'glider' : true) && (!_IS_APP ? c.type !== 'multiplayer' : true) && c.type !== 'tutorial' && c.type !== 'free-flight');
     const pos = regular.findIndex(c => c.i === index);
     if (pos <= 0) return true; // first regular campaign always unlocked
     const prev = regular[pos - 1];

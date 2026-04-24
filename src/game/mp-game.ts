@@ -1,6 +1,6 @@
 import { G, zstate } from './state';
 import { mpState, resetMpState } from './multiplayer/mp-state';
-import { applyHeliSnap, applyWorldSnap } from './multiplayer/sync';
+import { applyHeliSnap, applyWorldSnap, packHeli, packWorld } from './multiplayer/sync';
 import { MP_CAMPAIGN_INDEX, MP_COUNTDOWN_SEC, MP_PAD } from './multiplayer/mp-mission';
 import type { MpChannels } from './multiplayer/rtc';
 import { mountMpLobby, showMpLobby, hideMpLobby, setLobbyCallsign } from './ui/mp-lobby/mp-lobby';
@@ -198,3 +198,102 @@ export const initMpGame = (deps: MpGameDeps): void => {
 
     mountMpLobby();
 };
+
+// ─── Render / tick helpers called from game.ts behind !_IS_APP guards ─────────
+
+type DrawHeliFn = (
+    type: string, x: number, y: number, z: number,
+    angle: number, tilt: number, roll: number, rotorPos: number,
+    camX: number, camY: number,
+    opts?: Record<string, unknown>,
+) => void;
+
+type IsoFn = (wx: number, wy: number, wz: number, cx: number, cy: number) => { x: number; y: number };
+
+export const mpHandleReturnToBase = (): boolean => {
+    if (mpState.active && mpReturnToLobby) {
+        mpReturnToLobby();
+        return true;
+    }
+    return false;
+};
+
+export const mpRenderRemoteHeli = (
+    ctx: CanvasRenderingContext2D,
+    camX: number,
+    camY: number,
+    drawHeli: DrawHeliFn,
+    isoFn: IsoFn,
+): void => {
+    if (!G.remoteHeli) return;
+    drawHeli(
+        G.remoteHeli.type, G.remoteHeli.x, G.remoteHeli.y, G.remoteHeli.z,
+        G.remoteHeli.angle, G.remoteHeli.tilt, G.remoteHeli.roll, G.remoteHeli.rotationPos,
+        camX, camY, { fillColor: '#4488ff', strokeColor: '#2255cc' },
+    );
+    const rPos = isoFn(G.remoteHeli.x, G.remoteHeli.y, G.remoteHeli.z, camX, camY);
+    ctx.font = 'bold 11px monospace';
+    ctx.fillStyle = '#7cf';
+    ctx.textAlign = 'center';
+    ctx.fillText(mpState.peerCallsign || 'P2', rPos.x, rPos.y - 32);
+    ctx.textAlign = 'left';
+};
+
+export const mpRenderMinimapDot = (
+    ctx: CanvasRenderingContext2D,
+    bx: number,
+    by: number,
+    sc: number,
+    inMM: (x: number, y: number) => boolean,
+): void => {
+    if (!mpState.active || !G.remoteHeli || !inMM(G.remoteHeli.x, G.remoteHeli.y)) return;
+    ctx.fillStyle = '#7cf';
+    ctx.fillRect(bx + G.remoteHeli.x * sc - 1.5, by + G.remoteHeli.y * sc - 1.5, 3, 3);
+};
+
+export const mpTickAndHUD = (
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    dt: number,
+): void => {
+    if (!mpState.active) return;
+
+    if (!zstate.introActive) {
+        const cd = Math.max(0, Math.ceil(mpState.countdown));
+        const mins = Math.floor(cd / 60);
+        const secs = cd % 60;
+        const cdStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+        ctx.font = 'bold 20px monospace';
+        ctx.fillStyle = cd < 60 ? '#f44' : '#ff0';
+        ctx.textAlign = 'center';
+        ctx.fillText(cdStr, canvas.width / 2, 28);
+        ctx.textAlign = 'left';
+    }
+
+    const now = performance.now();
+    if (now - mpState.lastPosSent > 50) {
+        mpState.channels?.sendPos(packHeli(G.heli));
+        mpState.lastPosSent = now;
+    }
+    if (mpState.isHost) {
+        if (mpState.respawnTimer === 0) {
+            mpState.countdown = Math.max(0, mpState.countdown - dt / 60);
+        }
+        if (mpState.countdown <= 0 && mpState.respawnTimer === 0) {
+            mpTimeOut?.();
+        }
+        if (now - mpState.lastWorldSent > 100) {
+            mpState.channels?.sendEvent({
+                t: 'world',
+                s: packWorld(G.seaTime, G.payloads, G.totalRescued, mpState.countdown),
+            });
+            mpState.lastWorldSent = now;
+        }
+    }
+};
+
+export const mpGetMissionComplete = (fallback: () => void): (() => void) =>
+    mpState.active ? mpMissionComplete ?? fallback : fallback;
+
+export const mpGetTriggerCrash = (fallback: (reason: string) => void): ((reason: string) => void) =>
+    mpState.active ? mpTriggerCrash ?? fallback : fallback;

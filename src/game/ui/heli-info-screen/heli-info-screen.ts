@@ -5,6 +5,8 @@ import { tileW, tileH, stepH } from '../../render-config';
 import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
 
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
+
 let _G: any;
 let _drawHeli: (...args: any[]) => void;
 let _onBack: (() => void) | null = null;
@@ -58,7 +60,7 @@ const _buildHeliInfoCards = () => {
     panel.classList.remove('visible');
     panel.innerHTML = '';
 
-    HELI_TYPES.filter(ht => ht.id !== 'glider').forEach(ht => {
+    (!_IS_APP ? HELI_TYPES.filter(ht => ht.id !== 'glider') : HELI_TYPES).forEach(ht => {
         const card = document.createElement('div');
         card.className = 'heli-card';
         card.id = 'heli-card-' + ht.id;
@@ -70,7 +72,7 @@ const _buildHeliInfoCards = () => {
 };
 
 const _selectHeliInfo = (id: string) => {
-    const types = HELI_TYPES.filter(ht => ht.id !== 'glider');
+    const types = (!_IS_APP ? HELI_TYPES.filter(ht => ht.id !== 'glider') : HELI_TYPES);
     const panel = document.getElementById('heli-detail-panel')!;
 
     if (_selectedHeliInfoId === id) {
@@ -118,7 +120,7 @@ const _animHeliInfo = () => {
 
     if (_selectedHeliInfoId) _rotorPos += 0.22;
 
-    HELI_TYPES.filter(ht => ht.id !== 'glider').forEach(ht => {
+    (!_IS_APP ? HELI_TYPES.filter(ht => ht.id !== 'glider') : HELI_TYPES).forEach(ht => {
         const c = document.getElementById('heli-info-cv-' + ht.id) as HTMLCanvasElement | null;
         if (!c) return;
 

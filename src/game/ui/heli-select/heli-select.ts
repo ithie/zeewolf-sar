@@ -6,6 +6,8 @@ import { tileW, tileH, stepH } from '../../render-config';
 import { zstate } from '../../state';
 import { I18N } from '../../i18n';
 
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
+
 let _G: any;
 let _drawHeli: (...args: any[]) => void;
 
@@ -77,10 +79,10 @@ export const buildHeliSelect = (campaignType: string, rankIndex: number) => {
     const container = document.getElementById('heli-options');
     if (!container) return;
     container.innerHTML = '';
-    const isGlider = campaignType === 'glider';
-    const types = isGlider
+    const isGlider = !_IS_APP && campaignType === 'glider';
+    const types = (!_IS_APP && isGlider)
         ? HELI_TYPES.filter(ht => ht.id === 'glider')
-        : HELI_TYPES.filter(ht => ht.id !== 'glider');
+        : (!_IS_APP ? HELI_TYPES.filter(ht => ht.id !== 'glider') : HELI_TYPES);
     container.style.gridTemplateColumns = types.length === 1 ? '1fr' : '1fr 1fr 1fr';
     container.style.width = types.length === 1 ? '350px' : '900px';
     (document.querySelector('#heli-select .subtitle') as HTMLElement)!.textContent =

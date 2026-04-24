@@ -12,6 +12,8 @@
 
 import type { IsoFn, SceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
+
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 import FUEL_TRUCK_CHASSIS_DEF from './models/fuel_truck_chassis.zdef';
 import FUEL_TRUCK_TANK_DEF from './models/fuel_truck_tank.zdef';
 import FUEL_TRUCK_CAB_DEF from './models/fuel_truck_cab.zdef';
@@ -890,7 +892,7 @@ export function createDrawObjects(
                 actualCtx.lineTo(end.x, end.y);
                 actualCtx.stroke();
             }
-        } else if (type === 'glider') {
+        } else if (!_IS_APP && type === 'glider') {
             if (isShadow) {
                 const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
                 actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.3 - (hZ - groundZ) * 0.05)})`;

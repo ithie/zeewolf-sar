@@ -3,6 +3,8 @@ import { I18N } from '../../i18n';
 import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
 
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
+
 type MainMenuCallbacks = {
     onStart: () => void;
     onMultiplayer?: () => void;
@@ -89,13 +91,13 @@ export const mountMainMenu = (cb: MainMenuCallbacks) => {
         <div class="subtitle" style="margin-bottom: 44px">${I18N.MENU_SUBTITLE}</div>
         <nav class="menu-nav">
             <div class="menu-item" id="menu-item-start">${I18N.MENU_START}</div>
-            ${cb.onMultiplayer ? `<div class="menu-item" id="menu-item-multiplayer">${I18N.MENU_MULTIPLAYER}</div>` : ''}
+            ${!_IS_APP && cb.onMultiplayer ? `<div class="menu-item" id="menu-item-multiplayer">${I18N.MENU_MULTIPLAYER}</div>` : ''}
             <div class="menu-item" id="menu-item-heli">${I18N.MENU_HELI}</div>
             <div class="menu-item" id="menu-item-settings">${I18N.MENU_SETTINGS}</div>
             <div class="menu-item" id="menu-item-credits">${I18N.MENU_CREDITS}</div>
         </nav>`;
     document.getElementById('menu-item-start')!.addEventListener('click', cb.onStart);
-    document.getElementById('menu-item-multiplayer')?.addEventListener('click', cb.onMultiplayer!);
+    if (!_IS_APP) document.getElementById('menu-item-multiplayer')?.addEventListener('click', cb.onMultiplayer!);
     document.getElementById('menu-item-heli')!.addEventListener('click', cb.onHeli);
     document.getElementById('menu-item-settings')!.addEventListener('click', cb.onSettings);
     document.getElementById('menu-item-credits')!.addEventListener('click', cb.onCredits);

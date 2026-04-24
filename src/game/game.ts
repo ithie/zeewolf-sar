@@ -49,9 +49,7 @@ import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
 import { mountCreditsScreen, toCredits } from './ui/credits-screen/credits-screen';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
-import { mpState } from './multiplayer/mp-state';
-import { packHeli, packWorld } from './multiplayer/sync';
-import { toMpLobby, initMpGame, mpReturnToLobby, mpMissionComplete, mpTriggerCrash, mpTimeOut } from './mp-game';
+import { toMpLobby, initMpGame, mpHandleReturnToBase, mpRenderRemoteHeli, mpRenderMinimapDot, mpTickAndHUD, mpGetMissionComplete, mpGetTriggerCrash } from './mp-game';
 import { mountHeliInfoScreen, initHeliInfoScreen, toHeliInfo } from './ui/heli-info-screen/heli-info-screen';
 import {
     initHeliSelect,
@@ -70,6 +68,8 @@ import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
 import { mountMissionSelect, showMissionSelect } from './ui/mission-select/mission-select';
 import { showScreen } from './ui/nav';
+
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 
 const assertDom = () => {
     if (!document.getElementById('gameCanvas')) {
@@ -221,6 +221,7 @@ const showBriefing = () => {
 };
 
 const dismissBriefing = async () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     hideBriefing();
     await launchMission();
 };
@@ -258,7 +259,7 @@ function missionComplete() {
         if (campaignType !== 'tutorial' && campaignType !== 'free-flight') {
             const regular = campaigns
                 .map((c, i) => ({ type: c.type, i }))
-                .filter(c => c.type !== 'glider' && c.type !== 'multiplayer' && c.type !== 'tutorial' && c.type !== 'free-flight');
+                .filter(c => (!_IS_APP ? c.type !== 'multiplayer' : true) && c.type !== 'tutorial' && c.type !== 'free-flight');
             const pos = regular.findIndex(c => c.i === _selectedCampaignIndex);
             if (pos >= 0 && pos + 1 < regular.length) {
                 _session.highestUnlockedCampaignIndex = Math.max(
@@ -292,8 +293,8 @@ function missionComplete() {
     successEl.style.display = 'flex';
     successEl.onclick = () => {
         successEl.style.display = 'none';
-        if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
-        _partyMode = false;
+        if (!_IS_APP && _partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+        if (!_IS_APP) _partyMode = false;
         zstate.gameStarted = false;
         setTouchVisible(false);
         zstate.crashed = false;
@@ -332,13 +333,10 @@ function returnToBase() {
     _rafId = 0;
     stopHeliSound();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
-    _partyMode = false;
+    if (!_IS_APP && _partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    if (!_IS_APP) _partyMode = false;
     zstate.gameStarted = false;
-    if (mpState.active && mpReturnToLobby) {
-        mpReturnToLobby();
-        return;
-    }
+    if (!_IS_APP && mpHandleReturnToBase()) return;
     setTouchVisible(false);
     _resetHeliState();
 
@@ -356,8 +354,8 @@ const returnToCampaignSelect = () => {
     _rafId = 0;
     stopHeliSound();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (_partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
-    _partyMode = false;
+    if (!_IS_APP && _partyMode) soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    if (!_IS_APP) _partyMode = false;
     zstate.gameStarted = false;
     setTouchVisible(false);
     _resetHeliState();
@@ -378,11 +376,13 @@ function toCampaignSelect() {
     _openCampaignSelect();
 }
 
-function launchEasterEgg() {
-    const index = campaignHandler.getCampaigns().findIndex(c => c.type === 'glider');
-    if (index < 0) return;
-    toCampaignSelect();
-    _doSelectCampaign(index);
+if (!_IS_APP) {
+    (window as any).launchEasterEgg = () => {
+        const index = campaignHandler.getCampaigns().findIndex(c => c.type === 'glider');
+        if (index < 0) return;
+        toCampaignSelect();
+        _doSelectCampaign(index);
+    };
 }
 
 function setHover(type: string, state: boolean) {
@@ -531,7 +531,7 @@ const launchMission = async (showLoader = true): Promise<void> => {
     _missionStartTime = Date.now();
     setTouchVisible(true);
 
-    if (G.heli.type === 'glider') {
+    if (!_IS_APP && G.heli.type === 'glider') {
         zstate.introActive = false;
         G.heli.x = G.START_POS.x;
         G.heli.y = G.START_POS.y;
@@ -691,7 +691,7 @@ function drawScene() {
     // Test-Bäume
     G.TREES_MAP.forEach((t: any) => {
         if (isVisible(t.x, t.y))
-            drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, _partyMode && t.type !== 'dead');
+            drawTree(t.x, t.y, camX, camY, t.s, t.gz, t.type || 'pine', G.wind, !_IS_APP && _partyMode && t.type !== 'dead');
     });
 
     // Vögel
@@ -766,8 +766,8 @@ function drawScene() {
         // ropes drawn BEFORE heli so heli body renders over rope top
         drawPayloadObjects(true, true);
 
-        // winch line (only when nothing hanging, not for glider)
-        if (!G.activePayload && G.heli.type !== 'glider') {
+        // winch line (only when nothing hanging)
+        if (!G.activePayload) {
             const rs = G.rescuerSwing;
             const winchTipZ = Math.max(getGround(rs.x, rs.y), G.heli.z - G.heli.winch);
             let hP = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas });
@@ -780,7 +780,7 @@ function drawScene() {
             ctx.stroke();
         }
         // rescuer always at winch tip when winch is extended
-        if (G.heli.type !== 'glider' && G.heli.winch > 0.3) {
+        if (G.heli.winch > 0.3) {
             const rs = G.rescuerSwing;
             const winchTipZ = G.activePayload
                 ? G.activePayload.z + (G.activePayload.type === 'person' ? 0.35 : 0)
@@ -794,11 +794,11 @@ function drawScene() {
                 camX,
                 camY,
                 'rescuer',
-                _partyMode ? { shirt: '#ffffff', pants: '#ffffff' } : undefined
+                (!_IS_APP && _partyMode) ? { shirt: '#ffffff', pants: '#ffffff' } : undefined
             );
         }
 
-        if (_partyMode && Math.floor(Date.now() / 80) % 2 === 0) _refreshPartyColors();
+        if (!_IS_APP && _partyMode && Math.floor(Date.now() / 80) % 2 === 0) _refreshPartyColors();
         drawHeli(
             G.heli.type,
             G.heli.x,
@@ -812,22 +812,11 @@ function drawScene() {
             camY,
             {
                 shadowGetGround: (x, y) => getGround(x, y),
-                ...(_partyMode ? { fillColor: _partyColors[0], strokeColor: _partyColors[1] } : {}),
+                ...(!_IS_APP && _partyMode ? { fillColor: _partyColors[0], strokeColor: _partyColors[1] } : {}),
             }
         );
 
-        // Remote heli (Multiplayer)
-        if (G.remoteHeli) {
-            drawHeli(G.remoteHeli.type, G.remoteHeli.x, G.remoteHeli.y, G.remoteHeli.z,
-                G.remoteHeli.angle, G.remoteHeli.tilt, G.remoteHeli.roll, G.remoteHeli.rotationPos,
-                camX, camY, { fillColor: '#4488ff', strokeColor: '#2255cc' });
-            const rPos = iso(G.remoteHeli.x, G.remoteHeli.y, G.remoteHeli.z, camX, camY, { stepH, tileW, tileH, canvas });
-            ctx.font = 'bold 11px monospace';
-            ctx.fillStyle = '#7cf';
-            ctx.textAlign = 'center';
-            ctx.fillText(mpState.peerCallsign || 'P2', rPos.x, rPos.y - 32);
-            ctx.textAlign = 'left';
-        }
+        if (!_IS_APP) mpRenderRemoteHeli(ctx, camX, camY, drawHeli, isoFn);
 
         renderRain();
 
@@ -840,7 +829,7 @@ function drawScene() {
     } // end if (!zstate.crashed)
 
     // Glider HUD
-    if (!zstate.introActive && G.heli.type === 'glider') {
+    if (!_IS_APP && !zstate.introActive && G.heli.type === 'glider') {
         const agl = Math.max(0, G.heli.z - getGround(G.heli.x, G.heli.y, G.points, null));
         ctx.font = 'bold 13px monospace';
         ctx.fillStyle = agl < 3 ? '#f44' : '#8ef';
@@ -850,7 +839,7 @@ function drawScene() {
     }
 
     // HUD
-    if (!zstate.introActive && G.heli.type !== 'glider') {
+    if (!zstate.introActive) {
         ctx.font = 'bold 13px monospace';
         ctx.fillStyle = '#5f5';
         let hX = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas }).x + 45;
@@ -939,54 +928,12 @@ function drawScene() {
             ctx.fill();
         });
 
-        // Remote heli dot (MP)
-        if (mpState.active && G.remoteHeli && inMM(G.remoteHeli.x, G.remoteHeli.y)) {
-            ctx.fillStyle = '#7cf';
-            ctx.fillRect(bx + G.remoteHeli.x * sc - 1.5, by + G.remoteHeli.y * sc - 1.5, 3, 3);
-        }
+        if (!_IS_APP) mpRenderMinimapDot(ctx, bx, by, sc, inMM);
 
         ctx.restore();
     }
 
-    // ── MP: countdown HUD ─────────────────────────────────────────────────────
-    if (mpState.active && !zstate.introActive) {
-        const cd = Math.max(0, Math.ceil(mpState.countdown));
-        const mins = Math.floor(cd / 60);
-        const secs = cd % 60;
-        const cdStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-        ctx.font = 'bold 20px monospace';
-        ctx.fillStyle = cd < 60 ? '#f44' : '#ff0';
-        ctx.textAlign = 'center';
-        ctx.fillText(cdStr, canvas.width / 2, 28);
-        ctx.textAlign = 'left';
-    }
-
-    // ── MP: state sync ────────────────────────────────────────────────────────
-    if (mpState.active) {
-        const now = performance.now();
-        // Send heli position ~20 Hz
-        if (now - mpState.lastPosSent > 50) {
-            mpState.channels?.sendPos(packHeli(G.heli));
-            mpState.lastPosSent = now;
-        }
-        if (mpState.isHost) {
-            // Tick countdown (only when not respawning)
-            if (mpState.respawnTimer === 0) {
-                mpState.countdown = Math.max(0, mpState.countdown - dt / 60);
-            }
-            if (mpState.countdown <= 0 && mpState.respawnTimer === 0) {
-                mpTimeOut?.();
-            }
-            // Send world snap ~10 Hz
-            if (now - mpState.lastWorldSent > 100) {
-                mpState.channels?.sendEvent({
-                    t: 'world',
-                    s: packWorld(G.seaTime, G.payloads, G.totalRescued, mpState.countdown),
-                });
-                mpState.lastWorldSent = now;
-            }
-        }
-    }
+    if (!_IS_APP) mpTickAndHUD(ctx, canvas, dt);
 
     if (showCollisionBoxes) {
         const fps = Math.round(_fpsSmooth);
@@ -998,7 +945,7 @@ function drawScene() {
         ctx.textAlign = 'left';
     }
 
-    if (_partyMode) drawDiscoBall();
+    if (!_IS_APP && _partyMode) drawDiscoBall();
 
     updateHeliSound(G.heli.rotorRPM, G.heli.engineOn, G.heli.type, Math.hypot(G.wind.x, G.wind.y));
     _rafId = requestAnimationFrame(drawScene);
@@ -1958,7 +1905,7 @@ function toMainMenu() {
     _rafId = 0;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     zstate.gameStarted = false;
-    _partyMode = false;
+    if (!_IS_APP) _partyMode = false;
     showScreen('main-menu');
     soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
     animMainMenuBg();
@@ -2011,18 +1958,19 @@ const _physicsCtx = {
     get hasCarrier() {
         return _missionHasCarrier;
     },
-    get partyMode() {
-        return _partyMode;
-    },
-    partyPalette: _PARTY_PALETTE as readonly string[],
     showMsg,
     get missionComplete() {
-        return mpState.active ? mpMissionComplete ?? missionComplete : missionComplete;
+        return !_IS_APP ? mpGetMissionComplete(missionComplete) : missionComplete;
     },
     get triggerCrash() {
-        return mpState.active ? mpTriggerCrash ?? triggerCrash : triggerCrash;
+        return !_IS_APP ? mpGetTriggerCrash(triggerCrash) : triggerCrash;
     },
-};
+} as import('./physics').PhysicsCtx;
+
+if (!_IS_APP) {
+    Object.defineProperty(_physicsCtx, 'partyMode', { get: () => _partyMode, enumerable: true, configurable: true });
+    (_physicsCtx as any).partyPalette = _PARTY_PALETTE;
+}
 
 let _tileColors: string[][] = []; // precomputed day/rain colors, indexed [x][y]
 // Reusable batch map — cleared each render, no per-frame Map allocation
@@ -2143,7 +2091,7 @@ const _drawTerrain = (camX: number, camY: number, _rx: number, _ry: number, isNi
         return;
     }
 
-    if (_partyMode) {
+    if (!_IS_APP && _partyMode) {
         // Party: tile colors change ~3.5×/sec → path-batch on main canvas
         _renderTerrainBatched(ctx, canvas.width, canvas.height, camX, camY, xFrom, xTo, yFrom, yTo, (x, y, _h0) => {
             const isPad = hasPad() && x >= G.PAD.xMin && x <= G.PAD.xMax && y >= G.PAD.yMin && y <= G.PAD.yMax;
@@ -2189,16 +2137,7 @@ const approveCookies = () => {
     notifyConsent();
 };
 
-const declineCookies = () => {
-    _session.cookieConsent = false;
-    _session.consentTimestamp = Date.now();
-    _session.consentVersion = CONSENT_VERSION;
-    try {
-        localStorage.removeItem(STORAGE_KEY);
-    } catch {}
-    (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
-    notifyConsent();
-};
+
 
 const _buildCampaignGrid = (gridEl: HTMLElement) => {
     const campaigns = campaignHandler.getCampaigns();
@@ -2206,7 +2145,7 @@ const _buildCampaignGrid = (gridEl: HTMLElement) => {
     const typePriority = (t: string) => t === 'tutorial' ? 0 : t === 'free-flight' ? 1 : 2;
     const displayOrder = campaigns
         .map((c, i) => ({ ...c, index: i }))
-        .filter(c => c.type !== 'glider' && c.type !== 'multiplayer')
+        .filter(c => !_IS_APP ? c.type !== 'multiplayer' : true)
         .sort((a, b) => typePriority(a.type) - typePriority(b.type));
     displayOrder.forEach(({ campaignTitle, campaignSublines, levels, type, index }) => {
         const locked = !isCampaignUnlocked(_session, campaigns, index);
@@ -2238,25 +2177,26 @@ const _buildCampaignGrid = (gridEl: HTMLElement) => {
 window.onkeydown = e => {
     G.keys[e.code] = true;
     if ((document.activeElement as HTMLElement)?.tagName === 'INPUT') return;
-    // UNLOCK easter egg — works everywhere
-    _unlockSeq = (_unlockSeq + e.key.toUpperCase()).slice(-6);
-    if (_unlockSeq === 'UNLOCK') {
-        _session.allUnlocked = true;
-        saveSession(_session);
-        _unlockSeq = '';
-        showMsg(I18N.UNLOCK_ALL);
-    }
-    if (zstate.gameStarted && !zstate.introActive) {
-        _partySeq = (_partySeq + e.key.toUpperCase()).slice(-5);
-        if (_partySeq === 'PARTY') {
-            _partyMode = !_partyMode;
-            _partySeq = '';
-            if (_partyMode) {
-                _refreshPartyColors();
-                showMsg(I18N.PARTY_ON);
-                soundHandler.play('partytime', true);
-            } else {
-                soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+    if (!_IS_APP) {
+        _unlockSeq = (_unlockSeq + e.key.toUpperCase()).slice(-6);
+        if (_unlockSeq === 'UNLOCK') {
+            _session.allUnlocked = true;
+            saveSession(_session);
+            _unlockSeq = '';
+            showMsg(I18N.UNLOCK_ALL!);
+        }
+        if (zstate.gameStarted && !zstate.introActive) {
+            _partySeq = (_partySeq + e.key.toUpperCase()).slice(-5);
+            if (_partySeq === 'PARTY') {
+                _partyMode = !_partyMode;
+                _partySeq = '';
+                if (_partyMode) {
+                    _refreshPartyColors();
+                    showMsg(I18N.PARTY_ON!);
+                    soundHandler.play('partytime', true);
+                } else {
+                    soundHandler.play(musicConfig.mainMenu || 'maintheme', true);
+                }
             }
         }
     }
@@ -2464,8 +2404,10 @@ const mountGameOverlays = () => {
     _ensureEl('flash-overlay');
     _ensureEl('msg');
     _ensureEl('debug-toggle');
-    const egg = _ensureEl('easter-egg');
-    egg.onclick = () => (window as any).launchEasterEgg?.();
+    if (!_IS_APP) {
+        const egg = _ensureEl('easter-egg');
+        egg.onclick = () => (window as any).launchEasterEgg?.();
+    }
 };
 
 const mountGameScreens = () => {
@@ -2606,22 +2548,24 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('preview') &
 window.onload = () => {
     requestAnimationFrame(() => {
     assertDom();
-    initMpGame({
-        cancelRaf: () => { cancelAnimationFrame(_rafId); _rafId = 0; },
-        ctx,
-        getPlayerName: () => _session.playerName || 'WOLF',
-        setTouchVisible,
-        setSelectedCampaignIndex: (i: number) => { _selectedCampaignIndex = i; },
-        launchMission,
-        showMsg,
-    });
+    if (!_IS_APP) {
+        initMpGame({
+            cancelRaf: () => { cancelAnimationFrame(_rafId); _rafId = 0; },
+            ctx,
+            getPlayerName: () => _session.playerName || 'WOLF',
+            setTouchVisible,
+            setSelectedCampaignIndex: (i: number) => { _selectedCampaignIndex = i; },
+            launchMission,
+            showMsg,
+        });
+    }
     const _mountScreens = () => {
         mountHeliInfoScreen(toMainMenu);
         mountCreditsScreen(toMainMenu);
         mountMainMenu({
             onSplashClick: toMainMenu,
             onStart: toCampaignSelect,
-            onMultiplayer: toMpLobby,
+            ...(!_IS_APP ? { onMultiplayer: toMpLobby } : {}),
             onHeli: toHeliInfo,
             onSettings: toSettings,
             onCredits: toCredits,
@@ -2727,7 +2671,6 @@ window.onload = () => {
     }); // requestAnimationFrame
 };
 
-window.launchEasterEgg = launchEasterEgg;
 window.toCampaignSelect = toCampaignSelect;
 window.toMainMenu = toMainMenu;
 window.toHeliInfo = toHeliInfo;
@@ -2740,7 +2683,6 @@ window.startGame = startGame;
 window.setHover = setHover;
 window.toSettings = toSettings;
 window.approveCookies = approveCookies;
-window.declineCookies = declineCookies;
 window.confirmDeleteSession = () => {
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     setTimeout(() => window.location.reload(), 1200);

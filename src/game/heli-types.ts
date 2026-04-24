@@ -9,6 +9,8 @@ import DOLPHIN_DEF from './models/dolphin.zdef';
 import ATLAS_DEF from './models/atlas.zdef';
 import GLIDER_DEF from './models/glider.zdef';
 
+const _IS_APP = import.meta.env.VITE_TARGET === 'app';
+
 export interface HeliType {
     id: string;
     label: string;
@@ -114,7 +116,7 @@ export const HELI_TYPES: HeliType[] = [
             'Zwei Rotoren, keine Ausrede. Der Atlas ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Atlas.',
         minRankIndex: 2,
     },
-    {
+    ...(!_IS_APP ? [{
         id: 'glider',
         label: 'ASK-21',
         def: GLIDER_DEF,
@@ -135,7 +137,7 @@ export const HELI_TYPES: HeliType[] = [
         selectSub: 'Motorlos / Thermisch',
         selectCap: '✈ Easteregg',
         minRankIndex: 0,
-    },
+    }] as HeliType[] : []),
 ];
 
 export function getHeliType(id: string): HeliType {
