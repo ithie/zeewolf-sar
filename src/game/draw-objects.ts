@@ -54,7 +54,7 @@ export function createDrawObjects(
     iso: IsoFn,
     tileW: number,
     tileH: number,
-    SceneRenderer: SceneRenderer,
+    SceneRenderer: SceneRenderer
 ) {
     // ── internal helper ────────────────────────────────────────────────────────
     function _drawFace(
@@ -65,7 +65,7 @@ export function createDrawObjects(
         strokeColor: string | null,
         zOffset: number,
         cX: number,
-        cY: number,
+        cY: number
     ) {
         drawCtx.fillStyle = color;
         drawCtx.beginPath();
@@ -91,7 +91,7 @@ export function createDrawObjects(
         strokeColor: string | null,
         zOffset: number,
         cX: number,
-        cY: number,
+        cY: number
     ) {
         _drawFace(ctx, iso, points, color, strokeColor, zOffset, cX, cY);
     }
@@ -106,11 +106,11 @@ export function createDrawObjects(
         gz = 0,
         type = 'pine',
         wind: WindState = { x: 0, y: 0, phase: 0 },
-        partyMode = false,
+        partyMode = false
     ) {
-        const _PARTY_GREENS = ['#00ff44','#44ff00','#88ff00','#33ff33','#00ff88','#66ff22','#00cc44','#aaff00'];
+        const _PARTY_GREENS = ['#00ff44', '#44ff00', '#88ff00', '#33ff33', '#00ff88', '#66ff22', '#00cc44', '#aaff00'];
         const _treeSpeed = 0.0008 + (Math.abs(Math.round(tX * 7 + tY * 13)) % 7) * 0.00022;
-        const _treeOff   = Math.abs(tX * 31 + tY * 17) % 80;
+        const _treeOff = Math.abs(tX * 31 + tY * 17) % 80;
         const _pg = (z: number) =>
             _PARTY_GREENS[Math.floor(Date.now() * _treeSpeed + z * 5 + _treeOff) % _PARTY_GREENS.length];
         const _pgDark = (z: number) =>
@@ -137,9 +137,30 @@ export function createDrawObjects(
 
         if (type === 'pine') {
             const layers = [
-                { zBase: z0 + trunkH * 0.3, zTop: z0 + trunkH * 0.3 + 1.4 * scale, rBase: 0.9 * scale, color: '#1a4a1a', shadow: '#0f2f0f', sway: 0.3 },
-                { zBase: z0 + trunkH * 0.3 + 0.7 * scale, zTop: z0 + trunkH * 0.3 + 1.9 * scale, rBase: 0.65 * scale, color: '#1e5a1e', shadow: '#133513', sway: 0.65 },
-                { zBase: z0 + trunkH * 0.3 + 1.3 * scale, zTop: z0 + trunkH * 0.3 + 2.3 * scale, rBase: 0.4 * scale, color: '#246024', shadow: '#163a16', sway: 1.0 },
+                {
+                    zBase: z0 + trunkH * 0.3,
+                    zTop: z0 + trunkH * 0.3 + 1.4 * scale,
+                    rBase: 0.9 * scale,
+                    color: '#1a4a1a',
+                    shadow: '#0f2f0f',
+                    sway: 0.3,
+                },
+                {
+                    zBase: z0 + trunkH * 0.3 + 0.7 * scale,
+                    zTop: z0 + trunkH * 0.3 + 1.9 * scale,
+                    rBase: 0.65 * scale,
+                    color: '#1e5a1e',
+                    shadow: '#133513',
+                    sway: 0.65,
+                },
+                {
+                    zBase: z0 + trunkH * 0.3 + 1.3 * scale,
+                    zTop: z0 + trunkH * 0.3 + 2.3 * scale,
+                    rBase: 0.4 * scale,
+                    color: '#246024',
+                    shadow: '#163a16',
+                    sway: 1.0,
+                },
             ];
             layers.forEach(l => {
                 for (let i = 10; i >= 0; i--) {
@@ -163,7 +184,8 @@ export function createDrawObjects(
         } else if (type === 'oak') {
             const crownZ = z0 + trunkH + 0.5 * scale;
             const crownR = 0.75 * scale;
-            const sw = swayX * 0.8, sh = swayY * 0.8;
+            const sw = swayX * 0.8,
+                sh = swayY * 0.8;
             [
                 { dx: 0, dz: 0, r: crownR, col: '#2a5a10', scol: '#1a3a08' },
                 { dx: -0.25 * scale, dz: 0.3 * scale, r: crownR * 0.75, col: '#336614', scol: '#1e4a0a' },
@@ -172,7 +194,8 @@ export function createDrawObjects(
                 { dx: 0.15 * scale, dz: 0.55 * scale, r: crownR * 0.5, col: '#4a8020', scol: '#2a5010' },
             ].forEach(blob => {
                 const p = iso(tX + blob.dx * 0.3, tY, crownZ + blob.dz, cx, cy);
-                const ox = sw + blob.dx * 10, oy = sh;
+                const ox = sw + blob.dx * 10,
+                    oy = sh;
                 const _bz = crownZ + blob.dz;
                 ctx.fillStyle = partyMode ? _pgDark(_bz) : blob.scol;
                 ctx.beginPath();
@@ -192,7 +215,8 @@ export function createDrawObjects(
                 { dx: 0, r: 0.38 * scale, col: '#347018', dz: 0.2 },
             ].forEach(blob => {
                 const p = iso(tX + blob.dx * 0.4, tY, bz + blob.dz * scale, cx, cy);
-                const ox = swayX * 0.4, oy = swayY * 0.4;
+                const ox = swayX * 0.4,
+                    oy = swayY * 0.4;
                 ctx.fillStyle = partyMode ? _pg(bz + blob.dz * scale) : blob.col;
                 ctx.beginPath();
                 ctx.ellipse(p.x + ox, p.y + oy, ((blob.r * tileW) / 2) * 1.3, (blob.r * tileH) / 2, 0, 0, Math.PI * 2);
@@ -238,15 +262,20 @@ export function createDrawObjects(
         cx: number,
         cy: number,
         outfit?: string,
-        colors?: { shirt: string; pants: string },
+        colors?: { shirt: string; pants: string }
     ) {
         const base = iso(pX, pY, pZ, cx, cy);
-        const headR = 2.5, torsoW = 5, torsoH = 7, legW = 2, legH = 6;
+        const headR = 2.5,
+            torsoW = 5,
+            torsoH = 7,
+            legW = 2,
+            legH = 6;
         const isRescuer = outfit === 'rescuer';
         const colorShirt = colors?.shirt ?? (isRescuer ? '#ff6600' : '#5a786e');
         const colorPants = colors?.pants ?? (isRescuer ? '#ff6600' : '#3b4a6b');
         const colorArm = isRescuer ? '#ff6600' : '#f2d0a4';
-        const drawX = base.x, drawY = base.y;
+        const drawX = base.x,
+            drawY = base.y;
 
         ctx.fillStyle = colorPants;
         ctx.fillRect(drawX - torsoW / 2, drawY - legH, legW, legH);
@@ -281,7 +310,8 @@ export function createDrawObjects(
         }
         if (isWaving) {
             const waveOffset = Math.sin(Date.now() * 0.015) * 3;
-            const shoulderX = drawX + torsoW / 2, shoulderY = torsoY + 2;
+            const shoulderX = drawX + torsoW / 2,
+                shoulderY = torsoY + 2;
             ctx.strokeStyle = colorArm;
             ctx.lineWidth = 1.5;
             ctx.lineCap = 'round';
@@ -314,80 +344,108 @@ export function createDrawObjects(
         bd: string,
         cc: string,
         cs: string,
-        ct: string,
+        ct: string
     ) {
-        const cosA = Math.cos(objAngle), sinA = Math.sin(objAngle);
-        const bodyL = 1.0, bodyW = 0.72, bodyH = 0.15;
+        const cosA = Math.cos(objAngle),
+            sinA = Math.sin(objAngle);
+        const bodyL = 1.0,
+            bodyW = 0.72,
+            bodyH = 0.15;
         const isFireTractor = ct === '#eeeeee';
         const cabH = isFireTractor ? 0.22 : bodyH + 0.22;
         const cabL = isFireTractor ? bodyL * 0.75 : bodyL;
-        const dZ = deckZ + 0.01, wW = 0.15, wH = 0.25;
-        const cosT = Math.cos(tAngle + objAngle), sinT = Math.sin(tAngle + objAngle);
+        const dZ = deckZ + 0.01,
+            wW = 0.15,
+            wH = 0.25;
+        const cosT = Math.cos(tAngle + objAngle),
+            sinT = Math.sin(tAngle + objAngle);
         function vt(lx: number, ly: number) {
-            return (lx * cosT - ly * sinT) + (lx * sinT + ly * cosT) > 0;
+            return lx * cosT - ly * sinT + (lx * sinT + ly * cosT) > 0;
         }
         const ox = objX + tx * cosA - ty * sinA;
         const oy = objY + tx * sinA + ty * cosA;
         function rr(rx: number, ry: number) {
             return { x: ox + rx * cosT - ry * sinT, y: oy + rx * sinT + ry * cosT };
         }
-        function H(p: { x: number; y: number }, z: number) { return { x: p.x, y: p.y, z }; }
+        function H(p: { x: number; y: number }, z: number) {
+            return { x: p.x, y: p.y, z };
+        }
         function face(pts: { x: number; y: number; z: number }[], col: string, stroke?: string) {
             drawFace(pts, col, stroke ?? null, 0, cx, cy);
         }
 
         if (isFireTractor) {
-            const b1 = rr(0, 0), b2 = rr(bodyL, 0), b3 = rr(bodyL, bodyW), b4 = rr(0, bodyW);
+            const b1 = rr(0, 0),
+                b2 = rr(bodyL, 0),
+                b3 = rr(bodyL, bodyW),
+                b4 = rr(0, bodyW);
             face([H(b1, dZ), H(b2, dZ), H(b3, dZ), H(b4, dZ)], bc);
             if (vt(0, -1)) face([H(b1, dZ), H(b2, dZ), H(b2, dZ + bodyH), H(b1, dZ + bodyH)], bs);
-            if (vt(1, 0))  face([H(b2, dZ), H(b3, dZ), H(b3, dZ + bodyH), H(b2, dZ + bodyH)], bd);
-            if (vt(0, 1))  face([H(b3, dZ), H(b4, dZ), H(b4, dZ + bodyH), H(b3, dZ + bodyH)], bs);
+            if (vt(1, 0)) face([H(b2, dZ), H(b3, dZ), H(b3, dZ + bodyH), H(b2, dZ + bodyH)], bd);
+            if (vt(0, 1)) face([H(b3, dZ), H(b4, dZ), H(b4, dZ + bodyH), H(b3, dZ + bodyH)], bs);
             if (vt(-1, 0)) face([H(b4, dZ), H(b1, dZ), H(b1, dZ + bodyH), H(b4, dZ + bodyH)], bd);
             face([H(b1, dZ + bodyH), H(b2, dZ + bodyH), H(b3, dZ + bodyH), H(b4, dZ + bodyH)], bs);
-            const eqZ = dZ + bodyH, eqW = 0.2, eqL = 0.25, eqH = 0.18, eqX = bodyL - eqW - 0.02;
-            const eq1 = rr(eqX, bodyW * 0.1), eq2 = rr(eqX + eqW, bodyW * 0.1);
-            const eq3 = rr(eqX + eqW, bodyW * 0.1 + eqL), eq4 = rr(eqX, bodyW * 0.1 + eqL);
+            const eqZ = dZ + bodyH,
+                eqW = 0.2,
+                eqL = 0.25,
+                eqH = 0.18,
+                eqX = bodyL - eqW - 0.02;
+            const eq1 = rr(eqX, bodyW * 0.1),
+                eq2 = rr(eqX + eqW, bodyW * 0.1);
+            const eq3 = rr(eqX + eqW, bodyW * 0.1 + eqL),
+                eq4 = rr(eqX, bodyW * 0.1 + eqL);
             face([H(eq1, eqZ), H(eq2, eqZ), H(eq3, eqZ), H(eq4, eqZ)], '#aa0000');
             if (vt(0, -1)) face([H(eq1, eqZ), H(eq2, eqZ), H(eq2, eqZ + eqH), H(eq1, eqZ + eqH)], '#ee0000');
-            if (vt(1, 0))  face([H(eq2, eqZ), H(eq3, eqZ), H(eq3, eqZ + eqH), H(eq2, eqZ + eqH)], '#880000');
-            if (vt(0, 1))  face([H(eq3, eqZ), H(eq4, eqZ), H(eq4, eqZ + eqH), H(eq3, eqZ + eqH)], '#aa0000');
+            if (vt(1, 0)) face([H(eq2, eqZ), H(eq3, eqZ), H(eq3, eqZ + eqH), H(eq2, eqZ + eqH)], '#880000');
+            if (vt(0, 1)) face([H(eq3, eqZ), H(eq4, eqZ), H(eq4, eqZ + eqH), H(eq3, eqZ + eqH)], '#aa0000');
             if (vt(-1, 0)) face([H(eq4, eqZ), H(eq1, eqZ), H(eq1, eqZ + eqH), H(eq4, eqZ + eqH)], '#880000');
             face([H(eq1, eqZ + eqH), H(eq2, eqZ + eqH), H(eq3, eqZ + eqH), H(eq4, eqZ + eqH)], '#cc0000');
         }
         const cZ = isFireTractor ? dZ + bodyH : dZ;
-        const cc1 = rr(0, 0), cc2 = rr(cabL, 0), cc3 = rr(cabL, bodyW), cc4 = rr(0, bodyW);
+        const cc1 = rr(0, 0),
+            cc2 = rr(cabL, 0),
+            cc3 = rr(cabL, bodyW),
+            cc4 = rr(0, bodyW);
         face([H(cc1, cZ), H(cc2, cZ), H(cc3, cZ), H(cc4, cZ)], cc);
         if (vt(0, -1)) face([H(cc1, cZ), H(cc2, cZ), H(cc2, cZ + cabH), H(cc1, cZ + cabH)], cs);
-        if (vt(1, 0))  face([H(cc2, cZ), H(cc3, cZ), H(cc3, cZ + cabH), H(cc2, cZ + cabH)], bd);
-        if (vt(0, 1))  face([H(cc3, cZ), H(cc4, cZ), H(cc4, cZ + cabH), H(cc3, cZ + cabH)], cc);
+        if (vt(1, 0)) face([H(cc2, cZ), H(cc3, cZ), H(cc3, cZ + cabH), H(cc2, cZ + cabH)], bd);
+        if (vt(0, 1)) face([H(cc3, cZ), H(cc4, cZ), H(cc4, cZ + cabH), H(cc3, cZ + cabH)], cc);
         if (vt(-1, 0)) face([H(cc4, cZ), H(cc1, cZ), H(cc1, cZ + cabH), H(cc4, cZ + cabH)], bd);
         face([H(cc1, cZ + cabH), H(cc2, cZ + cabH), H(cc3, cZ + cabH), H(cc4, cZ + cabH)], ct);
         [0.15, bodyL - 0.15].forEach(ax => {
-            if (vt(0, -1)) { const w1 = rr(ax - wW * 0.5, 0), w2 = rr(ax + wW * 0.5, 0); face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222'); }
-            if (vt(0, 1))  { const w1 = rr(ax - wW * 0.5, bodyW), w2 = rr(ax + wW * 0.5, bodyW); face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222'); }
+            if (vt(0, -1)) {
+                const w1 = rr(ax - wW * 0.5, 0),
+                    w2 = rr(ax + wW * 0.5, 0);
+                face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222');
+            }
+            if (vt(0, 1)) {
+                const w1 = rr(ax - wW * 0.5, bodyW),
+                    w2 = rr(ax + wW * 0.5, bodyW);
+                face([H(w1, dZ), H(w2, dZ), H(w2, dZ + wH), H(w1, dZ + wH)], '#222');
+            }
         });
     }
 
     // ── drawFuelTruck ──────────────────────────────────────────────────────────
     // Does NOT call SceneRenderer.flush() — caller is responsible.
-    function drawFuelTruck(
-        tX: number,
-        tY: number,
-        angle: number,
-        opts: DrawFuelTruckOpts = {},
-    ) {
+    function drawFuelTruck(tX: number, tY: number, angle: number, opts: DrawFuelTruckOpts = {}) {
         const { z = 0, armExtend = 0, armTarget = null, getFuelingState } = opts;
-        const cosA = Math.cos(angle), sinA = Math.sin(angle);
-        const tkDepth  = tX + tY + 0.825 * (cosA + sinA);
-        const cabDepth = tX + tY + 1.85  * (cosA + sinA);
-        const chDepth  = Math.min(tkDepth, cabDepth) - 0.01;
+        const cosA = Math.cos(angle),
+            sinA = Math.sin(angle);
+        const tkDepth = tX + tY + 0.825 * (cosA + sinA);
+        const cabDepth = tX + tY + 1.85 * (cosA + sinA);
+        const chDepth = Math.min(tkDepth, cabDepth) - 0.01;
         const pivotWX = tX + 0.3 * cosA;
         const pivotWY = tY + 0.3 * sinA;
 
         SceneRenderer.add(FUEL_TRUCK_CHASSIS_DEF, { x: tX, y: tY, z, angle, depth: chDepth });
-        SceneRenderer.add(FUEL_TRUCK_TANK_DEF,    { x: tX, y: tY, z, angle, depth: tkDepth });
+        SceneRenderer.add(FUEL_TRUCK_TANK_DEF, { x: tX, y: tY, z, angle, depth: tkDepth });
         SceneRenderer.add(FUEL_TRUCK_CAB_DEF, {
-            x: tX, y: tY, z, angle, depth: cabDepth,
+            x: tX,
+            y: tY,
+            z,
+            angle,
+            depth: cabDepth,
             drawFn: (camX, camY) => {
                 if (armExtend <= 0) return;
                 const pivotZ = z + 0.98;
@@ -395,7 +453,8 @@ export function createDrawObjects(
 
                 let elbowWX: number, elbowWY: number;
                 if (armTarget) {
-                    const dx = armTarget.x - pivotWX, dy = armTarget.y - pivotWY;
+                    const dx = armTarget.x - pivotWX,
+                        dy = armTarget.y - pivotWY;
                     const dist = Math.hypot(dx, dy) || 1;
                     elbowWX = pivotWX + (dx / dist) * 0.65 * armExtend;
                     elbowWY = pivotWY + (dy / dist) * 0.65 * armExtend;
@@ -408,7 +467,8 @@ export function createDrawObjects(
 
                 let nozzleWX: number, nozzleWY: number;
                 if (armTarget) {
-                    const dx = armTarget.x - pivotWX, dy = armTarget.y - pivotWY;
+                    const dx = armTarget.x - pivotWX,
+                        dy = armTarget.y - pivotWY;
                     const dist = Math.hypot(dx, dy) || 1;
                     nozzleWX = elbowWX + (dx / dist) * 0.5 * armExtend;
                     nozzleWY = elbowWY + (dy / dist) * 0.5 * armExtend;
@@ -458,7 +518,7 @@ export function createDrawObjects(
         hRotor: number,
         camX: number,
         camY: number,
-        opts: DrawHeliOpts = {},
+        opts: DrawHeliOpts = {}
     ) {
         const {
             targetCtx: tCtx,
@@ -473,14 +533,17 @@ export function createDrawObjects(
         const actualCtx = tCtx ?? ctx;
         const actualIso = tIso ?? iso;
 
-        const cosA = Math.cos(hAngle), sinA = Math.sin(hAngle);
+        const cosA = Math.cos(hAngle),
+            sinA = Math.sin(hAngle);
         const _isOsprey = type === 'osprey' || type === 'osprey_plane';
         const _baseScale = _isOsprey ? 1.0 : getHeliType(type).scale;
         let s = _baseScale;
         if (scaleOverride > 0) s = scaleOverride * _baseScale;
 
         function p(lx: number, ly: number, lz: number) {
-            lx *= s; ly *= s; lz *= s;
+            lx *= s;
+            ly *= s;
+            lz *= s;
             lz += ly * hRoll * 0.5 + lx * hTilt * 0.5;
             const rx = lx * cosA - ly * sinA + hX;
             const ry = lx * sinA + ly * cosA + hY;
@@ -502,7 +565,7 @@ export function createDrawObjects(
             stroke: string | null,
             zOffset: number,
             cX: number,
-            cY: number,
+            cY: number
         ) {
             _drawFace(actualCtx, actualIso, pts, color, stroke, zOffset, cX, cY);
         }
@@ -514,7 +577,10 @@ export function createDrawObjects(
             if (isShadow) {
                 const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
                 actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
-                const sN = p(1.2, 0, 0), sT = p(-1.8, 0, 0), sL = p(0, 0.4, 0), sR = p(0, -0.4, 0);
+                const sN = p(1.2, 0, 0),
+                    sT = p(-1.8, 0, 0),
+                    sL = p(0, 0.4, 0),
+                    sR = p(0, -0.4, 0);
                 actualCtx.beginPath();
                 actualCtx.moveTo(sN.x, sN.y);
                 actualCtx.lineTo(sR.x, sR.y);
@@ -526,8 +592,10 @@ export function createDrawObjects(
             actualCtx.fillStyle = fillColor;
             actualCtx.strokeStyle = strokeColor;
             actualCtx.lineWidth = 1;
-            const nose = p(1.4, 0, 0.2), tailBase = p(-0.8, 0, 0.5);
-            const lSide = p(0, 0.4, 0.4), rSide = p(0, -0.4, 0.4);
+            const nose = p(1.4, 0, 0.2),
+                tailBase = p(-0.8, 0, 0.5);
+            const lSide = p(0, 0.4, 0.4),
+                rSide = p(0, -0.4, 0.4);
             actualCtx.beginPath();
             actualCtx.moveTo(nose.x, nose.y);
             actualCtx.lineTo(rSide.x, rSide.y);
@@ -541,7 +609,8 @@ export function createDrawObjects(
             actualCtx.lineTo(p(0.3, -0.3, 0.6).x, p(0.3, -0.3, 0.6).y);
             actualCtx.lineTo(p(0.3, 0.3, 0.6).x, p(0.3, 0.3, 0.6).y);
             actualCtx.fill();
-            const tTop = p(-1.8, 0, 1.2), tBack = p(-2.0, 0, 0.4);
+            const tTop = p(-1.8, 0, 1.2),
+                tBack = p(-2.0, 0, 0.4);
             actualCtx.fillStyle = fillColor;
             actualCtx.beginPath();
             actualCtx.moveTo(tailBase.x, tailBase.y);
@@ -552,10 +621,12 @@ export function createDrawObjects(
             // Disc plane is local XZ (perpendicular to heli's Y axis).
             // ax = forward axis (foreshortens with view angle), bx = up axis (stable).
             const fenCen = p(-1.6, 0.01, 0.72);
-            const fenE1  = p(-1.6 + 0.24, 0.01, 0.72);
-            const fenE2  = p(-1.6, 0.01, 0.72 + 0.24);
-            const fax = fenE1.x - fenCen.x, fay = fenE1.y - fenCen.y;
-            const fbx = fenE2.x - fenCen.x, fby = fenE2.y - fenCen.y;
+            const fenE1 = p(-1.6 + 0.24, 0.01, 0.72);
+            const fenE2 = p(-1.6, 0.01, 0.72 + 0.24);
+            const fax = fenE1.x - fenCen.x,
+                fay = fenE1.y - fenCen.y;
+            const fbx = fenE2.x - fenCen.x,
+                fby = fenE2.y - fenCen.y;
             const fenEllipse = (fill: string | null, stroke: string | null, lw: number, scale: number) => {
                 actualCtx.beginPath();
                 for (let i = 0; i <= 24; i++) {
@@ -565,8 +636,15 @@ export function createDrawObjects(
                     i === 0 ? actualCtx.moveTo(ex, ey) : actualCtx.lineTo(ex, ey);
                 }
                 actualCtx.closePath();
-                if (fill)   { actualCtx.fillStyle = fill; actualCtx.fill(); }
-                if (stroke) { actualCtx.strokeStyle = stroke; actualCtx.lineWidth = lw; actualCtx.stroke(); }
+                if (fill) {
+                    actualCtx.fillStyle = fill;
+                    actualCtx.fill();
+                }
+                if (stroke) {
+                    actualCtx.strokeStyle = stroke;
+                    actualCtx.lineWidth = lw;
+                    actualCtx.stroke();
+                }
             };
             fenEllipse('#1a1a1a', null, 0, 1.0);
             actualCtx.strokeStyle = 'rgba(210,235,255,0.7)';
@@ -574,10 +652,17 @@ export function createDrawObjects(
             actualCtx.lineCap = 'round';
             for (let i = 0; i < 8; i++) {
                 const a = hRotor * 2.0 + i * (Math.PI / 4);
-                const ca = Math.cos(a), sa = Math.sin(a);
+                const ca = Math.cos(a),
+                    sa = Math.sin(a);
                 actualCtx.beginPath();
-                actualCtx.moveTo(fenCen.x + fax * ca * 0.25 + fbx * sa * 0.25, fenCen.y + fay * ca * 0.25 + fby * sa * 0.25);
-                actualCtx.lineTo(fenCen.x + fax * ca * 0.88 + fbx * sa * 0.88, fenCen.y + fay * ca * 0.88 + fby * sa * 0.88);
+                actualCtx.moveTo(
+                    fenCen.x + fax * ca * 0.25 + fbx * sa * 0.25,
+                    fenCen.y + fay * ca * 0.25 + fby * sa * 0.25
+                );
+                actualCtx.lineTo(
+                    fenCen.x + fax * ca * 0.88 + fbx * sa * 0.88,
+                    fenCen.y + fay * ca * 0.88 + fby * sa * 0.88
+                );
                 actualCtx.stroke();
             }
             fenEllipse('#444', null, 0, 0.33);
@@ -594,11 +679,14 @@ export function createDrawObjects(
                 actualCtx.lineTo(end.x, end.y);
                 actualCtx.stroke();
             }
-        } else if (type === 'jayhawk') {
+        } else if (type === 'coasthawk') {
             if (isShadow) {
                 const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
                 actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
-                const sN = p(1.3, 0, 0), sT = p(-2.8, 0, 0), sL = p(0, 0.5, 0), sR = p(0, -0.5, 0);
+                const sN = p(1.3, 0, 0),
+                    sT = p(-2.8, 0, 0),
+                    sL = p(0, 0.5, 0),
+                    sR = p(0, -0.5, 0);
                 actualCtx.beginPath();
                 actualCtx.moveTo(sN.x, sN.y);
                 actualCtx.lineTo(sR.x, sR.y);
@@ -608,7 +696,8 @@ export function createDrawObjects(
                 return;
             }
             // Horizontal stabilizer
-            const stabL = p(-2.4, 0.6, 0.3), stabR = p(-2.4, -0.6, 0.3);
+            const stabL = p(-2.4, 0.6, 0.3),
+                stabR = p(-2.4, -0.6, 0.3);
             actualCtx.fillStyle = '#111';
             actualCtx.lineWidth = 4 * s;
             actualCtx.strokeStyle = '#222';
@@ -620,9 +709,12 @@ export function createDrawObjects(
             actualCtx.fillStyle = fillColor;
             actualCtx.strokeStyle = strokeColor;
             actualCtx.lineWidth = 1;
-            const n = p(1.3, 0, 0.3), tailBoomStart = p(-1.1, 0, 0.6);
-            const bodyFL = p(0.4, 0.45, 0.4), bodyFR = p(0.4, -0.45, 0.4);
-            const bodyBL = p(-1.0, 0.45, 0.4), bodyBR = p(-1.0, -0.45, 0.4);
+            const n = p(1.3, 0, 0.3),
+                tailBoomStart = p(-1.1, 0, 0.6);
+            const bodyFL = p(0.4, 0.45, 0.4),
+                bodyFR = p(0.4, -0.45, 0.4);
+            const bodyBL = p(-1.0, 0.45, 0.4),
+                bodyBR = p(-1.0, -0.45, 0.4);
             actualCtx.beginPath();
             actualCtx.moveTo(n.x, n.y);
             actualCtx.lineTo(bodyFR.x, bodyFR.y);
@@ -661,7 +753,9 @@ export function createDrawObjects(
             actualCtx.fill();
             // Tail boom + vertical fin
             actualCtx.fillStyle = fillColor;
-            const finBase = p(-2.4, 0, 0.6), finTop = p(-2.9, 0, 1.3), finBack = p(-3.0, 0, 0.6);
+            const finBase = p(-2.4, 0, 0.6),
+                finTop = p(-2.9, 0, 1.3),
+                finBack = p(-3.0, 0, 0.6);
             actualCtx.lineWidth = 6 * s;
             actualCtx.strokeStyle = fillColor;
             actualCtx.beginPath();
@@ -699,11 +793,14 @@ export function createDrawObjects(
                 actualCtx.lineTo(end.x, end.y);
                 actualCtx.stroke();
             }
-        } else if (type === 'chinook') {
+        } else if (type === 'atlas') {
             if (isShadow) {
                 const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
                 actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
-                const sN = p(2.5, 0, 0), sT = p(-2.8, 0, 0), sL = p(0, 0.8, 0), sR = p(0, -0.8, 0);
+                const sN = p(2.5, 0, 0),
+                    sT = p(-2.8, 0, 0),
+                    sL = p(0, 0.8, 0),
+                    sR = p(0, -0.8, 0);
                 actualCtx.beginPath();
                 actualCtx.moveTo(sN.x, sN.y);
                 actualCtx.lineTo(sR.x, sR.y);
@@ -717,13 +814,20 @@ export function createDrawObjects(
                 y: lx * s * sinA + ly * s * cosA + hY,
                 z: hZ + (lz * s + ly * s * hRoll * 0.5 + lx * s * hTilt * 0.5),
             });
-            const rB1 = wf(1.8, 0.3, 0.15), rB2 = wf(1.8, -0.3, 0.15);
-            const rB3 = wf(-2.0, -0.3, 0.15), rB4 = wf(-2.0, 0.3, 0.15);
-            const rM1 = wf(1.8, 0.6, 0.5), rM2 = wf(1.8, -0.6, 0.5);
-            const rM3 = wf(-2.0, -0.6, 0.5), rM4 = wf(-2.0, 0.6, 0.5);
-            const rT1 = wf(1.8, 0.3, 0.85), rT2 = wf(1.8, -0.3, 0.85);
-            const rT3 = wf(-2.0, -0.3, 0.85), rT4 = wf(-2.0, 0.3, 0.85);
-            const tailTop = wf(-2.6, 0, 1.1), tailLow = wf(-2.6, 0, 0.4);
+            const rB1 = wf(1.8, 0.3, 0.15),
+                rB2 = wf(1.8, -0.3, 0.15);
+            const rB3 = wf(-2.0, -0.3, 0.15),
+                rB4 = wf(-2.0, 0.3, 0.15);
+            const rM1 = wf(1.8, 0.6, 0.5),
+                rM2 = wf(1.8, -0.6, 0.5);
+            const rM3 = wf(-2.0, -0.6, 0.5),
+                rM4 = wf(-2.0, 0.6, 0.5);
+            const rT1 = wf(1.8, 0.3, 0.85),
+                rT2 = wf(1.8, -0.3, 0.85);
+            const rT3 = wf(-2.0, -0.3, 0.85),
+                rT4 = wf(-2.0, 0.3, 0.85);
+            const tailTop = wf(-2.6, 0, 1.1),
+                tailLow = wf(-2.6, 0, 0.4);
             faceFn([rB1, rB2, rB3, rB4], '#d50', null, 0, camX, camY);
             faceFn([rB1, rM1, rM4, rB4], '#f60', null, 0, camX, camY);
             faceFn([rM1, rT1, rT4, rM4], '#ff7711', null, 0, camX, camY);
@@ -737,8 +841,22 @@ export function createDrawObjects(
             faceFn([nTip, rM2, rT2, rT1, rM1], fillColor, strokeColor, 0, camX, camY);
             // Cockpit windows
             faceFn([wf(2.6, 0, 0.5), wf(2.2, -0.35, 0.6), wf(2.2, 0.35, 0.6)], '#111', null, 0, camX, camY);
-            faceFn([wf(1.5, 0.31, 0.6), wf(1.0, 0.31, 0.6), wf(1.0, 0.31, 0.75), wf(1.5, 0.31, 0.75)], '#111', null, 0, camX, camY);
-            faceFn([wf(1.5, -0.31, 0.6), wf(1.0, -0.31, 0.6), wf(1.0, -0.31, 0.75), wf(1.5, -0.31, 0.75)], '#111', null, 0, camX, camY);
+            faceFn(
+                [wf(1.5, 0.31, 0.6), wf(1.0, 0.31, 0.6), wf(1.0, 0.31, 0.75), wf(1.5, 0.31, 0.75)],
+                '#111',
+                null,
+                0,
+                camX,
+                camY
+            );
+            faceFn(
+                [wf(1.5, -0.31, 0.6), wf(1.0, -0.31, 0.6), wf(1.0, -0.31, 0.75), wf(1.5, -0.31, 0.75)],
+                '#111',
+                null,
+                0,
+                camX,
+                camY
+            );
             // Forward pylon
             const vT = wf(1.5, 0, 1.15);
             faceFn([wf(1.8, 0.3, 0.85), wf(1.8, -0.3, 0.85), vT], '#f60', '#d50', 0, camX, camY);
@@ -781,7 +899,7 @@ export function createDrawObjects(
                 const ps = (lx: number, ly: number) => p(lx, ly, 0);
 
                 // Fuselage
-                const fuse = [ps(1.0,0), ps(0.55,-0.10), ps(-1.2,-0.06), ps(-1.65,0), ps(-1.2,0.06), ps(0.55,0.10)];
+                const fuse = [ps(1.0, 0), ps(0.55, -0.1), ps(-1.2, -0.06), ps(-1.65, 0), ps(-1.2, 0.06), ps(0.55, 0.1)];
                 actualCtx.beginPath();
                 actualCtx.moveTo(fuse[0].x, fuse[0].y);
                 for (let i = 1; i < fuse.length; i++) actualCtx.lineTo(fuse[i].x, fuse[i].y);
@@ -789,7 +907,7 @@ export function createDrawObjects(
                 actualCtx.fill();
 
                 // Main wings
-                const wing = [ps(0.36,-3.0), ps(0.03,-3.0), ps(0.03,3.0), ps(0.36,3.0)];
+                const wing = [ps(0.36, -3.0), ps(0.03, -3.0), ps(0.03, 3.0), ps(0.36, 3.0)];
                 actualCtx.beginPath();
                 actualCtx.moveTo(wing[0].x, wing[0].y);
                 for (let i = 1; i < wing.length; i++) actualCtx.lineTo(wing[i].x, wing[i].y);
@@ -797,7 +915,7 @@ export function createDrawObjects(
                 actualCtx.fill();
 
                 // Horizontal stabiliser
-                const hstab = [ps(-1.35,-0.65), ps(-1.55,-0.65), ps(-1.55,0.65), ps(-1.35,0.65)];
+                const hstab = [ps(-1.35, -0.65), ps(-1.55, -0.65), ps(-1.55, 0.65), ps(-1.35, 0.65)];
                 actualCtx.beginPath();
                 actualCtx.moveTo(hstab[0].x, hstab[0].y);
                 for (let i = 1; i < hstab.length; i++) actualCtx.lineTo(hstab[i].x, hstab[i].y);
@@ -810,15 +928,72 @@ export function createDrawObjects(
                     z: hZ + (lz * s + ly * s * hRoll * 0.5 + lx * s * hTilt * 0.5),
                 });
                 const gliderFaces: { verts: [number, number, number][]; color: string }[] = [
-                    { verts: [[-1.40, 0.04,0.20],[-1.65, 0.04,0.20],[-1.65, 0.04,0.50],[-1.40, 0.04,0.32]], color: '#cc3300' },
-                    { verts: [[-1.35,-0.65,0.24],[-1.35, 0.65,0.24],[-1.55, 0.65,0.24],[-1.55,-0.65,0.24]], color: '#dddddd' },
-                    { verts: [[ 0.36,-0.10,0.27],[ 0.03,-0.10,0.27],[ 0.03,-3.0, 0.28],[ 0.36,-3.0, 0.28]], color: '#e0e0e0' },
-                    { verts: [[ 1.0,  0,   0.20],[ 0.55,-0.10,0.26],[-1.2, -0.06,0.26],[-1.65, 0,  0.22],[-1.2, 0.06,0.26],[ 0.55, 0.10,0.26]], color: '#f2f2f2' },
-                    { verts: [[ 0.36, 0.10,0.27],[ 0.36, 3.0, 0.28],[ 0.03, 3.0, 0.28],[ 0.03, 0.10,0.27]], color: '#e0e0e0' },
-                    { verts: [[ 0.70, 0.07,0.26],[ 0.70,-0.07,0.26],[-0.16,-0.07,0.36],[-0.16, 0.07,0.36]], color: '#112244' },
+                    {
+                        verts: [
+                            [-1.4, 0.04, 0.2],
+                            [-1.65, 0.04, 0.2],
+                            [-1.65, 0.04, 0.5],
+                            [-1.4, 0.04, 0.32],
+                        ],
+                        color: '#cc3300',
+                    },
+                    {
+                        verts: [
+                            [-1.35, -0.65, 0.24],
+                            [-1.35, 0.65, 0.24],
+                            [-1.55, 0.65, 0.24],
+                            [-1.55, -0.65, 0.24],
+                        ],
+                        color: '#dddddd',
+                    },
+                    {
+                        verts: [
+                            [0.36, -0.1, 0.27],
+                            [0.03, -0.1, 0.27],
+                            [0.03, -3.0, 0.28],
+                            [0.36, -3.0, 0.28],
+                        ],
+                        color: '#e0e0e0',
+                    },
+                    {
+                        verts: [
+                            [1.0, 0, 0.2],
+                            [0.55, -0.1, 0.26],
+                            [-1.2, -0.06, 0.26],
+                            [-1.65, 0, 0.22],
+                            [-1.2, 0.06, 0.26],
+                            [0.55, 0.1, 0.26],
+                        ],
+                        color: '#f2f2f2',
+                    },
+                    {
+                        verts: [
+                            [0.36, 0.1, 0.27],
+                            [0.36, 3.0, 0.28],
+                            [0.03, 3.0, 0.28],
+                            [0.03, 0.1, 0.27],
+                        ],
+                        color: '#e0e0e0',
+                    },
+                    {
+                        verts: [
+                            [0.7, 0.07, 0.26],
+                            [0.7, -0.07, 0.26],
+                            [-0.16, -0.07, 0.36],
+                            [-0.16, 0.07, 0.36],
+                        ],
+                        color: '#112244',
+                    },
                 ];
                 for (const face of gliderFaces) {
-                    faceFn(face.verts.map(([lx, ly, lz]) => wf(lx, ly, lz)), face.color, null, 0, camX, camY);
+                    faceFn(
+                        face.verts.map(([lx, ly, lz]) => wf(lx, ly, lz)),
+                        face.color,
+                        null,
+                        0,
+                        camX,
+                        camY
+                    );
                 }
             }
         } else if (type === 'osprey' || type === 'osprey_plane') {
@@ -826,7 +1001,10 @@ export function createDrawObjects(
             if (isShadow) {
                 const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
                 actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
-                const sN = p(2.0, 0, 0), sFR = p(0, -2.8, 0), sT = p(-2.0, 0, 0), sFL = p(0, 2.8, 0);
+                const sN = p(2.0, 0, 0),
+                    sFR = p(0, -2.8, 0),
+                    sT = p(-2.0, 0, 0),
+                    sFL = p(0, 2.8, 0);
                 actualCtx.beginPath();
                 actualCtx.moveTo(sN.x, sN.y);
                 actualCtx.lineTo(sFR.x, sFR.y);
@@ -903,7 +1081,7 @@ export function createDrawObjects(
 
         if (!isShadow && SceneRenderer.debugAltitude) {
             const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : 0;
-            const top    = actualIso(hX, hY, hZ,     camX, camY);
+            const top = actualIso(hX, hY, hZ, camX, camY);
             const bottom = actualIso(hX, hY, groundZ, camX, camY);
             actualCtx.save();
             actualCtx.strokeStyle = 'rgba(255, 220, 0, 0.9)';

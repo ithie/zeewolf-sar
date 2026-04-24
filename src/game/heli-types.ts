@@ -1,12 +1,12 @@
 // ─── Heli Type Definitions ────────────────────────────────────────────────────
 // Single source of truth for all helicopter variants.
-// The game logic must not contain any `if (type === 'jayhawk')` etc.
+// The game logic must not contain any `if (type === 'coasthawk')` etc.
 // Import HELI_TYPES and use getHeliType(id) instead.
 
 import type { DEF } from './defs';
-import JAYHAWK_DEF from './models/jayhawk.zdef';
+import COASTHAWK_DEF from './models/coasthawk.zdef';
 import DOLPHIN_DEF from './models/dolphin.zdef';
-import CHINOOK_DEF from './models/chinook.zdef';
+import ATLAS_DEF from './models/atlas.zdef';
 import GLIDER_DEF from './models/glider.zdef';
 
 export interface HeliType {
@@ -22,20 +22,20 @@ export interface HeliType {
     liftPower: number;
     cargoResist: number;
     // Rendering
-    scale: number;         // drawHeli geometry scale
-    previewScale: number;  // scale for menu icon canvas
+    scale: number; // drawHeli geometry scale
+    previewScale: number; // scale for menu icon canvas
     // Collision box (local coords, zMax relative to heli.z)
     collisionBox: { xMin: number; xMax: number; yMin: number; yMax: number; zMax: number };
     // Local-x offsets of rotor hubs (for particles/sound). Single-rotor helis: [0].
     rotorOffsets: number[];
-    // Extra rotor debris piece on crash (chinook)
+    // Extra rotor debris piece on crash (atlas)
     extraRotorDebris: boolean;
     // Whether this heli can carry cargo crates
     canCarryCargo: boolean;
     // Select screen display
-    selectLabel: string;    // e.g. "MH-65 DOLPHIN"
-    selectSub: string;      // e.g. "Agile / Fast"
-    selectCap: string;      // e.g. "Cap: 3 (Lightweight)"
+    selectLabel: string; // e.g. "DOLPHIN"
+    selectSub: string; // e.g. "Agile / Fast"
+    selectCap: string; // e.g. "Cap: 3 (Lightweight)"
     description?: string;
     // Minimum rank index required to fly this type (0=Leutnant, 1=Oberleutnant, 2=Hauptmann)
     minRankIndex: number;
@@ -44,7 +44,7 @@ export interface HeliType {
 export const HELI_TYPES: HeliType[] = [
     {
         id: 'dolphin',
-        label: 'SA 365 Dauphin',
+        label: 'Dolphin',
         def: DOLPHIN_DEF,
         maxLoad: 3,
         accel: 0.00117,
@@ -59,16 +59,17 @@ export const HELI_TYPES: HeliType[] = [
         rotorOffsets: [0],
         extraRotorDebris: false,
         canCarryCargo: false,
-        selectLabel: 'MH-65 DOLPHIN',
+        selectLabel: 'DOLPHIN',
         selectSub: 'Wendig / Schnell',
         selectCap: 'Kap.: 3 (Leichtgewicht)',
-        description: 'Ein wendiger Küstenwachthubschrauber — ideal für schnelle Einsätze in schwierigem Gelände. Leicht, präzise, reaktionsschnell. Das bevorzugte Werkzeug erfahrener Piloten.',
+        description:
+            'Ein wendiger Küstenwachthubschrauber — ideal für schnelle Einsätze in schwierigem Gelände. Leicht, präzise, reaktionsschnell. Das bevorzugte Werkzeug erfahrener Piloten.',
         minRankIndex: 1,
     },
     {
-        id: 'jayhawk',
-        label: 'MH-60T Jayhawk',
-        def: JAYHAWK_DEF,
+        id: 'coasthawk',
+        label: 'Coast-Hawk',
+        def: COASTHAWK_DEF,
         maxLoad: 10,
         accel: 0.000502,
         friction: 0.998,
@@ -82,16 +83,17 @@ export const HELI_TYPES: HeliType[] = [
         rotorOffsets: [0],
         extraRotorDebris: false,
         canCarryCargo: true,
-        selectLabel: 'MH-60T JAYHAWK',
+        selectLabel: 'Coast-Hawk',
         selectSub: 'Schwer / Stabil',
         selectCap: 'Kap.: 10 (Schwerlast)',
-        description: 'Das Arbeitstier der Seenotrettung. Trägt schwere Lasten über weite Strecken, auch bei rauem Wetter. Einmal in Fahrt gebracht, ist er schwer aufzuhalten.',
+        description:
+            'Das Arbeitstier der Seenotrettung. Trägt schwere Lasten über weite Strecken, auch bei rauem Wetter. Einmal in Fahrt gebracht, ist er schwer aufzuhalten.',
         minRankIndex: 0,
     },
     {
-        id: 'chinook',
-        label: 'CH-47 Chinook',
-        def: CHINOOK_DEF,
+        id: 'atlas',
+        label: 'Atlas',
+        def: ATLAS_DEF,
         maxLoad: 20,
         accel: 0.000212,
         friction: 0.9992,
@@ -105,10 +107,11 @@ export const HELI_TYPES: HeliType[] = [
         rotorOffsets: [1.5, -2.3],
         extraRotorDebris: true,
         canCarryCargo: true,
-        selectLabel: 'CH-47 CHINOOK',
+        selectLabel: 'Atlas',
         selectSub: 'Tandem / Extraschwer',
         selectCap: 'Kap.: 20 (Schwerlast)',
-        description: 'Zwei Rotoren, keine Ausrede. Der CH-47 ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Chinook.',
+        description:
+            'Zwei Rotoren, keine Ausrede. Der Atlas ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Atlas.',
         minRankIndex: 2,
     },
     {
@@ -124,7 +127,7 @@ export const HELI_TYPES: HeliType[] = [
         cargoResist: 0,
         scale: 1.0,
         previewScale: 2.0,
-        collisionBox: { xMin: -1.65, xMax: 1.0, yMin: -3.0, yMax: 3.0, zMax: 0.40 },
+        collisionBox: { xMin: -1.65, xMax: 1.0, yMin: -3.0, yMax: 3.0, zMax: 0.4 },
         rotorOffsets: [],
         extraRotorDebris: false,
         canCarryCargo: false,

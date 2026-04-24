@@ -2,10 +2,10 @@
 
 const BLADES: Record<string, number> = {
     dolphin: 4,
-    jayhawk: 4,
-    chinook: 3,
-    osprey:  3,
-    glider:  0,
+    coasthawk: 4,
+    atlas: 3,
+    osprey: 3,
+    glider: 0,
 };
 
 const NOMINAL_RPM = 220;
@@ -13,22 +13,22 @@ const NOMINAL_RPM = 220;
 // Presets per heli type: [clipAmount, filterCutHz, filterQ]
 const PRESETS: Record<string, [number, number, number]> = {
     dolphin: [3.0, 120, 2.5],
-    jayhawk: [3.0, 110, 2.5],
-    chinook: [4.0,  90, 3.0],
-    osprey:  [3.5, 130, 2.2],
-    glider:  [1.0, 200, 1.0],
+    coasthawk: [3.0, 110, 2.5],
+    atlas: [4.0, 90, 3.0],
+    osprey: [3.5, 130, 2.2],
+    glider: [1.0, 200, 1.0],
 };
 
 interface HeliSoundNodes {
-    actx:       AudioContext;
-    osc:        OscillatorNode;
-    shaper:     WaveShaperNode;
-    filt:       BiquadFilterNode;
-    rotorGain:  GainNode;
-    master:     GainNode;
-    windSrc:    AudioBufferSourceNode;
-    windFilt:   BiquadFilterNode;
-    windGain:   GainNode;
+    actx: AudioContext;
+    osc: OscillatorNode;
+    shaper: WaveShaperNode;
+    filt: BiquadFilterNode;
+    rotorGain: GainNode;
+    master: GainNode;
+    windSrc: AudioBufferSourceNode;
+    windFilt: BiquadFilterNode;
+    windGain: GainNode;
 }
 
 let _nodes: HeliSoundNodes | null = null;
@@ -123,11 +123,11 @@ export const updateHeliSound = (rotorRPM: number, engineOn: boolean, heliType: s
     const blades = BLADES[heliType] ?? 4;
     const [, filterCut] = PRESETS[heliType] ?? PRESETS['dolphin'];
 
-    const bpf = (rotorRPM * NOMINAL_RPM / 60) * blades;
+    const bpf = ((rotorRPM * NOMINAL_RPM) / 60) * blades;
     osc.frequency.setTargetAtTime(Math.max(1, bpf), t, 0.08);
     filt.frequency.setTargetAtTime(filterCut, t, 0.05);
 
-    const targetVol = _sfxEnabled ? (engineOn ? 0.15 + 0.55 * rotorRPM : 0.10 * rotorRPM) : 0;
+    const targetVol = _sfxEnabled ? (engineOn ? 0.15 + 0.55 * rotorRPM : 0.1 * rotorRPM) : 0;
     master.gain.setTargetAtTime(targetVol, t, 0.06);
 
     // windSpeed = Math.hypot(G.wind.x, G.wind.y), max ~0.0005 at windStr=10
@@ -139,7 +139,13 @@ export const stopHeliSound = (): void => {
     const { actx, osc, master } = _nodes;
     master.gain.setTargetAtTime(0, actx.currentTime, 0.15);
     setTimeout(() => {
-        try { osc.stop(); _nodes?.windSrc.stop(); actx.close(); } catch (_) { /* already stopped */ }
+        try {
+            osc.stop();
+            _nodes?.windSrc.stop();
+            actx.close();
+        } catch (_) {
+            /* already stopped */
+        }
     }, 600);
     _nodes = null;
 };

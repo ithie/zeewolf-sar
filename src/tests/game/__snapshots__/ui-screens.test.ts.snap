@@ -135,15 +135,15 @@ exports[`UI screen snapshots > mp-lobby-screen 1`] = `
             <div class="mp-label">LUFTFAHRZEUG WÄHLEN</div>
             <div class="mp-heli-cards" id="mp-heli-cards">
             <div class="mp-heli-card" data-id="dolphin">
-                <div class="mp-heli-card-label">MH-65 DOLPHIN</div>
+                <div class="mp-heli-card-label">Dolphin</div>
                 <div class="mp-heli-card-sub">Wendig / Schnell</div>
             </div>
-            <div class="mp-heli-card" data-id="jayhawk">
-                <div class="mp-heli-card-label">MH-60T JAYHAWK</div>
+            <div class="mp-heli-card" data-id="coasthawk">
+                <div class="mp-heli-card-label">Coast-Hawk</div>
                 <div class="mp-heli-card-sub">Schwer / Stabil</div>
             </div>
-            <div class="mp-heli-card" data-id="chinook">
-                <div class="mp-heli-card-label">CH-47 CHINOOK</div>
+            <div class="mp-heli-card" data-id="atlas">
+                <div class="mp-heli-card-label">Atlas</div>
                 <div class="mp-heli-card-sub">Tandem / Extraschwer</div>
             </div></div>
             <div class="mp-status" id="mp-ready-status">BEREIT ZUM EINSATZ?</div>

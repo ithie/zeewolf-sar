@@ -395,9 +395,9 @@
                         <option value="hangar">Hangar</option>
                         <option value="lighthouse">Lighthouse</option>
                         <option value="sailboat">Sailboat</option>
-                        <option value="jayhawk">Jayhawk (MH-60T)</option>
-                        <option value="dolphin">Dolphin (MH-65)</option>
-                        <option value="chinook">Chinook (CH-47)</option>
+                        <option value="coasthawk">Coast-Hawk</option>
+                        <option value="dolphin">Dolphin</option>
+                        <option value="atlas">Atlas</option>
                         <option value="glider">Glider (ASK-21)</option>
                         <option value="bo105">Bo-105</option>
                         <option value="submarine">Submarine</option>
@@ -559,9 +559,9 @@
             import HANGAR_DEF from '/src/game/models/hangar.zdef';
             import LIGHTHOUSE_DEF from '/src/game/models/lighthouse.zdef';
             import SAILBOAT_DEF from '/src/game/models/sailboat.zdef';
-            import JAYHAWK_DEF from '/src/game/models/jayhawk.zdef';
+            import COASTHAWK_DEF from '/src/game/models/coasthawk.zdef';
             import DOLPHIN_DEF from '/src/game/models/dolphin.zdef';
-            import CHINOOK_DEF from '/src/game/models/chinook.zdef';
+            import ATLAS_DEF from '/src/game/models/atlas.zdef';
             import GLIDER_DEF from '/src/game/models/glider.zdef';
             import SUBMARINE_DEF from '/src/game/models/submarine.zdef';
             import CARRIER_DEF from '/src/game/models/carrier.zdef';
@@ -583,9 +583,9 @@
                 hangar: { def: HANGAR_DEF, label: 'Hangar', isStatic: true, movementType: 'none' },
                 lighthouse: { def: LIGHTHOUSE_DEF, label: 'Lighthouse', isStatic: true, movementType: 'none' },
                 sailboat: { def: SAILBOAT_DEF, label: 'Sailboat', isStatic: false, movementType: 'ship' },
-                jayhawk: { def: JAYHAWK_DEF, label: 'Jayhawk (MH-60T)', isStatic: false, movementType: 'heli' },
-                dolphin: { def: DOLPHIN_DEF, label: 'Dolphin (MH-65)', isStatic: false, movementType: 'heli' },
-                chinook: { def: CHINOOK_DEF, label: 'Chinook (CH-47)', isStatic: false, movementType: 'heli' },
+                coasthawk: { def: COASTHAWK_DEF, label: 'Coast-Hawk', isStatic: false, movementType: 'heli' },
+                dolphin: { def: DOLPHIN_DEF, label: 'Dolphin', isStatic: false, movementType: 'heli' },
+                atlas: { def: ATLAS_DEF, label: 'Atlas', isStatic: false, movementType: 'heli' },
                 ornithopter: { def: ORNITHOPTER_DEF, label: 'Ornithopter', isStatic: false, movementType: 'heli' },
                 glider: { def: GLIDER_DEF, label: 'Glider (ASK-21)', isStatic: false, movementType: 'plane' },
                 submarine: { def: SUBMARINE_DEF, label: 'Submarine', isStatic: false, movementType: 'ship' },
@@ -872,7 +872,12 @@
                         if (state.selectedFaceIdx >= 0 && activeFaces[state.selectedFaceIdx]) {
                             colors[activeFaces[state.selectedFaceIdx].id] = '#ffdd44';
                         }
-                        const renderedDef = applyParts(state.def, state.partTestAngles);
+                        const testParams = {};
+                        for (const part of state.def.parts || []) {
+                            if (part.rotate && state.partTestAngles[part.id] !== undefined)
+                                testParams[part.rotate.param] = state.partTestAngles[part.id];
+                        }
+                        const renderedDef = applyParts(state.def, testParams);
                         SceneRenderer.debugCollision = showCboxes;
                         SceneRenderer.add(renderedDef, { x: 0, y: 0, angle: renderViewAngle, colors });
                         SceneRenderer.flush(renderCam.x, renderCam.y);
