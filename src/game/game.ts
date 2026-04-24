@@ -2145,7 +2145,7 @@ const _buildCampaignGrid = (gridEl: HTMLElement) => {
     const typePriority = (t: string) => t === 'tutorial' ? 0 : t === 'free-flight' ? 1 : 2;
     const displayOrder = campaigns
         .map((c, i) => ({ ...c, index: i }))
-        .filter(c => !_IS_APP ? c.type !== 'multiplayer' : true)
+        .filter(c => c.type !== 'glider' && (!_IS_APP ? c.type !== 'multiplayer' : true))
         .sort((a, b) => typePriority(a.type) - typePriority(b.type));
     displayOrder.forEach(({ campaignTitle, campaignSublines, levels, type, index }) => {
         const locked = !isCampaignUnlocked(_session, campaigns, index);
