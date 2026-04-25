@@ -1,7 +1,7 @@
 import { CampaignExport, MissionData } from '@/shared/types';
 export { COMMANDER_SVG } from './commander-svg';
 import Tutorial from './campaigns/tutorial.json';
-import AddCamp from './campaigns/addCamp.json';
+import FreeFlight from './campaigns/freeFlight.json';
 import ArchipelDemo from './campaigns/archipeldemo.json';
 import Glider from './campaigns/glider.json';
 import Julian from './campaigns/julian.json';
@@ -28,14 +28,14 @@ export const musicConfig: { mainMenu: string; credits: string; success: string; 
 
 const soundHandler = (() => {
     const songList: Record<string, SongData> = {
-        anothermenu:  SoundAnothermenu,
+        anothermenu: SoundAnothermenu,
         anothersound: SoundAnothersound,
-        briefing:     SoundBriefing,
-        clike:        SoundClike,
-        destroid:     SoundDestroid,
-        final:        SoundFinal,
-        maintheme:    SoundMaintheme,
-        menusound:    SoundMenusound,
+        briefing: SoundBriefing,
+        clike: SoundClike,
+        destroid: SoundDestroid,
+        final: SoundFinal,
+        maintheme: SoundMaintheme,
+        menusound: SoundMenusound,
         spocktribute: SoundSpocktribute,
         ...(!_IS_APP ? { partytime: SoundPartytime } : {}),
     };
@@ -78,10 +78,10 @@ const createCampaignHandler = () => {
     const campaigns: CampaignExport[] = [
         Tutorial as unknown as CampaignExport,
         ArchipelDemo as unknown as CampaignExport,
-        AddCamp as unknown as CampaignExport,
+        FreeFlight as unknown as CampaignExport,
         ...(!_IS_APP ? [Glider as unknown as CampaignExport] : []),
         Julian as unknown as CampaignExport,
-        ...(!_IS_APP ? [MP_DEMO_CAMPAIGN] : []),  // index 5 (web) / 4 (app) – matches MP_CAMPAIGN_INDEX in mp-mission.ts
+        ...(!_IS_APP ? [MP_DEMO_CAMPAIGN] : []), // index 5 (web) / 4 (app) – matches MP_CAMPAIGN_INDEX in mp-mission.ts
         TransferDemo as unknown as CampaignExport,
     ];
 
@@ -167,10 +167,11 @@ if (import.meta.env.DEV) {
         campaignHandler.getCurrentMissionData = () => _previewLevel ?? _origGetMission();
         campaignHandler.getTerrain = () => {
             if (!_previewLevel) return _origGetTerrain();
-            if (!_previewTerrain) _previewTerrain = {
-                terrain: decompressTerrain(_previewLevel.terrain as string, _previewLevel.gridSize),
-                gridSize: _previewLevel.gridSize,
-            };
+            if (!_previewTerrain)
+                _previewTerrain = {
+                    terrain: decompressTerrain(_previewLevel.terrain as string, _previewLevel.gridSize),
+                    gridSize: _previewLevel.gridSize,
+                };
             return _previewTerrain;
         };
     };
@@ -179,4 +180,6 @@ if (import.meta.env.DEV) {
 }
 
 export { soundHandler };
-export const zinit = () => { /* wired via mountMuteButton in game.ts */ };
+export const zinit = () => {
+    /* wired via mountMuteButton in game.ts */
+};

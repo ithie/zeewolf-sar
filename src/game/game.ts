@@ -935,7 +935,7 @@ function drawScene() {
 
     if (!_IS_APP) mpTickAndHUD(ctx, canvas, dt);
 
-    if (showCollisionBoxes) {
+    if (showCollisionBoxes || _isTouchDevice()) {
         const fps = Math.round(_fpsSmooth);
         const fpsColor = fps >= 55 ? '#0f0' : fps >= 30 ? '#ff0' : '#f44';
         ctx.font = 'bold 13px monospace';
@@ -1391,7 +1391,7 @@ function renderRain() {
     ctx.beginPath();
     let sx = (G.wind.x / tileW) * 4000,
         sy = (G.wind.y / tileH) * 4000;
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 40; i++) {
         let rx = Math.random() * canvas.width,
             ry = Math.random() * canvas.height;
         ctx.moveTo(rx, ry);
@@ -2205,7 +2205,7 @@ window.onkeyup = e => (G.keys[e.code] = false);
 document.addEventListener('selectstart', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
 // On mobile: render at a larger logical size → canvas is CSS-scaled down → tiles appear smaller → more world visible
-const MOBILE_ZOOM_OUT = 0.65;
+const MOBILE_ZOOM_OUT = 0.8;
 
 const _resizeCanvas = () => {
     const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
