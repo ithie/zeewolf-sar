@@ -48,6 +48,7 @@ import {
 import { createDrawObjects } from './draw-objects';
 import { tileW, tileH, stepH } from './render-config';
 import { mountCreditsScreen, toCredits } from './ui/credits-screen/credits-screen';
+import { createBackButton } from './ui/back-button/back-button';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
 import {
     toMpLobby,
@@ -2200,6 +2201,13 @@ const approveCookies = () => {
     notifyConsent();
 };
 
+const declineCookies = () => {
+    _session.cookieConsent = false;
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    (document.getElementById('cookie-banner') as HTMLElement).style.display = 'none';
+    notifyConsent();
+};
+
 const _buildCampaignGrid = (gridEl: HTMLElement) => {
     const campaigns = campaignHandler.getCampaigns();
     gridEl.innerHTML = '';
@@ -2488,19 +2496,19 @@ const mountGameScreens = () => {
     });
     mountMissionSelect();
 
-    document.getElementById('campaign-select')!.innerHTML = `
+    const campaignSelectEl = document.getElementById('campaign-select')!;
+    campaignSelectEl.innerHTML = `
         <div class="title">${I18N.CAMPAIGN_SELECT_TITLE}</div>
         <div class="subtitle">${I18N.CAMPAIGN_SELECT_SUB}</div>
-        <div class="campaign-grid" id="campaign-grid"></div>
-        <div class="back-btn" id="campaign-select-back">${I18N.BACK}</div>`;
-    document.getElementById('campaign-select-back')!.addEventListener('click', toMainMenu);
+        <div class="campaign-grid" id="campaign-grid"></div>`;
+    campaignSelectEl.appendChild(createBackButton(toMainMenu));
 
-    document.getElementById('heli-select')!.innerHTML = `
+    const heliSelectEl = document.getElementById('heli-select')!;
+    heliSelectEl.innerHTML = `
         <div class="title">${I18N.HELI_SELECT_TITLE}</div>
         <div class="subtitle">${I18N.HELI_SELECT_SUB}</div>
-        <div id="heli-options" class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width: 900px"></div>
-        <div class="back-btn" id="heli-select-back">${I18N.BACK}</div>`;
-    document.getElementById('heli-select-back')!.addEventListener('click', backFromHeliSelect);
+        <div id="heli-options" class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width: 900px"></div>`;
+    heliSelectEl.appendChild(createBackButton(backFromHeliSelect));
 
     document.getElementById('crash-screen')!.innerHTML = `
         <div class="title" style="color: #fff">${I18N.TERMINATED}</div>
@@ -2539,15 +2547,13 @@ const mountGameScreens = () => {
             ${I18N.CAMPAIGN_SWITCH_PROGRESS_WARN}
         </p>
         <div style="display:flex; gap: 20px">
-            <div class="back-btn" id="campaign-switch-cancel">${I18N.BACK}</div>
             <div class="back-btn" style="color:#f90; border-color:#f90" id="campaign-switch-confirm">
                 ${I18N.CAMPAIGN_SWITCH_CONFIRM}
             </div>
         </div>`;
-    document.getElementById('campaign-switch-cancel')!.addEventListener('click', () => {
-        warningEl.style.display = 'none';
-        _pendingSwitchIndex = -1;
-    });
+    (warningEl.lastElementChild as HTMLElement).prepend(
+        createBackButton(() => { warningEl.style.display = 'none'; _pendingSwitchIndex = -1; })
+    );
     document.getElementById('campaign-switch-confirm')!.addEventListener('click', () => {
         warningEl.style.display = 'none';
         const switchTo = _pendingSwitchIndex;
@@ -2777,6 +2783,7 @@ window.startGame = startGame;
 window.setHover = setHover;
 window.toSettings = toSettings;
 window.approveCookies = approveCookies;
+window.declineCookies = declineCookies;
 window.confirmDeleteSession = () => {
     try {
         localStorage.removeItem(STORAGE_KEY);

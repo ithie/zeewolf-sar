@@ -4,6 +4,7 @@ import { HELI_TYPES } from '../../heli-types';
 import { tileW, tileH, stepH } from '../../render-config';
 import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
+import { createBackButton } from '../back-button/back-button';
 
 const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 
@@ -25,8 +26,8 @@ export const mountHeliInfoScreen = (onBack: () => void): void => {
             <div id="heli-cards-area"></div>
             <div id="heli-detail-panel"></div>
         </div>
-        <div class="back-btn" id="heli-info-back">&#9664; ZURÜCK</div>`;
-    document.getElementById('heli-info-back')!.addEventListener('click', _handleBack);
+        `;
+    root.appendChild(createBackButton(_handleBack));
 };
 
 const _handleBack = () => {

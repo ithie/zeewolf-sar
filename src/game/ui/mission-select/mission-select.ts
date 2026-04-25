@@ -1,5 +1,6 @@
 import './mission-select.css';
 import { I18N, localize } from '../../i18n';
+import { createBackButton } from '../back-button/back-button';
 import { ensureEl } from '../dom-helpers';
 import { isMissionUnlocked, type PlayerSession } from '../../session';
 import type { CampaignExport } from '../../../shared/types';
@@ -27,7 +28,8 @@ export const showMissionSelect = (deps: MissionSelectDeps) => {
         <div class="title">${localize(campaign.campaignTitle)}</div>
         <div class="subtitle">${I18N.MISSION_SELECT_SUB}</div>
         <div id="mission-grid"></div>
-        <div class="back-btn" id="mission-select-back">${I18N.BACK}</div>`;
+        `;
+    el.appendChild(createBackButton(onBack));
 
     const grid = document.getElementById('mission-grid')!;
     campaign.levels.forEach((level, i) => {
@@ -60,8 +62,6 @@ export const showMissionSelect = (deps: MissionSelectDeps) => {
 
         grid.appendChild(tile);
     });
-
-    document.getElementById('mission-select-back')!.addEventListener('click', onBack);
 
     showScreen('mission-select');
 };

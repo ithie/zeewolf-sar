@@ -1,5 +1,6 @@
 import './mp-lobby.css';
 import { I18N } from '../../i18n';
+import { createBackButton } from '../back-button/back-button';
 import { createRTCPeer } from '../../multiplayer/rtc';
 import { HELI_TYPES } from '../../heli-types';
 import type { MpChannels } from '../../multiplayer/rtc';
@@ -26,6 +27,10 @@ const setStatus = (id: string, txt: string, cls?: 'ok' | 'error') => {
 const show = (id: string) => { el(id).style.display = 'flex'; };
 const hide = (id: string) => { el(id).style.display = 'none'; };
 
+let _initialBackBtn: HTMLElement;
+let _hostBackBtn: HTMLElement;
+let _guestBackBtn: HTMLElement;
+
 // ─── mount (called once at startup) ──────────────────────────────────────────
 
 export const mountMpLobby = (): void => {
@@ -45,7 +50,6 @@ export const mountMpLobby = (): void => {
         <div id="mp-lobby-initial">
             <button class="mp-btn" id="mp-create-btn">${I18N.MP_CREATE}</button>
             <button class="mp-btn" id="mp-join-btn">${I18N.MP_JOIN}</button>
-            <div class="back-btn" id="mp-back-btn">${I18N.BACK}</div>
         </div>
 
         <!-- Host flow -->
@@ -59,7 +63,6 @@ export const mountMpLobby = (): void => {
             <div class="mp-label">${I18N.MP_STEP2_HOST}</div>
             <textarea id="mp-answer-input" class="mp-textarea" placeholder="${I18N.MP_PASTE_HINT}"></textarea>
             <button class="mp-btn" id="mp-connect-btn" disabled>${I18N.MP_CONNECT}</button>
-            <div class="back-btn" id="mp-host-back-btn">${I18N.BACK}</div>
         </div>
 
         <!-- Guest flow -->
@@ -73,7 +76,6 @@ export const mountMpLobby = (): void => {
             <div class="mp-row" id="mp-guest-copy-row" style="display:none">
                 <button class="mp-btn mp-btn-small" id="mp-copy-answer-btn">${I18N.MP_COPY}</button>
             </div>
-            <div class="back-btn" id="mp-guest-back-btn">${I18N.BACK}</div>
         </div>
 
         <!-- Heli select + ready phase (shared by host and guest) -->
@@ -85,6 +87,13 @@ export const mountMpLobby = (): void => {
             <button class="mp-btn" id="mp-ready-btn" disabled>${I18N.MP_READY_BTN}</button>
             <div id="mp-countdown-display" class="mp-countdown" style="display:none"></div>
         </div>`;
+
+    _initialBackBtn = createBackButton(() => {});
+    el('mp-lobby-initial').appendChild(_initialBackBtn);
+    _hostBackBtn = createBackButton(() => {});
+    el('mp-host-flow').appendChild(_hostBackBtn);
+    _guestBackBtn = createBackButton(() => {});
+    el('mp-guest-flow').appendChild(_guestBackBtn);
 };
 
 // ─── Heli select + Ready phase ────────────────────────────────────────────────
@@ -180,7 +189,7 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
     hide('mp-heli-flow');
     screen().style.display = 'flex';
 
-    el('mp-back-btn').onclick = cb.onBack;
+    _initialBackBtn.onclick = cb.onBack;
 
     // ── Host flow ─────────────────────────────────────────────────────────────
     el('mp-create-btn').onclick = async () => {
@@ -229,7 +238,7 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
             setStatus('mp-host-status', I18N.MP_ERROR!, 'error');
         }
 
-        el('mp-host-back-btn').onclick = () => {
+        _hostBackBtn.onclick = () => {
             peer.close();
             hide('mp-host-flow');
             show('mp-lobby-initial');
@@ -276,7 +285,7 @@ export const showMpLobby = (cb: MpLobbyCallbacks): void => {
             }
         };
 
-        el('mp-guest-back-btn').onclick = () => {
+        _guestBackBtn.onclick = () => {
             peer.close();
             hide('mp-guest-flow');
             show('mp-lobby-initial');

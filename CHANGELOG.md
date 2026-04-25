@@ -1,5 +1,24 @@
 # SAR: Callsign WOLF — Changelog
 
+## v25.3.3 — Privacy & Mobile Performance
+
+### New
+
+- **Privacy banner reworked**: consent model under Art.&nbsp;6 para.&nbsp;1 lit.&nbsp;a GDPR — **ACCEPT** stores data persistently in localStorage, **DECLINE** plays fully without persistence (no reload, no data loss). New **REVOKE & DELETE** button appears only when existing data is present. Banner is bilingual (DE/EN).
+- **`declineCookies()`**: new decline path — clears any existing localStorage data, sets `cookieConsent = false`, starts the game in pure in-memory mode.
+
+### Fix
+
+- **FPS counter on touch devices**: counter now always visible (not only when `showCollisionBoxes` is set) — simplifies performance diagnostics on iOS/iPad.
+- **Back button duplication fixed**: `mountCreditsScreen` was appending an additional button on every language change — guard prevents double-mount.
+
+### Technical
+
+- **`createBackButton(onClick)`**: centralized back button as a standalone component (`src/game/ui/back-button/back-button.ts`) with scoped CSS. All UI screens use the component; no button IDs required.
+- **Mobile performance**: 30 FPS cap on touch devices (`requestAnimationFrame` skip) — physics remains dt-coupled with no quality loss. Rain drops reduced to 40. `MOBILE_ZOOM_OUT` adjusted to 0.8.
+
+---
+
 ## v25.3.2 — iOS-Vorbereitungen & TypeScript 6
 
 ### Technical

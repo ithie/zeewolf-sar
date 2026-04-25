@@ -1,0 +1,22 @@
+.back-btn {
+    font-size: 13px;
+    letter-spacing: 4px;
+    color: #383838;
+    cursor: pointer;
+    padding: 10px 28px;
+    border: 1px solid #1e1e1e;
+    transition: all 0.2s;
+    margin-top: 28px;
+    display: inline-block;
+}
+.back-btn:hover {
+    color: #aaa;
+    border-color: #555;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+}
+@media (max-height: 520px) {
+    .back-btn {
+        margin-top: 10px;
+        padding: 8px 20px;
+    }
+}

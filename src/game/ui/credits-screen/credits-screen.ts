@@ -4,21 +4,19 @@ import { I18N } from '../../i18n';
 
 import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
+import { createBackButton } from '../back-button/back-button';
 
 export const mountCreditsScreen = (onBack: () => void): void => {
     const root = _ensureEl('credits-screen');
     root.classList.add('ui-screen');
+    if (root.children.length > 0) return;
     const canvas = document.createElement('canvas');
     canvas.id = 'credits-canvas';
     const inner = document.createElement('div');
     inner.id = 'credits-inner';
-    const back = document.createElement('div');
-    back.className = 'back-btn';
-    back.innerHTML = '&#9664; ZURÜCK';
-    back.addEventListener('click', onBack);
     root.appendChild(canvas);
     root.appendChild(inner);
-    root.appendChild(back);
+    root.appendChild(createBackButton(onBack));
 };
 
 export const toCredits = () => {

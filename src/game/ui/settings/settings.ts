@@ -1,5 +1,6 @@
 import './settings.css';
 import { I18N, LANG, setLanguage } from '../../i18n';
+import { createBackButton } from '../back-button/back-button';
 import { getRank, encodeSession, decodeSession, getCampaignsDone, getMissionsDone, STORAGE_KEY, type PlayerSession } from '../../session';
 import { rankBadgeHtml } from '../rankup/rankup';
 
@@ -85,11 +86,11 @@ export const mountSettings = () => {
             <button id="delete-session-btn" class="settings-btn" style="background: #1a0000; border-color: #500; color: #c44">${I18N.DELETE_SESSION}</button>
             <div id="delete-session-msg" style="font-size: 12px; letter-spacing: 2px; color: #c44; min-height: 18px; margin-top: 6px"></div>
         </div>
-        <div class="back-btn" id="from-settings-btn">${I18N.BACK}</div>`;
+        `;
 
     document.getElementById('apply-save-code-btn')!.addEventListener('click', applySaveCode);
     document.getElementById('delete-session-btn')!.addEventListener('click', deleteSessionData);
-    document.getElementById('from-settings-btn')!.addEventListener('click', fromSettings);
+    document.getElementById('settings-screen')!.appendChild(createBackButton(fromSettings));
     document.getElementById('music-on-btn')!.addEventListener('click', () => { _deps.setMusicEnabled(true);  _refreshAudioButtons(); });
     document.getElementById('music-off-btn')!.addEventListener('click', () => { _deps.setMusicEnabled(false); _refreshAudioButtons(); });
     document.getElementById('sfx-on-btn')!.addEventListener('click', () => { _deps.setSfxEnabled(true);  _refreshAudioButtons(); });
