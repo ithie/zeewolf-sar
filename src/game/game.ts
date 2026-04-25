@@ -603,6 +603,10 @@ let _fpsLastTime = 0,
     _fpsSmooth = 60;
 function drawScene() {
     const _now = performance.now();
+    if (_isTouchDevice() && _fpsLastTime > 0 && (_now - _fpsLastTime) < 1000 / 30 - 1) {
+        _rafId = requestAnimationFrame(drawScene);
+        return;
+    }
     const dt = _fpsLastTime > 0 ? Math.min((_now - _fpsLastTime) / (1000 / 60), 3.0) : 1.0;
     if (_fpsLastTime) _fpsSmooth += (1000 / (_now - _fpsLastTime) - _fpsSmooth) * 0.1;
     _fpsLastTime = _now;
