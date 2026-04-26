@@ -10,7 +10,6 @@ import {
     saveSession,
     getRank,
     RANKS,
-    isCampaignUnlocked,
     isConsentExpired,
     isConsentOutdated,
     CONSENT_VERSION,
@@ -77,6 +76,7 @@ import { mountMuteButton, refreshMuteButton } from './ui/mute-button/mute-button
 import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
 import { mountMissionSelect, showMissionSelect } from './ui/mission-select/mission-select';
+import { mountCampaignSelect, showCampaignSelect } from './ui/campaign-select/campaign-select';
 import { showScreen } from './ui/nav';
 import { initTutorial, tutorialTick, destroyTutorial, isTutorialRunning } from './ui/tutorial/tutorial';
 
@@ -394,8 +394,12 @@ const returnToCampaignSelect = () => {
 };
 
 const _openCampaignSelect = () => {
-    _buildCampaignGrid(document.getElementById('campaign-grid')!);
-    showScreen('campaign-select');
+    showCampaignSelect({
+        session: _session,
+        campaigns: campaignHandler.getCampaigns(),
+        onSelect: idx => selectCampaign(String(idx)),
+        onBack: toMainMenu,
+    });
 };
 
 // ─── campaign / G.heli select ──────────────────────────────────────────────────
@@ -2248,40 +2252,6 @@ const declineCookies = () => {
     notifyConsent();
 };
 
-const _buildCampaignGrid = (gridEl: HTMLElement) => {
-    const campaigns = campaignHandler.getCampaigns();
-    gridEl.innerHTML = '';
-    const typePriority = (t: string) => (t === 'tutorial' ? 0 : t === 'free-flight' ? 1 : 2);
-    const displayOrder = campaigns
-        .map((c, i) => ({ ...c, index: i }))
-        .filter(c => c.type !== 'glider' && (!_IS_APP ? c.type !== 'multiplayer' : true))
-        .sort((a, b) => typePriority(a.type) - typePriority(b.type));
-    displayOrder.forEach(({ campaignTitle, campaignSublines, levels, type, index }) => {
-        const locked = !isCampaignUnlocked(_session, campaigns, index);
-        const isTutorial = type === 'tutorial';
-        const isActive = !isTutorial && type !== 'free-flight' && _session.activeCampaignIndex === index;
-        const cp = _session.campaignProgress[String(index)];
-        const completedCount = cp?.missions.filter(m => m?.completed).length ?? 0;
-
-        const tile = document.createElement('div');
-        tile.className = `grid-box${locked ? ' locked' : ''}`;
-        if (isTutorial) tile.style.borderColor = '#ff9900';
-
-        let sublines = campaignSublines.map(s => `<div class="box-sub">${localize(s)}</div>`).join('');
-        sublines += `<div class="box-sub">Missionen: ${levels.length}</div>`;
-        if (isActive && completedCount > 0) {
-            sublines += `<div class="box-sub" style="color:#8af">${completedCount}/${levels.length} abgeschlossen</div>`;
-        }
-
-        tile.innerHTML =
-            `<div class="box-label"${isTutorial ? ` style="color: #ff9900"` : ''}>` +
-            `${localize(campaignTitle)}</div>` +
-            (locked ? `<div class="box-sub" style="color:#333">${I18N.CAMPAIGN_LOCKED}</div>` : sublines);
-
-        if (!locked) tile.addEventListener('click', () => selectCampaign(String(index)));
-        gridEl.appendChild(tile);
-    });
-};
 
 window.onkeydown = e => {
     G.keys[e.code] = true;
@@ -2544,13 +2514,7 @@ const mountGameScreens = () => {
         _ensureEl(id).classList.add('ui-screen');
     });
     mountMissionSelect();
-
-    const campaignSelectEl = document.getElementById('campaign-select')!;
-    campaignSelectEl.innerHTML = `
-        <div class="title">${I18N.CAMPAIGN_SELECT_TITLE}</div>
-        <div class="subtitle">${I18N.CAMPAIGN_SELECT_SUB}</div>
-        <div class="campaign-grid" id="campaign-grid"></div>`;
-    campaignSelectEl.appendChild(createBackButton(toMainMenu));
+    mountCampaignSelect();
 
     const heliSelectEl = document.getElementById('heli-select')!;
     heliSelectEl.innerHTML = `
