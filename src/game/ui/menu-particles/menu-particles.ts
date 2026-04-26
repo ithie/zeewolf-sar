@@ -1,3 +1,5 @@
+import { CANVAS_SCALE } from '../../render-config';
+
 type Particle = { x: number; y: number; vy: number; alpha: number; size: number; freq: number; color: string };
 
 let _particles: Particle[] | null = null;
@@ -33,8 +35,8 @@ const _animate = () => {
     if (!_running) return;
     const c = document.getElementById('menu-particles-canvas') as HTMLCanvasElement | null;
     if (!c) { _running = false; return; }
-    c.width = window.innerWidth;
-    c.height = window.innerHeight;
+    c.width = Math.round(window.innerWidth * CANVAS_SCALE);
+    c.height = Math.round(window.innerHeight * CANVAS_SCALE);
     const ctx = c.getContext('2d')!;
     ctx.clearRect(0, 0, c.width, c.height);
     const t = Date.now() * 0.001;

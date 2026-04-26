@@ -1,6 +1,5 @@
 import './settings.css';
 import { I18N, LANG, setLanguage } from '../../i18n';
-import { createBackButton } from '../back-button/back-button';
 import { getRank, encodeSession, decodeSession, getCampaignsDone, getMissionsDone, STORAGE_KEY, type PlayerSession } from '../../session';
 import { rankBadgeHtml } from '../rankup/rankup';
 
@@ -23,14 +22,12 @@ export const initSettings = (deps: Deps) => {
     _deps = deps;
 };
 
-import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
+import { mountScreenShell } from '../screen-shell/screen-shell';
 
 export const mountSettings = () => {
-    _ensureEl('settings-screen').classList.add('ui-screen');
-    document.getElementById('settings-screen')!.innerHTML = `
-        <div class="title" style="font-size: 48px">${I18N.MENU_SETTINGS}</div>
-        <div class="subtitle">${I18N.PILOT_HEADING}</div>
+    const body = mountScreenShell('settings-screen', I18N.MENU_SETTINGS, I18N.PILOT_HEADING, fromSettings);
+    body.innerHTML = `
         <div id="settings-badge"></div>
         <div class="settings-field">
             <label>${I18N.PILOT_CALLSIGN}</label>
@@ -90,7 +87,6 @@ export const mountSettings = () => {
 
     document.getElementById('apply-save-code-btn')!.addEventListener('click', applySaveCode);
     document.getElementById('delete-session-btn')!.addEventListener('click', deleteSessionData);
-    document.getElementById('settings-screen')!.appendChild(createBackButton(fromSettings));
     document.getElementById('music-on-btn')!.addEventListener('click', () => { _deps.setMusicEnabled(true);  _refreshAudioButtons(); });
     document.getElementById('music-off-btn')!.addEventListener('click', () => { _deps.setMusicEnabled(false); _refreshAudioButtons(); });
     document.getElementById('sfx-on-btn')!.addEventListener('click', () => { _deps.setSfxEnabled(true);  _refreshAudioButtons(); });

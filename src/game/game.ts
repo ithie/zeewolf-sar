@@ -78,6 +78,7 @@ import { mountWhatsNew, showWhatsNewIfNeeded } from './ui/whats-new/whats-new';
 import { mountMainMenu } from './ui/main-menu/main-menu';
 import { mountMissionSelect, showMissionSelect } from './ui/mission-select/mission-select';
 import { showScreen } from './ui/nav';
+import { initTutorial, tutorialTick, destroyTutorial, isTutorialRunning } from './ui/tutorial/tutorial';
 
 const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 
@@ -237,6 +238,7 @@ const dismissBriefing = async () => {
 };
 
 function missionComplete() {
+    destroyTutorial();
     const { campaignType } = campaignHandler.getCurrentMissionData();
     const isTutorial = campaignType === 'tutorial';
 
@@ -354,6 +356,7 @@ const _resetHeliState = () => {
 };
 
 function returnToBase() {
+    destroyTutorial();
     cancelAnimationFrame(_rafId);
     _rafId = 0;
     stopHeliSound();
@@ -475,6 +478,11 @@ const selectMission = (missionIndex: number) => {
     G.START_POS = { x: selPad.x + 4, y: selPad.y + 4 };
     initGrid(gridSize, G.points);
 
+    if (campaignType === 'tutorial') {
+        startGame('dolphin');
+        return;
+    }
+
     buildHeliSelect(campaignType, RANKS.indexOf(getRank(_session, _getRankMissions())));
     showScreen('heli-select');
     animateHeliPreviews();
@@ -555,6 +563,10 @@ const launchMission = async (showLoader = true): Promise<void> => {
     zstate.gameStarted = true;
     _missionStartTime = Date.now();
     setTouchVisible(true);
+
+    if (_lmd.campaignType === 'tutorial') {
+        initTutorial(_selectedMissionIndex, _isTouchDevice(), G);
+    }
 
     if (!_IS_APP && G.heli.type === 'glider') {
         zstate.introActive = false;
@@ -996,6 +1008,7 @@ function drawScene() {
     if (!_IS_APP && _partyMode) drawDiscoBall();
 
     updateHeliSound(G.heli.rotorRPM, G.heli.engineOn, G.heli.type, Math.hypot(G.wind.x, G.wind.y));
+    if (isTutorialRunning()) tutorialTick(G);
     _rafId = requestAnimationFrame(drawScene);
 }
 
@@ -2280,14 +2293,14 @@ const MOBILE_ZOOM_OUT = 0.8;
 const _resizeCanvas = () => {
     const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (isMobile) {
-        canvas.width = Math.round(window.innerWidth / MOBILE_ZOOM_OUT);
-        canvas.height = Math.round(window.innerHeight / MOBILE_ZOOM_OUT);
-        canvas.style.width = window.innerWidth + 'px';
+        canvas.width  = Math.round(window.innerWidth  / MOBILE_ZOOM_OUT / 2);
+        canvas.height = Math.round(window.innerHeight / MOBILE_ZOOM_OUT / 2);
+        canvas.style.width  = window.innerWidth  + 'px';
         canvas.style.height = window.innerHeight + 'px';
     } else {
-        canvas.width = window.innerWidth;
+        canvas.width  = window.innerWidth;
         canvas.height = window.innerHeight;
-        canvas.style.width = '';
+        canvas.style.width  = '';
         canvas.style.height = '';
     }
 };

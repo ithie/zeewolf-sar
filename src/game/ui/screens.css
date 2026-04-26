@@ -1,4 +1,13 @@
 /* ─── shared full-screen overlay base ───────────────────────────────────── */
+.screen-body {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: safe center;
+}
 .ui-screen {
     overflow-x: hidden;
     overflow-y: auto;

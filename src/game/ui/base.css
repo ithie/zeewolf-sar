@@ -5,6 +5,10 @@ html {
     height: 100%;
     touch-action: none;
 }
+canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
 body {
     background: #050505;
     color: #5f5;
@@ -121,6 +125,7 @@ body {
 @media (max-height: 520px) {
     .title {
         font-size: clamp(26px, 7vh, 64px);
+        text-shadow: 0 0 10px #ff6600;
         margin-bottom: 2px;
     }
     .subtitle {

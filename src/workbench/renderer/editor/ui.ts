@@ -985,6 +985,19 @@ export const initUI = () => {
         if (!raw) return;
         try {
             const parsed = JSON.parse(raw);
+            if (parsed.type === 'tutorial') {
+                document.getElementById('editor-tutorial-guard')?.remove();
+                const banner = document.createElement('div');
+                banner.id = 'editor-tutorial-guard';
+                banner.style.cssText =
+                    'background:#6b0000;color:#fff;font-weight:bold;padding:10px 16px;' +
+                    'margin-bottom:8px;border-radius:3px;border:1px solid #c00;font-size:13px;line-height:1.4;';
+                banner.textContent =
+                    'Tutorial-Kampagnen sind schreibgeschützt und können nicht im Editor bearbeitet werden.';
+                getEl('output').insertAdjacentElement('beforebegin', banner);
+                setTimeout(() => banner.remove(), 8000);
+                return;
+            }
             const ct = parsed.campaignTitle;
             getInput('c_title_de').value = ct ? (typeof ct === 'string' ? ct : (ct.de || '')) : 'Imported Campaign';
             getInput('c_title_en').value = ct && typeof ct !== 'string' ? (ct.en || '') : '';

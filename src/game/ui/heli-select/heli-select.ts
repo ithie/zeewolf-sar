@@ -2,7 +2,7 @@ import './heli-select.css';
 import { iso } from '../../render';
 import { HELI_TYPES, type HeliType } from '../../heli-types';
 import { RANKS } from '../../session';
-import { tileW, tileH, stepH } from '../../render-config';
+import { tileW, tileH, stepH, CANVAS_SCALE } from '../../render-config';
 import { zstate } from '../../state';
 import { I18N } from '../../i18n';
 
@@ -21,7 +21,7 @@ export const animMainMenuBg = () => {
     const c = document.getElementById('main-menu-bg-canvas') as HTMLCanvasElement | null;
     if (!c) return;
     const cx = c.getContext('2d')!;
-    c.width = 900; c.height = 500;
+    c.width = Math.round(900 * CANVAS_SCALE); c.height = Math.round(500 * CANVAS_SCALE);
     cx.clearRect(0, 0, c.width, c.height);
     const t = Date.now() * 0.001;
     const offIso = (wx: number, wy: number, wz: number, camX: number, camY: number) =>
@@ -37,9 +37,9 @@ export const drawMenuHeli = () => {
     const c = document.getElementById('menu-heli-big') as HTMLCanvasElement | null;
     if (!c) return;
     const cx = c.getContext('2d')!;
-    c.width = 800;
-    c.height = 300;
-    cx.clearRect(0, 0, 800, 300);
+    c.width = Math.round(800 * CANVAS_SCALE);
+    c.height = Math.round(300 * CANVAS_SCALE);
+    cx.clearRect(0, 0, c.width, c.height);
     const t = Date.now() * 0.001;
     const offIso = (wx: number, wy: number, wz: number, camX: number, camY: number) =>
         iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
@@ -62,9 +62,9 @@ export const animateHeliPreviews = () => {
         const c = document.getElementById('icon-' + ht.id) as HTMLCanvasElement | null;
         if (c) {
             const cx = c.getContext('2d')!;
-            c.width = 300;
-            c.height = 200;
-            cx.clearRect(0, 0, 300, 200);
+            c.width = Math.round(300 * CANVAS_SCALE);
+            c.height = Math.round(200 * CANVAS_SCALE);
+            cx.clearRect(0, 0, c.width, c.height);
             const offIso = (wx: number, wy: number, wz: number, camX: number, camY: number) =>
                 iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
             _drawHeli(ht.id, 0, 0, 0, _G.menuAngles[ht.id], 0, 0, 0, 0, 0, {

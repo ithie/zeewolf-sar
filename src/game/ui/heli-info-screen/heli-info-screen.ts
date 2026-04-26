@@ -1,10 +1,9 @@
 import './heli-info-screen.css';
 import { iso } from '../../render';
 import { HELI_TYPES } from '../../heli-types';
-import { tileW, tileH, stepH } from '../../render-config';
-import { ensureEl as _ensureEl } from '../dom-helpers';
+import { tileW, tileH, stepH, CANVAS_SCALE } from '../../render-config';
 import { showScreen } from '../nav';
-import { createBackButton } from '../back-button/back-button';
+import { mountScreenShell } from '../screen-shell/screen-shell';
 
 const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 
@@ -14,27 +13,22 @@ let _onBack: (() => void) | null = null;
 
 let _selectedHeliInfoId: string | null = null;
 let _rotorPos = 0;
+let _selectionCooldown = false;
 
 export const mountHeliInfoScreen = (onBack: () => void): void => {
     _onBack = onBack;
-    const root = _ensureEl('heli-info');
-    root.classList.add('ui-screen');
-    root.innerHTML = `
-        <div class="title">HANGAR</div>
-        <div class="subtitle">TYPENÜBERSICHT</div>
+    const body = mountScreenShell('heli-info', 'HANGAR', 'TYPENÜBERSICHT', _handleBack);
+    body.innerHTML = `
         <div id="heli-info-stage">
             <div id="heli-cards-area"></div>
             <div id="heli-detail-panel"></div>
-        </div>
-        `;
-    root.appendChild(createBackButton(_handleBack));
+        </div>`;
 };
 
 const _handleBack = () => {
     if (_selectedHeliInfoId) {
-        // deselect → back to overview
         _selectHeliInfo(_selectedHeliInfoId);
-    } else {
+    } else if (!_selectionCooldown) {
         _onBack?.();
     }
 };
@@ -49,6 +43,7 @@ export const initHeliInfoScreen = (
 
 export const toHeliInfo = () => {
     _selectedHeliInfoId = null;
+    _selectionCooldown = false;
     _buildHeliInfoCards();
     showScreen('heli-info');
     _animHeliInfo();
@@ -73,6 +68,10 @@ const _buildHeliInfoCards = () => {
 };
 
 const _selectHeliInfo = (id: string) => {
+    if (_selectionCooldown) return;
+    _selectionCooldown = true;
+    setTimeout(() => { _selectionCooldown = false; }, 500);
+
     const types = (!_IS_APP ? HELI_TYPES.filter(ht => ht.id !== 'glider') : HELI_TYPES);
     const panel = document.getElementById('heli-detail-panel')!;
 
@@ -134,9 +133,14 @@ const _animHeliInfo = () => {
             if (Math.abs(diff) > 0.001) _G.menuAngles[ht.id] += diff * 0.1;
         }
 
+        const card = c.closest('.heli-card');
+        if (card?.classList.contains('collapsed')) return;
+
         const cx = c.getContext('2d')!;
-        c.width = 254; c.height = 180;
-        cx.clearRect(0, 0, 254, 180);
+        const tW = Math.round(254 * CANVAS_SCALE);
+        const tH = Math.round(180 * CANVAS_SCALE);
+        if (c.width !== tW || c.height !== tH) { c.width = tW; c.height = tH; }
+        else cx.clearRect(0, 0, c.width, c.height);
         const offIso = (wx: number, wy: number, wz: number, camX: number, camY: number) =>
             iso(wx, wy, wz, camX, camY, { canvas: c, tileW, tileH, stepH });
         _drawHeli(ht.id, 0, 0, 0, _G.menuAngles[ht.id], 0, 0,

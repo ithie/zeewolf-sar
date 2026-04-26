@@ -102,3 +102,8 @@
         display: none;
     }
 }
+@media (max-width: 860px) {
+    #briefing-content {
+        width: min(680px, calc(100vw - 190px));
+    }
+}

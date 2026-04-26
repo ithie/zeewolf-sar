@@ -4,19 +4,18 @@ import { I18N } from '../../i18n';
 
 import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
-import { createBackButton } from '../back-button/back-button';
+import { mountScreenShell } from '../screen-shell/screen-shell';
 
 export const mountCreditsScreen = (onBack: () => void): void => {
     const root = _ensureEl('credits-screen');
-    root.classList.add('ui-screen');
     if (root.children.length > 0) return;
+    const body = mountScreenShell('credits-screen', I18N.MENU_CREDITS, '', onBack);
     const canvas = document.createElement('canvas');
     canvas.id = 'credits-canvas';
     const inner = document.createElement('div');
     inner.id = 'credits-inner';
-    root.appendChild(canvas);
-    root.appendChild(inner);
-    root.appendChild(createBackButton(onBack));
+    body.appendChild(canvas);
+    body.appendChild(inner);
 };
 
 export const toCredits = () => {
@@ -28,17 +27,13 @@ export const toCredits = () => {
 const _buildCredits = () => {
     const inner = document.getElementById('credits-inner')!;
     inner.innerHTML = '';
-    const sections = [
+    const sections: { role: string; names: string[] }[] = [
         { role: I18N.CREDITS_ROLE_DEVELOPMENT, names: ['Yarrick'] },
         { role: I18N.CREDITS_ROLE_CAMPAIGN, names: ['Jay "G" Man'] },
         { role: I18N.CREDITS_ROLE_SOUND, names: ['Chris "Loud" E.'] },
-        { role: I18N.CREDITS_ROLE_TEST, names: ['Da Harp', 'Jay "G" Man', 'DBuhn', 'Gaunt', 'Bri B.'] },
+        { role: I18N.CREDITS_ROLE_TEST, names: ['Da Harp', 'Jay "G" Man', 'DBuhn', 'Gaunt', 'Bigwilli', 'Bri B.'] },
         { role: I18N.CREDITS_ROLE_INSPIREDBY, names: ['Zeewolf (Binary Asylum, 1994)'] },
     ];
-    const title = document.createElement('div');
-    title.className = 'credits-title';
-    title.textContent = I18N.MENU_CREDITS;
-    inner.appendChild(title);
     let delay = 0.15;
     sections.forEach(s => {
         const sec = document.createElement('div');

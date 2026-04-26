@@ -1,10 +1,10 @@
 import './mission-select.css';
 import { I18N, localize } from '../../i18n';
-import { createBackButton } from '../back-button/back-button';
 import { ensureEl } from '../dom-helpers';
 import { isMissionUnlocked, type PlayerSession } from '../../session';
 import type { CampaignExport } from '../../../shared/types';
 import { showScreen } from '../nav';
+import { mountScreenShell } from '../screen-shell/screen-shell';
 
 type MissionSelectDeps = {
     campaign: CampaignExport;
@@ -15,7 +15,7 @@ type MissionSelectDeps = {
 };
 
 export const mountMissionSelect = () => {
-    ensureEl('mission-select').classList.add('ui-screen');
+    ensureEl('mission-select');
 };
 
 export const showMissionSelect = (deps: MissionSelectDeps) => {
@@ -23,15 +23,11 @@ export const showMissionSelect = (deps: MissionSelectDeps) => {
     const key = String(campaignIndex);
     const cp = session.campaignProgress[key];
 
-    const el = document.getElementById('mission-select')!;
-    el.innerHTML = `
-        <div class="title">${localize(campaign.campaignTitle)}</div>
-        <div class="subtitle">${I18N.MISSION_SELECT_SUB}</div>
-        <div id="mission-grid"></div>
-        `;
-    el.appendChild(createBackButton(onBack));
+    const body = mountScreenShell('mission-select', localize(campaign.campaignTitle), I18N.MISSION_SELECT_SUB, onBack);
 
-    const grid = document.getElementById('mission-grid')!;
+    const grid = document.createElement('div');
+    grid.id = 'mission-grid';
+    body.appendChild(grid);
     campaign.levels.forEach((level, i) => {
         const unlocked = isMissionUnlocked(session, key, i, campaign.type);
         const mp = cp?.missions[i];

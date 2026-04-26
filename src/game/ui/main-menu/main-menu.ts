@@ -2,6 +2,7 @@ import './main-menu.css';
 import { I18N } from '../../i18n';
 import { ensureEl as _ensureEl } from '../dom-helpers';
 import { showScreen } from '../nav';
+import { mountScreenShell } from '../screen-shell/screen-shell';
 
 const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 
@@ -83,12 +84,12 @@ export const mountMainMenu = (cb: MainMenuCallbacks) => {
     _splashHandler = _handleSplashClick;
     splash.addEventListener('click', _handleSplashClick);
 
-    const menu = _ensureEl('main-menu');
-    menu.classList.add('ui-screen');
-    menu.innerHTML = `
-        <canvas id="main-menu-bg-canvas"></canvas>
-        <div class="title">${I18N.MENU_TITLE}</div>
-        <div class="subtitle" style="margin-bottom: 44px">${I18N.MENU_SUBTITLE}</div>
+    const menuBody = mountScreenShell('main-menu', I18N.MENU_TITLE, I18N.MENU_SUBTITLE);
+    const menuRoot = document.getElementById('main-menu')!;
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.id = 'main-menu-bg-canvas';
+    menuRoot.insertBefore(bgCanvas, menuRoot.firstChild);
+    menuBody.innerHTML = `
         <nav class="menu-nav">
             <div class="menu-item" id="menu-item-start">${I18N.MENU_START}</div>
             ${!_IS_APP && cb.onMultiplayer ? `<div class="menu-item" id="menu-item-multiplayer">${I18N.MENU_MULTIPLAYER}</div>` : ''}
