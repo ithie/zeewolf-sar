@@ -2289,7 +2289,16 @@ window.onkeydown = e => {
     if (!_IS_APP) {
         _unlockSeq = (_unlockSeq + e.key.toUpperCase()).slice(-6);
         if (_unlockSeq === 'UNLOCK') {
+            const _campaigns = campaignHandler.getCampaigns();
             _session.allUnlocked = true;
+            _session.rankOverride = RANKS.length - 1;
+            _session.highestUnlockedCampaignIndex = _campaigns.length - 1;
+            _campaigns.forEach((c, i) => {
+                _session.campaignProgress[String(i)] = {
+                    completed: true,
+                    missions: c.levels.map(() => ({ completed: true, bestTimeMs: null })),
+                };
+            });
             saveSession(_session);
             _unlockSeq = '';
             showMsg(I18N.UNLOCK_ALL!);
