@@ -1,5 +1,15 @@
 # SAR: Callsign WOLF — Changelog
 
+## v25.3.4 — Campaign Progression & Fixes
+
+### Changed
+
+- **Tutorial gate**: Free-Flight and regular campaigns are now locked until the tutorial campaign is fully completed. Cross-device imported saves (via save code) are unaffected.
+- **Mission complete**: canvas is now cleared immediately when a mission is won — the game world no longer shows behind the success screen.
+- **Screen scroll reset**: all UI screens scroll back to the top when navigated to.
+
+---
+
 ## v25.3.3 — Privacy & Mobile Performance
 
 ### New

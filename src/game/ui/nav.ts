@@ -15,6 +15,12 @@ export type NavScreen = typeof NAV_SCREENS[number];
 export const showScreen = (id: NavScreen | null): void => {
     NAV_SCREENS.forEach(s => {
         const el = document.getElementById(s);
-        if (el) el.style.display = s === id ? 'flex' : 'none';
+        if (!el) return;
+        if (s === id) {
+            el.style.display = 'flex';
+            el.scrollTop = 0;
+        } else {
+            el.style.display = 'none';
+        }
     });
 };

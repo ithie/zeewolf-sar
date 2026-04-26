@@ -294,6 +294,7 @@ function missionComplete() {
     saveSession(_session);
     cancelAnimationFrame(_rafId);
     _rafId = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (allDone) {
         document.getElementById('campaign-complete-name')!.textContent = '';

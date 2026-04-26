@@ -131,13 +131,13 @@ const _DE = {
     CRASH_TREE: 'BAUMKONTAKT',
 
     WHATS_NEW_HEADLINE: 'NEUIGKEITEN',
-    WHATS_NEW_VERSION: 'v25.3',
-    WHATS_NEW_TITLE: 'Neuer Name & Ladescreen',
+    WHATS_NEW_VERSION: 'v25.3.4',
+    WHATS_NEW_TITLE: 'Kampagnen-Progression',
     WHATS_NEW_HINT: 'KLICKEN ZUM FORTFAHREN',
     WHATS_NEW_ITEMS: [
-        'Das Spiel heißt jetzt SAR: Callsign WOLF',
-        'Dein Rufzeichen ist WOLF — bis du es in den Einstellungen änderst',
-        'Neuer Ladescreen vor jedem Einsatz',
+        'Das Tutorial muss abgeschlossen werden, bevor FreeFlight und die reguläre Kampagne zugänglich sind',
+        'Datenschutz-Banner überarbeitet: Zustimmen speichert deinen Fortschritt, Ablehnen spielt ohne Speicherung',
+        'Kippschalter für den Absetz-Modus auf Touch-Geräten',
     ],
 
     PILOT_HEADING: 'PROFIL',
@@ -284,13 +284,13 @@ const _EN = {
     CRASH_TREE: 'TREE CONTACT',
 
     WHATS_NEW_HEADLINE: 'WHAT\'S NEW',
-    WHATS_NEW_VERSION: 'v25.3',
-    WHATS_NEW_TITLE: 'New Name & Loading Screen',
+    WHATS_NEW_VERSION: 'v25.3.4',
+    WHATS_NEW_TITLE: 'Campaign Progression',
     WHATS_NEW_HINT: 'CLICK TO CONTINUE',
     WHATS_NEW_ITEMS: [
-        'The game is now called SAR: Callsign WOLF',
-        'Your callsign is WOLF — change it in settings',
-        'New loading screen before each mission',
+        'The tutorial must be completed before Free-Flight and the regular campaign become accessible',
+        'Privacy banner reworked: accepting saves your progress, declining plays without persistence',
+        'Rocker switch for deliver mode on touch devices',
     ],
 
     PILOT_HEADING: 'PROFILE',
