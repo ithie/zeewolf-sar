@@ -46,7 +46,7 @@ import {
     updatePhysics,
 } from './physics';
 import { createDrawObjects } from './draw-objects';
-import { tileW, tileH, stepH } from './render-config';
+import { tileW, tileH, stepH, CANVAS_SCALE } from './render-config';
 import { mountCreditsScreen, toCredits } from './ui/credits-screen/credits-screen';
 import { createBackButton } from './ui/back-button/back-button';
 import { startMenuParticles, stopMenuParticles } from './ui/menu-particles/menu-particles';
@@ -891,54 +891,74 @@ function drawScene() {
     // Glider HUD
     if (!_IS_APP && !zstate.introActive && G.heli.type === 'glider') {
         const agl = Math.max(0, G.heli.z - getGround(G.heli.x, G.heli.y, G.points, null));
-        ctx.font = 'bold 13px monospace';
+        const cs = CANVAS_SCALE;
+        const lh = Math.round(18 * cs);
+        ctx.font = `bold ${Math.round(13 * cs)}px monospace`;
         ctx.fillStyle = agl < 3 ? '#f44' : '#8ef';
-        ctx.fillText(`ALT  ${Math.round(agl * 10)}m`, 20, canvas.height - 36);
+        ctx.fillText(`ALT  ${Math.round(agl * 10)}m`, Math.round(20 * cs), canvas.height - lh * 2);
         ctx.fillStyle = '#aaa';
-        ctx.fillText('↑↓ PITCH   ←→ BANK', 20, canvas.height - 18);
+        ctx.fillText('↑↓ PITCH   ←→ BANK', Math.round(20 * cs), canvas.height - lh);
     }
 
     // HUD
     if (!zstate.introActive) {
-        ctx.font = 'bold 13px monospace';
+        ctx.save();
+        const cs = CANVAS_SCALE;
+        const isTouch = _isTouchDevice();
+        const hudFont = Math.round(13 * cs);
+        const lineH = Math.round(16 * cs);
+        const heliPos = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas });
+        const hX = heliPos.x + Math.round(45 * cs);
+        const hY = heliPos.y - Math.round(35 * cs);
+
+        ctx.font = `bold ${hudFont}px monospace`;
+        if (isTouch) {
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+        }
+        const ht = (text: string, x: number, y: number) => {
+            if (isTouch) ctx.strokeText(text, x, y);
+            ctx.fillText(text, x, y);
+        };
+
         ctx.fillStyle = '#5f5';
-        let hX = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas }).x + 45;
-        let hY = iso(G.heli.x, G.heli.y, G.heli.z, camX, camY, { stepH, tileW, tileH, canvas }).y - 35;
-        ctx.fillText(`ALT: ${Math.round((G.heli.z - getGround(G.heli.x, G.heli.y)) * 10)}m`, hX, hY);
-        ctx.fillText(`SPD: ${Math.round(Math.hypot(G.heli.vx, G.heli.vy) * 1115)}km/h`, hX, hY + 16);
-        ctx.fillText(`WINCH: ${Math.round(G.heli.winch * 10)}m`, hX, hY + 32);
+        ht(`ALT: ${Math.round((G.heli.z - getGround(G.heli.x, G.heli.y)) * 10)}m`, hX, hY);
+        ht(`SPD: ${Math.round(Math.hypot(G.heli.vx, G.heli.vy) * 1115)}km/h`, hX, hY + lineH);
+        ht(`WINCH: ${Math.round(G.heli.winch * 10)}m`, hX, hY + lineH * 2);
         ctx.fillStyle = G.heli.fuel < 20 ? '#f00' : '#5f5';
-        ctx.fillText(`FUEL: ${Math.max(0, Math.round(G.heli.fuel))}%`, hX, hY + 48);
+        ht(`FUEL: ${Math.max(0, Math.round(G.heli.fuel))}%`, hX, hY + lineH * 3);
         ctx.fillStyle = G.heli.onboard >= G.heli.maxLoad ? '#f90' : '#5f5';
-        ctx.fillText(`PAX: ${G.heli.onboard}/${G.heli.maxLoad}`, hX, hY + 64);
+        ht(`PAX: ${G.heli.onboard}/${G.heli.maxLoad}`, hX, hY + lineH * 4);
         if (G.deliverMode) {
             ctx.save();
             ctx.fillStyle = '#f90';
             ctx.textAlign = 'center';
-            ctx.font = 'bold 14px monospace';
-            ctx.fillText(I18N.DELIVER_MODE_ON, canvas.width / 2, 28);
+            ctx.font = `bold ${Math.round(14 * cs)}px monospace`;
+            if (isTouch) ctx.strokeText(I18N.DELIVER_MODE_ON, canvas.width / 2, Math.round(28 * cs));
+            ctx.fillText(I18N.DELIVER_MODE_ON, canvas.width / 2, Math.round(28 * cs));
             ctx.restore();
+            ctx.font = `bold ${hudFont}px monospace`;
         }
         setDeliverToggle(G.deliverMode);
         ctx.fillStyle = '#5f5';
         const landObj = G.objectives.find(o => o.type === 'land_at');
         if (landObj) {
-            ctx.fillText(`FLY TO: ${landObj.target.toUpperCase()}`, hX, hY + 80);
+            ht(`FLY TO: ${landObj.target.toUpperCase()}`, hX, hY + lineH * 5);
         } else {
-            ctx.fillText(`SAVED: ${G.totalRescued}/${G.goalCount}`, hX, hY + 80);
+            ht(`SAVED: ${G.totalRescued}/${G.goalCount}`, hX, hY + lineH * 5);
         }
         if (_session.playerName) {
             ctx.fillStyle = '#888';
-            ctx.font = '11px monospace';
-            ctx.fillText(_session.playerName, hX, hY + 100);
-            ctx.font = 'bold 13px monospace';
+            ctx.font = `${Math.round(11 * cs)}px monospace`;
+            ht(_session.playerName, hX, hY + lineH * 6 + Math.round(4 * cs));
         }
 
         // minimap
-        const ms = 140,
-            mp = 20;
+        const ms = Math.round(140 * cs),
+            mp = Math.round(20 * cs);
         const bx = canvas.width - ms - mp,
-            by = _isTouchDevice() ? mp : canvas.height - ms - mp;
+            by = isTouch ? mp : canvas.height - ms - mp;
         const sc = ms / gridSize;
 
         // Hilfsfunktion: liegt Punkt innerhalb der Minimap?
@@ -951,6 +971,7 @@ function drawScene() {
         ctx.fillStyle = 'rgba(0,20,10,0.8)';
         ctx.fillRect(bx, by, ms, ms);
         ctx.strokeStyle = '#5f5';
+        ctx.lineWidth = 1;
         ctx.strokeRect(bx, by, ms, ms);
 
         // Clipping auf Minimap-Bereich
@@ -968,29 +989,33 @@ function drawScene() {
                 (G.PAD.yMax - G.PAD.yMin) * sc
             );
         }
+        const dotR = Math.max(1, Math.round(3 * cs));
         if (hasCarrier() && inMM(G.CARRIER.x, G.CARRIER.y)) {
             ctx.fillStyle = '#889';
             ctx.beginPath();
-            ctx.arc(bx + G.CARRIER.x * sc, by + G.CARRIER.y * sc, 4, 0, 7);
+            ctx.arc(bx + G.CARRIER.x * sc, by + G.CARRIER.y * sc, dotR, 0, 7);
             ctx.fill();
         }
+        const heliDot = Math.max(1, Math.round(1.5 * cs));
         if (inMM(G.heli.x, G.heli.y)) {
             ctx.fillStyle = '#fff';
-            ctx.fillRect(bx + G.heli.x * sc - 1.5, by + G.heli.y * sc - 1.5, 3, 3);
+            ctx.fillRect(bx + G.heli.x * sc - heliDot, by + G.heli.y * sc - heliDot, heliDot * 2, heliDot * 2);
         }
         // payload dots
+        const payDot = Math.max(1, Math.round(2 * cs));
         G.payloads.forEach(p => {
             if (p.rescued || p.npcTarget || p.hanging) return;
             if (!inMM(p.x, p.y)) return;
             ctx.fillStyle = p.type === 'crate' ? '#d84' : '#f00';
             ctx.beginPath();
-            ctx.arc(bx + p.x * sc, by + p.y * sc, 2, 0, 7);
+            ctx.arc(bx + p.x * sc, by + p.y * sc, payDot, 0, 7);
             ctx.fill();
         });
 
         if (!_IS_APP) mpRenderMinimapDot(ctx, bx, by, sc, inMM);
 
-        ctx.restore();
+        ctx.restore(); // clip
+        ctx.restore(); // HUD state
     }
 
     if (!_IS_APP) mpTickAndHUD(ctx, canvas, dt);
@@ -998,10 +1023,11 @@ function drawScene() {
     if (showCollisionBoxes || _isTouchDevice()) {
         const fps = Math.round(_fpsSmooth);
         const fpsColor = fps >= 55 ? '#0f0' : fps >= 30 ? '#ff0' : '#f44';
-        ctx.font = 'bold 13px monospace';
+        const cs = CANVAS_SCALE;
+        ctx.font = `bold ${Math.round(13 * cs)}px monospace`;
         ctx.fillStyle = fpsColor;
         ctx.textAlign = 'right';
-        ctx.fillText(`${fps} FPS`, canvas.width - 10, canvas.height - 10);
+        ctx.fillText(`${fps} FPS`, canvas.width - Math.round(10 * cs), canvas.height - Math.round(10 * cs));
         ctx.textAlign = 'left';
     }
 
