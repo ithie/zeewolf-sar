@@ -59,10 +59,11 @@ describe('HELI_TYPES', () => {
         });
     });
 
-    it('all helis have a DEF with at least one face', () => {
+    it('all helis have a DEF with at least one face (root or parts)', () => {
         HELI_TYPES.forEach(h => {
             expect(h.def).toBeDefined();
-            expect(h.def.faces.length).toBeGreaterThan(0);
+            const partFaces = h.def.parts?.reduce((sum, p) => sum + p.faces.length, 0) ?? 0;
+            expect(h.def.faces.length + partFaces).toBeGreaterThan(0);
         });
     });
 

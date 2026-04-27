@@ -1,6 +1,5 @@
 import { state, getCurrentMission } from './state';
 import { COLORS, getLandColor } from '@/shared/constants';
-import { renderIso } from './render-utils';
 
 const canvas = document.getElementById('editorCanvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -356,13 +355,3 @@ const syncVesselUI = (obj: any, kind: 'carrier' | 'boat' | 'submarine') => {
 };
 
 
-export const generatePreviewBase64 = (): string => {
-    const offscreen = document.createElement('canvas');
-    offscreen.width = 400;
-    offscreen.height = 300;
-    const offCtx = offscreen.getContext('2d')!;
-    offCtx.fillStyle = '#001122';
-    offCtx.fillRect(0, 0, 400, 300);
-    renderIso(offCtx, 400, 300, 'wireframe', 1, 0, 0, getCurrentMission(), true);
-    return offscreen.toDataURL('image/jpeg', 0.8);
-};

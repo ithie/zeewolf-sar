@@ -155,6 +155,7 @@ let _stepIndex = 0;
 let _isTouch = false;
 let _flashing = false;
 let _flashTimeout = 0;
+let _onComplete: (() => void) | null = null;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -200,10 +201,12 @@ const _flashOk = (next: TutorialStep | null): void => {
                 const hud = document.getElementById('tutorial-hud');
                 if (hud) hud.style.opacity = '0';
                 _setHighlight(null);
+                if (_active) _onComplete?.();
             }
         }, 700);
     } else {
         _flashing = false;
+        if (!next && _active) _onComplete?.();
     }
 };
 
@@ -211,7 +214,7 @@ const _flashOk = (next: TutorialStep | null): void => {
 
 export const isTutorialRunning = (): boolean => _active;
 
-export const initTutorial = (missionIndex: number, isTouch: boolean, g: GameState): void => {
+export const initTutorial = (missionIndex: number, isTouch: boolean, g: GameState, onComplete: () => void): void => {
     destroyTutorial();
     if (missionIndex < 0 || missionIndex >= _MISSIONS.length) return;
 
@@ -219,6 +222,7 @@ export const initTutorial = (missionIndex: number, isTouch: boolean, g: GameStat
     _stepIndex = 0;
     _isTouch = isTouch;
     _active = true;
+    _onComplete = onComplete;
     _startX = g.START_POS?.x ?? g.heli.x;
     _startY = g.START_POS?.y ?? g.heli.y;
 
@@ -253,6 +257,7 @@ export const tutorialTick = (g: GameState): void => {
 export const destroyTutorial = (): void => {
     _active = false;
     _flashing = false;
+    _onComplete = null;
     if (_flashTimeout) {
         clearTimeout(_flashTimeout);
         _flashTimeout = 0;

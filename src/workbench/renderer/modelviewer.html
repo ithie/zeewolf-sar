@@ -58,8 +58,10 @@
             import CARRIER_TOWER_DEF from '/src/game/models/carrier_tower.zdef';
             import OSPREY_HELI_DEF from '/src/game/models/osprey_heli.zdef';
             import OSPREY_PLANE_DEF from '/src/game/models/osprey_plane.zdef';
+            import ORNITHOPTER_DEF from '/src/game/models/ornithopter.zdef';
             import { createSceneRenderer } from '/src/game/scene-renderer.ts';
             import { createDrawObjects } from '/src/game/draw-objects.ts';
+            import { applyParts } from '/src/game/def-utils.ts';
 
             const canvas = document.getElementById('viewerCanvas');
             const ctx = canvas.getContext('2d');
@@ -103,6 +105,7 @@
                 { id: 'glider', type: 'aircraft', x: 65, y: 0, color: '#eee', label: 'ASK-21 GLIDER' },
                 { id: 'osprey_heli', type: 'osprey', x: 5, y: 75, color: '#f60', label: 'V-22 OSPREY (HELI)' },
                 { id: 'osprey_plane', type: 'osprey', x: 30, y: 75, color: '#f60', label: 'V-22 OSPREY (PLANE)' },
+                { id: 'ornithopter', type: 'ornithopter', x: 55, y: 75, color: '#9ab', label: 'ORNITHOPTER' },
             ];
 
             canvas.addEventListener('mousedown', e => {
@@ -828,6 +831,19 @@
                         drawHeli('osprey_plane', 30, 75, 2, spin, 0, 0, rotorAngle, cx, cy);
                     },
                 });
+                SceneRenderer.flush(cam.x, cam.y);
+
+                const theta = time * 9;
+                const tc = Math.cos(theta), ts = Math.sin(theta);
+                const wingAngle    = 0.297 + 0.820 * tc;
+                // outer trails inner by 90°, small amplitude (23°) — no harsh kinks
+                const wingTipAngle = 0.4 * ts;
+                SceneRenderer.add(applyParts(ORNITHOPTER_DEF, {
+                    wingAngle,
+                    wingAngleInv:    -wingAngle,
+                    wingTipAngle,
+                    wingTipAngleInv: -wingTipAngle,
+                }), { x: 55, y: 75, z: 2, angle: spin });
                 SceneRenderer.flush(cam.x, cam.y);
 
                 SceneRenderer.add(SAILBOAT_DEF, { x: 5, y: 25, z: 0, angle: spin });

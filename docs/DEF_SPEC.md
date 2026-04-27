@@ -106,6 +106,65 @@ There is **no per-face sort within an instance** — this is intentional to pres
 
 ---
 
+## Animated Parts (`parts` + `applyParts`)
+
+For runtime-animated sub-geometry, add a `parts` array to the DEF. Each part is a named group of faces with an optional rotation that is driven by a runtime parameter.
+
+```typescript
+interface DEFPart {
+    id: string;
+    faces: DEFFace[];
+    rotate?: {
+        pivot: [number, number, number]; // rotation origin in local object space
+        axis:  [number, number, number]; // unit rotation axis, e.g. [0, 0, 1] for Z
+        param: string;                   // key into the params map (value in radians)
+    };
+    parent?: string; // id of another part — see Chained Rotations below
+}
+```
+
+Call `applyParts` each frame before passing the DEF to `SceneRenderer`:
+
+```typescript
+import { applyParts } from 'src/game/def-utils';
+
+const renderedDef = applyParts(def, { wingAngle: Math.sin(t) * 0.4 });
+SceneRenderer.add(renderedDef, instance);
+```
+
+`applyParts` bakes all parts into `def.faces` using Rodrigues' rotation formula and returns a new DEF object. The original is not mutated.
+
+An optional `opts.only` array limits which part IDs are included in the output (useful for previewing a single part in the model editor).
+
+### Chained Rotations (`parent`)
+
+When a part has a `parent` field, its rotation is applied **in the already-transformed space of the parent part**:
+
+1. The parent's rotation is applied to the child's vertices first.
+2. The child's own `pivot` is also transformed by the parent's rotation.
+3. The child then rotates around that transformed pivot by its own angle.
+
+This lets outer segments of a wing, arm, or antenna follow their inner segment's movement and additionally rotate relative to it.
+
+**Rules:**
+
+- `parent` must be the `id` of another part in the same DEF.
+- Chains can be arbitrarily deep, but cycles are undefined behaviour.
+- Parts without `parent` behave exactly as before (backward compatible).
+- `opts.only` only controls which parts contribute faces to the output; parent rotation transforms are always computed for the dependency chain.
+
+**Example — ornithopter wing:**
+
+```json
+{ "id": "wing_L_inner", "rotate": { "pivot": [-0.2, 0.25, 0.48], "axis": [1,0,0], "param": "wingAngle" }, "faces": [...] },
+{ "id": "wing_L_outer", "parent": "wing_L_inner",
+  "rotate": { "pivot": [-0.25, 2.5, 1.4], "axis": [1,0,0], "param": "wingTipAngle" }, "faces": [...] }
+```
+
+`wing_L_outer` moves with `wing_L_inner` and folds additionally around the (now-moved) tip pivot.
+
+---
+
 ## Instance Schema
 
 ```typescript

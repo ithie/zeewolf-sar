@@ -12,6 +12,7 @@
 
 import type { IsoFn, SceneRenderer } from './scene-renderer';
 import { getHeliType } from './heli-types';
+import { applyParts } from './def-utils';
 
 const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 import FUEL_TRUCK_CHASSIS_DEF from './models/fuel_truck_chassis.zdef';
@@ -38,6 +39,8 @@ export interface DrawHeliOpts {
     strokeColor?: string;
     /** Called per shadow vertex to get ground z. If omitted, shadow uses hZ. */
     shadowGetGround?: (x: number, y: number) => number;
+    /** Ornithopter only: flap frequency multiplier (1.0 = hover, >1 = ascending). */
+    flapRate?: number;
 }
 
 export interface DrawFuelTruckOpts {
@@ -530,6 +533,7 @@ export function createDrawObjects(
             fillColor = '#ff6600',
             strokeColor = '#dd3300',
             shadowGetGround,
+            flapRate = 1.0,
         } = opts;
 
         const actualCtx = tCtx ?? ctx;
@@ -1078,6 +1082,61 @@ export function createDrawObjects(
                         actualCtx.stroke();
                     }
                 }
+            }
+        } else if (type === 'ornithopter') {
+            const flapPhase = hRotor * 0.22 * flapRate;
+            const wingAngle = Math.sin(flapPhase) * 0.32;
+            const wingTipAngle = Math.sin(flapPhase + 1.0) * 0.14;
+            if (isShadow) {
+                const groundZ = shadowGetGround ? shadowGetGround(hX, hY) : hZ;
+                actualCtx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.4 - (hZ - groundZ) * 0.08)})`;
+                // Boxy fuselage silhouette
+                actualCtx.beginPath();
+                actualCtx.moveTo(p(0.9, 0.35, 0).x, p(0.9, 0.35, 0).y);
+                actualCtx.lineTo(p(0.9, -0.35, 0).x, p(0.9, -0.35, 0).y);
+                actualCtx.lineTo(p(-1.6, -0.15, 0).x, p(-1.6, -0.15, 0).y);
+                actualCtx.lineTo(p(-1.6, 0.15, 0).x, p(-1.6, 0.15, 0).y);
+                actualCtx.closePath();
+                actualCtx.fill();
+                // Wing shadows — reach scales with cos(wingAngle): up = small, down = large
+                const wingReach = 3.5 * Math.max(0.25, Math.cos(wingAngle));
+                actualCtx.beginPath();
+                actualCtx.moveTo(p(0.2, 0.25, 0).x, p(0.2, 0.25, 0).y);
+                actualCtx.lineTo(p(-0.7, 0.22, 0).x, p(-0.7, 0.22, 0).y);
+                actualCtx.lineTo(p(-0.6, wingReach, 0).x, p(-0.6, wingReach, 0).y);
+                actualCtx.lineTo(p(0.1, wingReach, 0).x, p(0.1, wingReach, 0).y);
+                actualCtx.closePath();
+                actualCtx.fill();
+                actualCtx.beginPath();
+                actualCtx.moveTo(p(0.2, -0.25, 0).x, p(0.2, -0.25, 0).y);
+                actualCtx.lineTo(p(0.1, -wingReach, 0).x, p(0.1, -wingReach, 0).y);
+                actualCtx.lineTo(p(-0.6, -wingReach, 0).x, p(-0.6, -wingReach, 0).y);
+                actualCtx.lineTo(p(-0.7, -0.22, 0).x, p(-0.7, -0.22, 0).y);
+                actualCtx.closePath();
+                actualCtx.fill();
+                return;
+            }
+            const wf = (lx: number, ly: number, lz: number) => ({
+                x: lx * s * cosA - ly * s * sinA + hX,
+                y: lx * s * sinA + ly * s * cosA + hY,
+                z: hZ + (lz * s + ly * s * hRoll * 1.0 + lx * s * hTilt * 1.0),
+            });
+            const rollBias = hRoll * 0.15;
+            const baked = applyParts(getHeliType(type).def, {
+                wingAngle: wingAngle + rollBias,
+                wingAngleInv: -(wingAngle - rollBias),
+                wingTipAngle: wingTipAngle + rollBias * 0.5,
+                wingTipAngleInv: -(wingTipAngle - rollBias * 0.5),
+            });
+            const sorted = [...baked.faces]
+                .map(face => {
+                    const pts = face.verts.map(([lx, ly, lz]: number[]) => wf(lx, ly, lz));
+                    const depth = pts.reduce((sum, pt) => sum + pt.x + pt.y, 0) / pts.length;
+                    return { pts, color: face.color, stroke: face.stroke ?? null, depth };
+                })
+                .sort((a, b) => a.depth - b.depth);
+            for (const f of sorted) {
+                faceFn(f.pts, f.color, f.stroke, 0, camX, camY);
             }
         }
 

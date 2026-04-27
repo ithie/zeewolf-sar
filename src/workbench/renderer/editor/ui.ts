@@ -1,5 +1,5 @@
 import { state, createEmptyMission, getCurrentMission } from './state';
-import { drawMap, generatePreviewBase64 } from './render';
+import { drawMap } from './render';
 import { compressTerrain, decompressTerrain, compressFoliage, decompressFoliage } from '@/shared/utils';
 import { Mission } from '@/shared/types';
 
@@ -955,7 +955,6 @@ export const initUI = () => {
                         ? decompressFoliage((m as any).foliage)
                         : (m as any).foliage || []
                 ),
-                previewBase64: generatePreviewBase64(),
             };
         });
 

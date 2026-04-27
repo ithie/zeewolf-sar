@@ -49,7 +49,6 @@ export interface Mission {
     headline: LocalizedString;
     sublines?: LocalizedString[];
     briefing: LocalizedString;
-    previewBase64?: string;
     gridSize: number;
     terrain: number[][];
 

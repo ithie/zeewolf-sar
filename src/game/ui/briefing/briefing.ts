@@ -9,7 +9,7 @@ export const mountBriefing = () => {
     el.classList.add('ui-screen');
     el.innerHTML = `
         <div id="briefing-content">
-            <img id="briefing-map" src="" alt="Mission Map" />
+            <canvas id="briefing-map"></canvas>
             <div id="briefing-text">
                 <div id="briefing-address"></div>
                 <div id="briefing-headline"></div>
@@ -34,12 +34,12 @@ export const showBriefing = (
     headline: LocalizedString | undefined,
     sublines: LocalizedString[] | undefined,
     briefing: LocalizedString | undefined,
-    previewBase64: string | undefined,
+    renderPreview: ((canvas: HTMLCanvasElement) => void) | undefined,
     address: string,
 ) => {
-    const mapEl = document.getElementById('briefing-map') as HTMLImageElement;
-    if (previewBase64) {
-        mapEl.src = previewBase64;
+    const mapEl = document.getElementById('briefing-map') as HTMLCanvasElement;
+    if (renderPreview) {
+        renderPreview(mapEl);
         mapEl.style.display = 'block';
     } else {
         mapEl.style.display = 'none';

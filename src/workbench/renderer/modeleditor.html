@@ -253,6 +253,23 @@
                 flex-shrink: 0;
             }
 
+            .part-parent-row {
+                padding: 2px 5px 4px;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 9px;
+                color: var(--dim);
+            }
+            .part-parent-row select {
+                flex: 1;
+                font-size: 9px;
+                background: var(--bg2);
+                color: var(--fg);
+                border: 1px solid var(--border);
+                border-radius: 2px;
+            }
+
             .vert-row {
                 display: flex;
                 align-items: center;
@@ -571,7 +588,7 @@
             import FUEL_TRUCK_TANK_DEF from '/src/game/models/fuel_truck_tank.zdef';
             import FUEL_TRUCK_CAB_DEF from '/src/game/models/fuel_truck_cab.zdef';
             import { createSceneRenderer } from '/src/game/scene-renderer.ts';
-            import { applyParts } from '/src/game/def-utils.ts';
+            import { applyParts, getTransformedPivots } from '/src/game/def-utils.ts';
 
             const TW = 64,
                 TH = 32,
@@ -625,6 +642,15 @@
                 partTestAngles: {},
                 dirty: false,
                 filename: null,
+            };
+
+            const buildTestParams = () => {
+                const p = {};
+                for (const part of state.def?.parts ?? []) {
+                    if (part.rotate && state.partTestAngles[part.id] !== undefined)
+                        p[part.rotate.param] = state.partTestAngles[part.id];
+                }
+                return p;
             };
 
             // Per-quadrant independent grids
@@ -802,13 +828,14 @@
                 ctx.fill();
             };
 
-            const drawPivotCircles = () => {
+            const drawPivotCircles = (params) => {
                 if (!state.def?.parts) return;
+                const pivots = getTransformedPivots(state.def, params);
                 let colorIdx = 0;
                 for (const part of state.def.parts) {
                     if (!part.rotate) continue;
                     const color = PIVOT_COLORS[colorIdx++ % PIVOT_COLORS.length];
-                    const [px, py, pz] = part.rotate.pivot;
+                    const [px, py, pz] = pivots.get(part.id) ?? part.rotate.pivot;
                     const pt = localToScreen(px, py, pz);
                     ctx.save();
                     ctx.strokeStyle = color;
@@ -824,11 +851,12 @@
                 }
             };
 
-            const hitTestPivot = (mx, my) => {
+            const hitTestPivot = (mx, my, params = {}) => {
                 if (!state.def?.parts) return null;
+                const pivots = getTransformedPivots(state.def, params);
                 for (const part of state.def.parts) {
                     if (!part.rotate) continue;
-                    const [px, py, pz] = part.rotate.pivot;
+                    const [px, py, pz] = pivots.get(part.id) ?? part.rotate.pivot;
                     const pt = localToScreen(px, py, pz);
                     if (Math.hypot(mx - pt.x, my - pt.y) < 9) return part.id;
                 }
@@ -869,11 +897,7 @@
                         if (state.selectedFaceIdx >= 0 && activeFaces[state.selectedFaceIdx]) {
                             colors[activeFaces[state.selectedFaceIdx].id] = '#ffdd44';
                         }
-                        const testParams = {};
-                        for (const part of state.def.parts || []) {
-                            if (part.rotate && state.partTestAngles[part.id] !== undefined)
-                                testParams[part.rotate.param] = state.partTestAngles[part.id];
-                        }
+                        const testParams = buildTestParams();
                         const renderedDef = applyParts(state.def, testParams);
                         SceneRenderer.debugCollision = showCboxes;
                         SceneRenderer.add(renderedDef, { x: 0, y: 0, angle: renderViewAngle, colors });
@@ -914,7 +938,7 @@
                             }
                         }
 
-                        drawPivotCircles();
+                        drawPivotCircles(testParams);
 
                         // Rescue zones
                         if (state.def?.rescueZones?.length) {
@@ -1004,6 +1028,7 @@
                 }
                 sec.style.display = '';
                 let colorIdx = 0;
+                const allPartIds = state.def.parts.map(p => p.id);
                 list.innerHTML = state.def.parts
                     .map(part => {
                         const isRotating = !!part.rotate;
@@ -1016,6 +1041,18 @@
         <span class="part-slider-val" id="pval-${part.id}">${((angle * 180) / Math.PI).toFixed(0)}°</span>
       </div>`
                             : '';
+                        const parentOptions = allPartIds
+                            .filter(id => id !== part.id)
+                            .map(id => `<option value="${id}" ${part.parent === id ? 'selected' : ''}>${id}</option>`)
+                            .join('');
+                        const parentRow = `
+      <div class="part-parent-row">
+        <span>parent</span>
+        <select data-pid="${part.id}" class="part-parent-select">
+          <option value="" ${!part.parent ? 'selected' : ''}>—</option>
+          ${parentOptions}
+        </select>
+      </div>`;
                         return `
       <div class="part-item ${state.activePart === part.id ? 'active' : ''}" data-pid="${part.id}">
         <div class="part-header">
@@ -1023,7 +1060,7 @@
           <div class="part-name">${part.id}</div>
           <div class="part-info">${part.faces.length}f</div>
           ${isRotating ? '<div class="part-rotate-badge">↺</div>' : ''}
-        </div>${sliderRow}
+        </div>${sliderRow}${parentRow}
       </div>`;
                     })
                     .join('');
@@ -1051,6 +1088,22 @@
                         draw();
                     });
                     slider.addEventListener('click', e => e.stopPropagation());
+                });
+                list.querySelectorAll('select.part-parent-select').forEach(sel => {
+                    sel.addEventListener('change', e => {
+                        const pid = e.target.dataset.pid;
+                        const val = e.target.value;
+                        const part = state.def.parts?.find(p => p.id === pid);
+                        if (!part) return;
+                        if (val) {
+                            part.parent = val;
+                        } else {
+                            delete part.parent;
+                        }
+                        markDirty();
+                        draw();
+                    });
+                    sel.addEventListener('click', e => e.stopPropagation());
                 });
             }
 
@@ -1456,7 +1509,7 @@
                 const g = grids[lockedQ],
                     gv = gridVs[lockedQ];
 
-                const pid = hitTestPivot(mx, my);
+                const pid = hitTestPivot(mx, my, buildTestParams());
                 if (pid && state.def?.parts?.find(p => p.id === pid)?.rotate) {
                     pivotDrag.active = true;
                     pivotDrag.partId = pid;
@@ -1595,7 +1648,7 @@
                     area.style.cursor = 'grab';
                     return;
                 }
-                if (hitTestPivot(mx, my)) {
+                if (hitTestPivot(mx, my, buildTestParams())) {
                     area.style.cursor = 'ew-resize';
                     return;
                 }

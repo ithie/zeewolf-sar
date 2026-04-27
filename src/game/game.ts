@@ -70,6 +70,7 @@ import {
 import { I18N, localize, onLanguageChange } from './i18n';
 import { mountCookieBanner, notifyConsent } from './ui/cookie-banner/cookie-banner';
 import { mountBriefing, initBriefing, showBriefing as _showBriefing, hideBriefing } from './ui/briefing/briefing';
+import { renderMissionPreview } from '../shared/render-mission-map';
 import { mountSettings, initSettings, toSettings } from './ui/settings/settings';
 import { mountRankup, showRankUp } from './ui/rankup/rankup';
 import { mountMuteButton, refreshMuteButton } from './ui/mute-button/mute-button';
@@ -223,10 +224,20 @@ function triggerCrash(reason: string) {
 }
 
 const showBriefing = () => {
-    const { headline, sublines, briefing, previewBase64 } = campaignHandler.getCurrentMissionData();
+    const { headline, sublines, briefing, objects, night, payloads, foliage } = campaignHandler.getCurrentMissionData();
+    const { terrain, gridSize } = campaignHandler.getTerrain();
     const rank = getRank(_session, _getRankMissions());
     const address = I18N.BRIEFING_ADDRESS(rank.name, _session.playerName).toUpperCase();
-    _showBriefing(headline, sublines, briefing, previewBase64, address);
+    const renderPreview = (canvas: HTMLCanvasElement) =>
+        renderMissionPreview(canvas, {
+            terrain,
+            gridSize,
+            objects,
+            night,
+            payloads,
+            foliage: Array.isArray(foliage) ? foliage : decompressFoliage(foliage as string),
+        });
+    _showBriefing(headline, sublines, briefing, renderPreview, address);
     const briefingSong = campaignHandler.getActiveCampaignMusic().briefing;
     if (briefingSong) soundHandler.play(briefingSong, true);
 };
@@ -569,7 +580,7 @@ const launchMission = async (showLoader = true): Promise<void> => {
     setTouchVisible(true);
 
     if (_lmd.campaignType === 'tutorial') {
-        initTutorial(_selectedMissionIndex, _isTouchDevice(), G);
+        initTutorial(_selectedMissionIndex, _isTouchDevice(), G, missionComplete);
     }
 
     if (!_IS_APP && G.heli.type === 'glider') {
@@ -753,6 +764,11 @@ function drawScene() {
     updateBirds();
     drawBirds(camX, camY);
 
+    // flapRate: vertical climb + horizontal speed (braking from speed → faster flapping)
+    const _flapRate = Math.max(0.5, Math.min(3.0,
+        1.0 + G.heli.vz * 20 + Math.hypot(G.heli.vx, G.heli.vy) * 8
+    ));
+
     // shadow pass
     if (!isNight && !zstate.crashed) {
         drawHeli(
@@ -766,7 +782,7 @@ function drawScene() {
             G.heli.rotationPos,
             camX,
             camY,
-            { isShadow: true, shadowGetGround: (x, y) => getGround(x, y, G.points, G.CARRIER) }
+            { isShadow: true, shadowGetGround: (x, y) => getGround(x, y, G.points, G.CARRIER), flapRate: _flapRate }
         );
         if (G.remoteHeli) {
             drawHeli(
@@ -876,6 +892,7 @@ function drawScene() {
             camY,
             {
                 shadowGetGround: (x, y) => getGround(x, y),
+                flapRate: _flapRate,
                 ...(!_IS_APP && _partyMode ? { fillColor: _partyColors[0], strokeColor: _partyColors[1] } : {}),
             }
         );
@@ -886,7 +903,7 @@ function drawScene() {
 
         // collision box checks + optional debug rendering
         handleCollisionBoxes();
-        if (showCollisionBoxes) drawDebugOverlay(camX, camY);
+        if (!_IS_APP && showCollisionBoxes) drawDebugOverlay(camX, camY);
 
         // hanging payload figures drawn after heli (no rope, that's done above)
         drawPayloadObjects(true, false);
@@ -1037,7 +1054,7 @@ function drawScene() {
 
     if (!_IS_APP && _partyMode) drawDiscoBall();
 
-    updateHeliSound(G.heli.rotorRPM, G.heli.engineOn, G.heli.type, Math.hypot(G.wind.x, G.wind.y));
+    updateHeliSound(G.heli.rotorRPM, G.heli.engineOn, G.heli.type, Math.hypot(G.wind.x, G.wind.y), _flapRate);
     if (isTutorialRunning()) tutorialTick(G);
     _rafId = requestAnimationFrame(drawScene);
 }
@@ -1228,7 +1245,7 @@ function drawVectorCarrier(cx: number, cy: number) {
         {
             tx: 0.2,
             ty: 2.7,
-            ta: 0,
+            ta: Math.PI / 2,
             bc: '#9a7a00',
             bs: '#c8a000',
             bd: '#8a6c00',
@@ -1239,7 +1256,7 @@ function drawVectorCarrier(cx: number, cy: number) {
         {
             tx: 1.4,
             ty: 2.7,
-            ta: 0,
+            ta: Math.PI / 2,
             bc: '#9a7a00',
             bs: '#c8a000',
             bd: '#8a6c00',
@@ -1250,7 +1267,7 @@ function drawVectorCarrier(cx: number, cy: number) {
         {
             tx: 2.8,
             ty: 2.7,
-            ta: 0.25,
+            ta: Math.PI / 2 + 0.25,
             bc: '#888888',
             bs: '#dddddd',
             bd: '#666666',
@@ -1504,12 +1521,14 @@ function renderRain() {
 
 // ─── collision boxes ─────────────────────────────────────────────────────────
 let showCollisionBoxes = false;
-window.addEventListener('keydown', e => {
-    if (e.key === 'c' || e.key === 'C') {
-        showCollisionBoxes = !showCollisionBoxes;
-        SceneRenderer.debugAltitude = showCollisionBoxes;
-    }
-});
+if (!_IS_APP) {
+    window.addEventListener('keydown', e => {
+        if (e.key === 'c' || e.key === 'C') {
+            showCollisionBoxes = !showCollisionBoxes;
+            SceneRenderer.debugAltitude = showCollisionBoxes;
+        }
+    });
+}
 
 // Draw an oriented bounding box in isometric space (debug visual).
 // wX/wY: world center, angle: rotation, ox/oy/oz: local extents min/max
@@ -1771,16 +1790,16 @@ function handleCollisionBoxes() {
             ca = G.CARRIER.angle;
         const deckZ = G.CARRIER.zDeck; // 4.2
 
-        // Flugdeck: rx=Breite(±4.2), ry=Länge(±8.7)
-        if (showCollisionBoxes) drawCollisionBox(cx, cy, ca, -4.2, 4.2, -8.7, 8.7, 0, deckZ, 'rgba(0,200,255,0.8)');
+        // Flugdeck: long axis X (±8.7), short axis Y (±4.2)
+        if (showCollisionBoxes) drawCollisionBox(cx, cy, ca, -8.7, 8.7, -4.2, 4.2, 0, deckZ, 'rgba(0,200,255,0.8)');
 
-        // Tower: ix=2.6(rx), iy=1.0(ry), iw=1.5, il=4.5, ih=2.5
+        // Tower: xMin=-5.5, xMax=-1.0, yMin=2.6, yMax=4.1 (from zdef)
         if (showCollisionBoxes)
-            drawCollisionBox(cx, cy, ca, 2.6, 4.1, 1.0, 5.5, deckZ, deckZ + 2.5, 'rgba(255,80,0,0.9)');
+            drawCollisionBox(cx, cy, ca, -5.5, -1.0, 2.6, 4.1, deckZ, deckZ + 2.5, 'rgba(255,80,0,0.9)');
 
         // Tower-Kollision – nur wenn Heli in der Luft ist
         if (!zstate.introActive && !zstate.crashed && G.heli.inAir) {
-            if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, cx, cy, ca, 2.6, 4.1, 1.0, 5.5, deckZ, deckZ + 2.5)) {
+            if (checkCollisionBox(G.heli.x, G.heli.y, G.heli.z, cx, cy, ca, -5.5, -1.0, 2.6, 4.1, deckZ, deckZ + 2.5)) {
                 _physicsCtx.triggerCrash(I18N.CRASH_CARRIER_TOWER);
             }
         }
@@ -2292,21 +2311,28 @@ window.onkeydown = e => {
 window.onkeyup = e => (G.keys[e.code] = false);
 document.addEventListener('selectstart', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
-// On mobile: render at a larger logical size → canvas is CSS-scaled down → tiles appear smaller → more world visible
-const MOBILE_ZOOM_OUT = 0.8;
-
 const _resizeCanvas = () => {
-    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isMobile) {
-        canvas.width  = Math.round(window.innerWidth  / MOBILE_ZOOM_OUT / 2);
-        canvas.height = Math.round(window.innerHeight / MOBILE_ZOOM_OUT / 2);
+    if (_IS_APP) {
+        // App bundle only: phone 2.0×, tablet (≥600px) 2.5× upscale — webapp path not included
+        const scale = window.innerWidth >= 600 ? 2.5 : 2.0;
+        canvas.width  = Math.round(window.innerWidth  / scale);
+        canvas.height = Math.round(window.innerHeight / scale);
         canvas.style.width  = window.innerWidth  + 'px';
         canvas.style.height = window.innerHeight + 'px';
     } else {
-        canvas.width  = window.innerWidth;
-        canvas.height = window.innerHeight;
-        canvas.style.width  = '';
-        canvas.style.height = '';
+        // Webapp only: mobile 1.6× upscale for performance, desktop 1×
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isMobile) {
+            canvas.width  = Math.round(window.innerWidth  / 0.8 / 2);
+            canvas.height = Math.round(window.innerHeight / 0.8 / 2);
+            canvas.style.width  = window.innerWidth  + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+        } else {
+            canvas.width  = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.style.width  = '';
+            canvas.style.height = '';
+        }
     }
 };
 window.addEventListener('resize', _resizeCanvas);
@@ -2317,9 +2343,11 @@ const _isTouchDevice = () =>
 const setTouchVisible = (v: boolean) => {
     if (!_isTouchDevice()) return;
     const touchEl = document.getElementById('touch-controls');
-    const debugEl = document.getElementById('debug-toggle');
     if (touchEl) touchEl.style.display = v ? 'flex' : 'none';
-    if (debugEl) debugEl.style.display = v ? 'block' : 'none';
+    if (!_IS_APP) {
+        const debugEl = document.getElementById('debug-toggle');
+        if (debugEl) debugEl.style.display = v ? 'block' : 'none';
+    }
 };
 
 const CTRL_MODE_KEY = 'zeewolf-ctrl-mode';
@@ -2453,10 +2481,12 @@ const _setupHeadingJoystick = (id: string) => {
 const setupTouchControls = () => {
     if (!_isTouchDevice()) return;
     mountTouchControls();
-    document.getElementById('debug-toggle')?.addEventListener('click', () => {
-        showCollisionBoxes = !showCollisionBoxes;
-        SceneRenderer.debugAltitude = showCollisionBoxes;
-    });
+    if (!_IS_APP) {
+        document.getElementById('debug-toggle')?.addEventListener('click', () => {
+            showCollisionBoxes = !showCollisionBoxes;
+            SceneRenderer.debugAltitude = showCollisionBoxes;
+        });
+    }
     // pitch wheel (winch)
     initPitchWheel((key, val) => {
         (G.keys as Record<string, boolean>)[key] = val;
@@ -2492,7 +2522,9 @@ const _ensureEl = ensureEl;
 const mountGameOverlays = () => {
     _ensureEl('flash-overlay');
     _ensureEl('msg');
-    _ensureEl('debug-toggle');
+    if (!_IS_APP) {
+        _ensureEl('debug-toggle');
+    }
     if (!_IS_APP) {
         const egg = _ensureEl('easter-egg');
         egg.onclick = () => (window as any).launchEasterEgg?.();
@@ -2520,7 +2552,7 @@ const mountGameScreens = () => {
     heliSelectEl.innerHTML = `
         <div class="title">${I18N.HELI_SELECT_TITLE}</div>
         <div class="subtitle">${I18N.HELI_SELECT_SUB}</div>
-        <div id="heli-options" class="grid-container" style="grid-template-columns: 1fr 1fr 1fr; width: 900px"></div>`;
+        <div id="heli-options" class="grid-container"></div>`;
     heliSelectEl.appendChild(createBackButton(backFromHeliSelect));
 
     document.getElementById('crash-screen')!.innerHTML = `
@@ -2744,7 +2776,7 @@ window.onload = () => {
                 refreshMuteButton(_allMuted());
             },
         });
-        mountWhatsNew();
+        if (!_IS_APP) mountWhatsNew();
         onLanguageChange(_mountScreens);
         setupTouchControls();
         startMenuParticles();
@@ -2754,20 +2786,24 @@ window.onload = () => {
         };
 
         const _afterConsent = () => {
-            const shown = showWhatsNewIfNeeded(_session.lastSeenVersion, () => {
-                _session.lastSeenVersion = I18N.WHATS_NEW_VERSION;
-                saveSession(_session);
-                _showSplash();
-            });
-            if (!shown) {
-                _session.lastSeenVersion = I18N.WHATS_NEW_VERSION;
-                saveSession(_session);
+            if (!_IS_APP) {
+                const shown = showWhatsNewIfNeeded(_session.lastSeenVersion, () => {
+                    _session.lastSeenVersion = I18N.WHATS_NEW_VERSION;
+                    saveSession(_session);
+                    _showSplash();
+                });
+                if (!shown) {
+                    _session.lastSeenVersion = I18N.WHATS_NEW_VERSION;
+                    saveSession(_session);
+                    _showSplash();
+                }
+            } else {
                 _showSplash();
             }
         };
 
         // Show cookie banner if consent not yet given, expired, or privacy notice was updated
-        if (_session.cookieConsent === null || isConsentExpired(_session) || isConsentOutdated(_session)) {
+        if (!_IS_APP && (_session.cookieConsent === null || isConsentExpired(_session) || isConsentOutdated(_session))) {
             _session.cookieConsent = null;
             _session.consentTimestamp = null;
             _session.consentVersion = '';
@@ -2795,11 +2831,13 @@ window.selectMission = selectMission;
 window.startGame = startGame;
 window.setHover = setHover;
 window.toSettings = toSettings;
-window.approveCookies = approveCookies;
-window.declineCookies = declineCookies;
-window.confirmDeleteSession = () => {
-    try {
-        localStorage.removeItem(STORAGE_KEY);
-    } catch {}
-    setTimeout(() => window.location.reload(), 1200);
-};
+if (!_IS_APP) {
+    window.approveCookies = approveCookies;
+    window.declineCookies = declineCookies;
+    window.confirmDeleteSession = () => {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch {}
+        setTimeout(() => window.location.reload(), 1200);
+    };
+}

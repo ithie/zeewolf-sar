@@ -8,6 +8,7 @@ import COASTHAWK_DEF from './models/coasthawk.zdef';
 import DOLPHIN_DEF from './models/dolphin.zdef';
 import ATLAS_DEF from './models/atlas.zdef';
 import GLIDER_DEF from './models/glider.zdef';
+import ORNITHOPTER_RAW from './models/ornithopter.zdef';
 
 const _IS_APP = import.meta.env.VITE_TARGET === 'app';
 
@@ -41,6 +42,8 @@ export interface HeliType {
     description?: string;
     // Minimum rank index required to fly this type (0=Leutnant, 1=Oberleutnant, 2=Hauptmann)
     minRankIndex: number;
+    /** If true, this type is completely hidden in the selection screen when locked (instead of greyed out) */
+    hideWhenLocked?: boolean;
 }
 
 export const HELI_TYPES: HeliType[] = [
@@ -115,6 +118,31 @@ export const HELI_TYPES: HeliType[] = [
         description:
             'Zwei Rotoren, keine Ausrede. Der Atlas ist für den Masseneinsatz gebaut — wenn normale Helikopter kapitulieren, fliegt der Atlas.',
         minRankIndex: 2,
+    },
+    {
+        id: 'ornithopter',
+        label: 'Ornithopter',
+        def: ORNITHOPTER_RAW as unknown as DEF,
+        maxLoad: 2,
+        accel: 0.00145,
+        friction: 0.993,
+        tiltSpeed: 0.045,
+        fuelRate: 0.009,
+        liftPower: 0.00082,
+        cargoResist: 0.25,
+        scale: 0.7,
+        previewScale: 1.8,
+        collisionBox: { xMin: -1.6, xMax: 0.9, yMin: -0.35, yMax: 0.35, zMax: 0.55 },
+        rotorOffsets: [0],
+        extraRotorDebris: false,
+        canCarryCargo: true,
+        selectLabel: 'ORNITHOPTER',
+        selectSub: 'Schläger / Wendig',
+        selectCap: 'Kap.: 2 (Schnelleinsatz)',
+        description:
+            'Ein Flügelschläger der nächsten Generation. Zwei Mann, maximale Wendigkeit. Mit Fracht überraschend schnell — kein Helikopter, kein Flugzeug, etwas dazwischen.',
+        minRankIndex: 3,
+        hideWhenLocked: true,
     },
     ...(!_IS_APP ? [{
         id: 'glider',

@@ -50,8 +50,13 @@ export const drawMenuHeli = () => {
     if (splashVisible) requestAnimationFrame(drawMenuHeli);
 };
 
-export const animateHeliPreviews = () => {
-    if (document.getElementById('heli-select')!.style.display === 'none') return;
+let _previewAnimRunning = false;
+
+const _heliPreviewLoop = () => {
+    if (document.getElementById('heli-select')!.style.display === 'none') {
+        _previewAnimRunning = false;
+        return;
+    }
     HELI_TYPES.forEach(ht => {
         if (_G.menuHover[ht.id]) {
             _G.menuAngles[ht.id] += 0.012;
@@ -72,7 +77,13 @@ export const animateHeliPreviews = () => {
             });
         }
     });
-    requestAnimationFrame(animateHeliPreviews);
+    requestAnimationFrame(_heliPreviewLoop);
+};
+
+export const animateHeliPreviews = () => {
+    if (_previewAnimRunning) return;
+    _previewAnimRunning = true;
+    _heliPreviewLoop();
 };
 
 export const buildHeliSelect = (campaignType: string, rankIndex: number) => {
@@ -83,11 +94,13 @@ export const buildHeliSelect = (campaignType: string, rankIndex: number) => {
     const types = (!_IS_APP && isGlider)
         ? HELI_TYPES.filter(ht => ht.id === 'glider')
         : (!_IS_APP ? HELI_TYPES.filter(ht => ht.id !== 'glider') : HELI_TYPES);
-    container.style.gridTemplateColumns = types.length === 1 ? '1fr' : '1fr 1fr 1fr';
-    container.style.width = types.length === 1 ? '350px' : '900px';
     (document.querySelector('#heli-select .subtitle') as HTMLElement)!.textContent =
         isGlider ? 'FLUGZEUG WÄHLEN' : 'HUBSCHRAUBER WÄHLEN';
-    types.forEach((ht: HeliType) => {
+    const visibleTypes = types.filter((ht: HeliType) => !(ht.hideWhenLocked && ht.minRankIndex > rankIndex));
+    const cols = visibleTypes.length <= 1 ? 1 : visibleTypes.length === 4 ? 2 : 3;
+    container.style.gridTemplateColumns = Array(cols).fill('1fr').join(' ');
+    container.style.width = cols === 1 ? '350px' : cols === 2 ? '600px' : '900px';
+    visibleTypes.forEach((ht: HeliType) => {
         const locked = ht.minRankIndex > rankIndex;
         const div = document.createElement('div');
         div.className = 'grid-box' + (locked ? ' locked' : '');

@@ -39,6 +39,8 @@ export interface DEFPart {
         axis: [number, number, number];
         param: string;
     };
+    /** ID of another part whose rotation is applied before this part's own rotation */
+    parent?: string;
 }
 
 export interface DEF {

@@ -131,13 +131,11 @@ const _DE = {
     CRASH_TREE: 'BAUMKONTAKT',
 
     WHATS_NEW_HEADLINE: 'NEUIGKEITEN',
-    WHATS_NEW_VERSION: 'v25.3.4',
-    WHATS_NEW_TITLE: 'Kampagnen-Progression',
+    WHATS_NEW_VERSION: 'v26.4.0',
+    WHATS_NEW_TITLE: 'iOS App',
     WHATS_NEW_HINT: 'KLICKEN ZUM FORTFAHREN',
     WHATS_NEW_ITEMS: [
-        'Das Tutorial muss abgeschlossen werden, bevor FreeFlight und die reguläre Kampagne zugänglich sind',
-        'Datenschutz-Banner überarbeitet: Zustimmen speichert deinen Fortschritt, Ablehnen spielt ohne Speicherung',
-        'Kippschalter für den Absetz-Modus auf Touch-Geräten',
+        'Jetzt als native iOS App spielbar',
     ],
 
     PILOT_HEADING: 'PROFIL',
@@ -284,13 +282,11 @@ const _EN = {
     CRASH_TREE: 'TREE CONTACT',
 
     WHATS_NEW_HEADLINE: 'WHAT\'S NEW',
-    WHATS_NEW_VERSION: 'v25.3.4',
-    WHATS_NEW_TITLE: 'Campaign Progression',
+    WHATS_NEW_VERSION: 'v26.4.0',
+    WHATS_NEW_TITLE: 'iOS App',
     WHATS_NEW_HINT: 'CLICK TO CONTINUE',
     WHATS_NEW_ITEMS: [
-        'The tutorial must be completed before Free-Flight and the regular campaign become accessible',
-        'Privacy banner reworked: accepting saves your progress, declining plays without persistence',
-        'Rocker switch for deliver mode on touch devices',
+        'Now available as a native iOS app',
     ],
 
     PILOT_HEADING: 'PROFILE',

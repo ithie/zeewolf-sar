@@ -1,6 +1,5 @@
 @media (max-width: 1100px) {
     #heli-options {
-        width: min(900px, 92vw) !important;
-        grid-template-columns: repeat(3, 1fr) !important;
+        max-width: 92vw !important;
     }
 }

@@ -54,7 +54,7 @@ export function getGround(fx: number, fy: number, points = G.points, CARRIER = G
     if (CARRIER && CARRIER.x !== undefined) {
         let local = getCarrierLocal(fx, fy, CARRIER);
         if (local.x >= -CARRIER.w && local.x <= CARRIER.w && local.y >= -CARRIER.l && local.y <= CARRIER.l) {
-            if (local.x > 1.2 && local.y > 1.5 && local.y < 5.0) return CARRIER.zDeck + 1.2;
+            if (local.x > -5.5 && local.x < -1.0 && local.y > 2.6 && local.y < 4.1) return CARRIER.zDeck + 1.2;
             return CARRIER.zDeck;
         }
     }

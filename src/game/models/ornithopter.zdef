@@ -283,6 +283,7 @@
     },
     {
       "id": "wing_L_outer",
+      "parent": "wing_L_inner",
       "rotate": {
         "pivot": [
           -0.25,
@@ -371,6 +372,7 @@
     },
     {
       "id": "wing_R_outer",
+      "parent": "wing_R_inner",
       "rotate": {
         "pivot": [
           -0.25,
