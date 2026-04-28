@@ -12,15 +12,12 @@
   "author": "ithie <michel.peindre@googlemail.com>",
   "license": "MIT",
   "devDependencies": {
-    "cordova-ios": "^8.0.1",
-    "cordova-plugin-statusbar": "^4.0.0"
+    "cordova-ios": "^8.0.1"
   },
   "cordova": {
     "platforms": [
       "ios"
     ],
-    "plugins": {
-      "cordova-plugin-statusbar": {}
-    }
+    "plugins": {}
   }
 }
